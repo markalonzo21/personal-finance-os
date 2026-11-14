@@ -1,0 +1,414 @@
+package com.mcalonzo.personalfinanceos.data.repository
+
+import android.content.Context
+import androidx.room.Room
+import androidx.test.core.app.ApplicationProvider
+import androidx.work.ListenableWorker
+import androidx.work.WorkerFactory
+import androidx.work.WorkerParameters
+import androidx.work.testing.TestListenableWorkerBuilder
+import com.google.common.truth.Truth.assertThat
+import com.mcalonzo.personalfinanceos.data.local.AppDatabase
+import com.mcalonzo.personalfinanceos.data.local.SeedDatabaseCallback
+import com.mcalonzo.personalfinanceos.data.local.entity.LoanEntity
+import com.mcalonzo.personalfinanceos.domain.usecase.MonthRolloverUseCase
+import com.mcalonzo.personalfinanceos.worker.MonthRolloverWorker
+import java.time.LocalDate
+import java.time.YearMonth
+import java.time.ZoneId
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.runTest
+import org.junit.After
+import org.junit.Assert.assertThrows
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+
+@RunWith(RobolectricTestRunner::class)
+class BudgetRepositoryTest {
+
+    private lateinit var db: AppDatabase
+    private lateinit var rolloverUseCase: MonthRolloverUseCase
+    private lateinit var repo: BudgetRepository
+
+    @Before
+    fun setUp() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+            .addCallback(SeedDatabaseCallback({ db }) { YearMonth.of(2026, 11) })
+            .allowMainThreadQueries()
+            .build()
+        rolloverUseCase = MonthRolloverUseCase(db)
+        repo = BudgetRepository(db, rolloverUseCase)
+    }
+
+    @After
+    fun tearDown() {
+        db.close()
+    }
+
+    @Test
+    fun `undoing expense, bill settlement, and loan installment atomically restores prior state`() = runTest {
+        val cycleId = rolloverUseCase(YearMonth.of(2026, 11))
+        val today = LocalDate.of(2026, 11, 14)
+        val initial = repo.observeActiveCycleOverview(YearMonth.of(2026, 11), today).first()
+        val initialSafe = initial.safeToSpendCentavos
+
+        // Variable gas expense & undo
+        val gasUndo = repo.logGasFullTank(cycleId, 43120L, "Petron Fairview Full Tank")
+        val afterGas = repo.observeActiveCycleOverview(YearMonth.of(2026, 11), today).first()
+        assertThat(afterGas.safeToSpendCentavos).isEqualTo(initialSafe - 43120L)
+        assertThat(afterGas.envelopes.first { it.isGasEnvelope }.spentCentavos).isEqualTo(43120L)
+
+        repo.undoAction(gasUndo)
+        val afterGasUndo = repo.observeActiveCycleOverview(YearMonth.of(2026, 11), today).first()
+        assertThat(afterGasUndo.safeToSpendCentavos).isEqualTo(initialSafe)
+        assertThat(afterGasUndo.envelopes.first { it.isGasEnvelope }.spentCentavos).isEqualTo(0L)
+        assertThat(afterGasUndo.transactions).isEmpty()
+
+        // Bill settlement & undo
+        val bill = db.obligationDao().getBillsForCycleOnce(cycleId).first()
+        val billUndo = repo.settleBill(bill.id, overrideAmountCentavos = bill.amountCentavos + 10_000L)
+        val afterBill = repo.observeActiveCycleOverview(YearMonth.of(2026, 11), today).first()
+        assertThat(afterBill.safeToSpendCentavos).isEqualTo(initialSafe - (bill.amountCentavos + 10_000L))
+        assertThat(db.obligationDao().getBillById(bill.id)!!.isPaid).isTrue()
+
+        repo.undoAction(billUndo)
+        val revertedBill = db.obligationDao().getBillById(bill.id)!!
+        assertThat(revertedBill.isPaid).isFalse()
+        assertThat(revertedBill.amountCentavos).isEqualTo(bill.amountCentavos)
+        assertThat(revertedBill.paidAtEpochMs).isNull()
+        assertThat(repo.observeActiveCycleOverview(YearMonth.of(2026, 11), today).first().safeToSpendCentavos)
+            .isEqualTo(initialSafe)
+
+        // Final loan installment -> paidInstallments reaches total, isActive becomes false -> undo restores active & prev cycle
+        val loanId = db.obligationDao().insertLoan(
+            LoanEntity(
+                name = "Short Loan",
+                iconEmoji = "🏦",
+                monthlyAmortizationCentavos = 100_000L,
+                totalInstallments = 1,
+                paidInstallments = 0,
+                dueDayOfMonth = 20,
+                nextDueYearMonth = "2026-11"
+            )
+        )
+        val loanUndo = repo.settleLoan(loanId, cycleId)
+        val settledLoan = db.obligationDao().getLoanById(loanId)!!
+        assertThat(settledLoan.paidInstallments).isEqualTo(1)
+        assertThat(settledLoan.isActive).isFalse()
+        assertThat(settledLoan.nextDueYearMonth).isEqualTo("2026-12")
+        assertThat(settledLoan.lastPaidCycleYearMonth).isEqualTo("2026-11")
+
+        repo.undoAction(loanUndo)
+        val revertedLoan = db.obligationDao().getLoanById(loanId)!!
+        assertThat(revertedLoan.paidInstallments).isEqualTo(0)
+        assertThat(revertedLoan.isActive).isTrue()
+        assertThat(revertedLoan.nextDueYearMonth).isEqualTo("2026-11")
+        assertThat(revertedLoan.lastPaidCycleYearMonth).isNull()
+    }
+
+    @Test
+    fun `rollover creates only target month cycle and clones routine envelopes and bills without backfilling skipped months`() = runTest {
+        val novCycleId = rolloverUseCase(YearMonth.of(2026, 11))
+        val febCycleId = rolloverUseCase(YearMonth.of(2027, 2)) // skipped Dec, Jan
+        val febCycleIdAgain = rolloverUseCase(YearMonth.of(2027, 2)) // idempotent re-entry
+
+        assertThat(febCycleIdAgain).isEqualTo(febCycleId)
+        assertThat(febCycleId).isNotEqualTo(novCycleId)
+
+        val cycles = db.budgetDao().getAllCyclesOnce()
+        assertThat(cycles.map { it.yearMonth }).containsExactly("2027-02", "2026-11")
+
+        val febEnvelopes = db.budgetDao().getEnvelopesForCycleOnce(febCycleId)
+        assertThat(febEnvelopes).hasSize(5)
+        assertThat(febEnvelopes.count { it.isGasEnvelope }).isEqualTo(1)
+        assertThat(febEnvelopes.all { it.spentCentavos == 0L }).isTrue()
+
+        val febBills = db.obligationDao().getBillsForCycleOnce(febCycleId)
+        assertThat(febBills).hasSize(4)
+        assertThat(febBills.all { !it.isPaid }).isTrue()
+    }
+
+    @Test
+    fun `settling active loan shifts amortization from committed loans to spent keeping safeToSpend constant`() = runTest {
+        val cycleId = rolloverUseCase(YearMonth.of(2026, 11))
+        val today = LocalDate.of(2026, 11, 14)
+        val before = repo.observeActiveCycleOverview(YearMonth.of(2026, 11), today).first()
+        assertThat(before.committedUnpaidLoansCentavos).isEqualTo(835_000L) // 485,000 + 350,000
+        assertThat(before.spentSoFarCentavos).isEqualTo(0L)
+        assertThat(before.safeToSpendCentavos).isEqualTo(4_165_000L)
+
+        val hondaLoan = db.obligationDao().getActiveLoansOnce().first { it.name.contains("Honda Click") }
+        repo.settleLoan(hondaLoan.id, cycleId)
+
+        val after = repo.observeActiveCycleOverview(YearMonth.of(2026, 11), today).first()
+        assertThat(after.committedUnpaidLoansCentavos).isEqualTo(350_000L)
+        assertThat(after.spentSoFarCentavos).isEqualTo(485_000L)
+        assertThat(after.safeToSpendCentavos).isEqualTo(before.safeToSpendCentavos)
+
+        val updatedLoan = db.obligationDao().getLoanById(hondaLoan.id)!!
+        assertThat(updatedLoan.paidInstallments).isEqualTo(15)
+        assertThat(updatedLoan.isActive).isTrue()
+        assertThat(updatedLoan.nextDueYearMonth).isEqualTo("2026-12")
+    }
+
+    @Test
+    fun `settleBill updates variable amount, blocks double settlement, and updates overdueBillsCount`() = runTest {
+        val cycleId = rolloverUseCase(YearMonth.of(2026, 11))
+        val today = LocalDate.of(2026, 11, 14)
+        val initial = repo.observeActiveCycleOverview(YearMonth.of(2026, 11), today).first()
+        assertThat(initial.overdueBillsCount).isEqualTo(1) // Converge FiberX due day 11
+
+        val meralco = db.obligationDao().getBillsForCycleOnce(cycleId).first { it.name == "Meralco" }
+        repo.settleBill(meralco.id, overrideAmountCentavos = 425_000L)
+
+        val settledMeralco = db.obligationDao().getBillById(meralco.id)!!
+        assertThat(settledMeralco.isPaid).isTrue()
+        assertThat(settledMeralco.amountCentavos).isEqualTo(425_000L)
+
+        assertThrows(IllegalStateException::class.java) {
+            kotlinx.coroutines.runBlocking {
+                repo.settleBill(meralco.id)
+            }
+        }
+
+        val converge = db.obligationDao().getBillsForCycleOnce(cycleId).first { it.name == "Converge FiberX" }
+        repo.settleBill(converge.id)
+        val afterConverge = repo.observeActiveCycleOverview(YearMonth.of(2026, 11), today).first()
+        assertThat(afterConverge.overdueBillsCount).isEqualTo(0)
+        assertThat(afterConverge.spentSoFarCentavos).isEqualTo(425_000L + 150_000L)
+    }
+
+    @Test
+    fun `deleteTransactionAndRevert reverses envelope expense, bill settlement, and loan settlement`() = runTest {
+        val cycleId = rolloverUseCase(YearMonth.of(2026, 11))
+        val today = LocalDate.of(2026, 11, 14)
+        val groceries = db.budgetDao().getEnvelopesForCycleOnce(cycleId).first { it.name == "Groceries" }
+
+        val expUndo = repo.logExpense(cycleId, groceries.id, 125_000L, "SM Supermarket")
+        assertThat(db.budgetDao().getEnvelopeById(groceries.id)!!.spentCentavos).isEqualTo(125_000L)
+        repo.deleteTransactionAndRevert(expUndo.transactionId)
+        assertThat(db.budgetDao().getEnvelopeById(groceries.id)!!.spentCentavos).isEqualTo(0L)
+
+        val testBillId = repo.insertUnpaidTestBill(cycleId, "Water Utility", 45_000L, 12)
+        val billUndo = repo.settleBill(testBillId)
+        assertThat(db.obligationDao().getBillById(testBillId)!!.isPaid).isTrue()
+        repo.deleteTransactionAndRevert(billUndo.transactionId)
+        val revertedBill = db.obligationDao().getBillById(testBillId)!!
+        assertThat(revertedBill.isPaid).isFalse()
+        assertThat(revertedBill.paidAtEpochMs).isNull()
+
+        val loan = db.obligationDao().getActiveLoansOnce().first()
+        val loanUndo = repo.settleLoan(loan.id, cycleId)
+        repo.deleteTransactionAndRevert(loanUndo.transactionId)
+        val revertedLoan = db.obligationDao().getLoanById(loan.id)!!
+        assertThat(revertedLoan.paidInstallments).isEqualTo(loan.paidInstallments)
+        assertThat(revertedLoan.nextDueYearMonth).isEqualTo("2026-11")
+        assertThat(revertedLoan.isActive).isTrue()
+
+        val endOverview = repo.observeActiveCycleOverview(YearMonth.of(2026, 11), today).first()
+        assertThat(endOverview.transactions).isEmpty()
+        assertThat(endOverview.spentSoFarCentavos).isEqualTo(0L)
+    }
+
+    @Test
+    fun `addEnvelope increments cycle totalBudget and optionally updates baseline routine`() = runTest {
+        val cycleId = rolloverUseCase(YearMonth.of(2026, 11))
+        val today = LocalDate.of(2026, 11, 14)
+        val before = repo.observeActiveCycleOverview(YearMonth.of(2026, 11), today).first()
+
+        repo.addEnvelope(
+            cycleId = cycleId,
+            name = "Medical",
+            iconEmoji = "💊",
+            limitCentavos = 250_000L,
+            colorHex = "#38BDF8",
+            addToRoutine = false
+        )
+        val afterOneOff = repo.observeActiveCycleOverview(YearMonth.of(2026, 11), today).first()
+        assertThat(afterOneOff.totalBudgetCentavos).isEqualTo(before.totalBudgetCentavos + 250_000L)
+        assertThat(afterOneOff.safeToSpendCentavos).isEqualTo(before.safeToSpendCentavos + 250_000L)
+        assertThat(db.routineDao().getEnvelopeTemplatesOnce()).hasSize(5)
+
+        repo.addEnvelope(
+            cycleId = cycleId,
+            name = "Travel",
+            iconEmoji = "✈️",
+            limitCentavos = 300_000L,
+            colorHex = "#10B981",
+            addToRoutine = true
+        )
+        assertThat(db.routineDao().getEnvelopeTemplatesOnce()).hasSize(6)
+        assertThat(db.routineDao().getRoutineTemplateOnce()!!.totalMonthlyBudgetCentavos)
+            .isEqualTo(5_300_000L)
+
+        val decCycleId = rolloverUseCase(YearMonth.of(2026, 12))
+        val decEnvelopes = db.budgetDao().getEnvelopesForCycleOnce(decCycleId)
+        assertThat(decEnvelopes.map { it.name }).contains("Travel")
+        assertThat(decEnvelopes.map { it.name }).doesNotContain("Medical")
+    }
+
+    @Test
+    fun `logGasFullTank falls back cleanly to cycle-level transaction when gas envelope is missing`() = runTest {
+        val cycleId = rolloverUseCase(YearMonth.of(2026, 11))
+        val today = LocalDate.of(2026, 11, 14)
+        val gasEnvelope = db.budgetDao().getGasEnvelopeForCycle(cycleId)!!
+        repo.deleteEnvelope(gasEnvelope.id)
+
+        val before = repo.observeActiveCycleOverview(YearMonth.of(2026, 11), today).first()
+        val undo = repo.logGasFullTank(cycleId, 43120L, "Petron Fairview Full Tank")
+
+        val after = repo.observeActiveCycleOverview(YearMonth.of(2026, 11), today).first()
+        assertThat(after.spentSoFarCentavos).isEqualTo(43120L)
+        assertThat(after.safeToSpendCentavos).isEqualTo(before.safeToSpendCentavos - 43120L)
+        assertThat(after.transactions).hasSize(1)
+        assertThat(after.transactions.first().envelopeId).isNull()
+        assertThat(after.transactions.first().categoryLabel).isEqualTo("Motorcycle Gas")
+        assertThat(after.envelopes.all { it.spentCentavos == 0L }).isTrue()
+
+        repo.undoAction(undo)
+        assertThat(repo.observeActiveCycleOverview(YearMonth.of(2026, 11), today).first().spentSoFarCentavos)
+            .isEqualTo(0L)
+    }
+
+    @Test
+    fun `updateRoutineTemplate preserves bill template IDs and applies to current month only when requested`() = runTest {
+        val novCycleId = rolloverUseCase(YearMonth.of(2026, 11))
+        val envTemplates = db.routineDao().getEnvelopeTemplatesOnce()
+        val billTemplates = db.routineDao().getBillTemplatesOnce()
+        val meralcoTemplate = billTemplates.first { it.name == "Meralco" }
+
+        // Pay Converge in current month and log spend in Groceries
+        val novConverge = db.obligationDao().getBillsForCycleOnce(novCycleId).first { it.name == "Converge FiberX" }
+        repo.settleBill(novConverge.id)
+        val novGroceries = db.budgetDao().getEnvelopesForCycleOnce(novCycleId).first { it.name == "Groceries" }
+        repo.logExpense(novCycleId, novGroceries.id, 100_000L, "Rice & Meat")
+
+        // Edit routine for future cycles only (applyToCurrentMonth = false)
+        val updatedBills = billTemplates.map {
+            if (it.id == meralcoTemplate.id) it.copy(defaultAmountCentavos = 450_000L) else it
+        }
+        repo.updateRoutineTemplate(
+            totalMonthlyBudgetCentavos = 5_500_000L,
+            autoRolloverEnabled = true,
+            envelopeTemplates = envTemplates,
+            billTemplates = updatedBills,
+            applyToCurrentMonth = false,
+            currentCycleMonth = YearMonth.of(2026, 11)
+        )
+
+        val novMeralcoBeforeApply = db.obligationDao().getBillsForCycleOnce(novCycleId).first { it.name == "Meralco" }
+        assertThat(novMeralcoBeforeApply.amountCentavos).isEqualTo(380_000L)
+        assertThat(db.budgetDao().getCycleById(novCycleId)!!.totalBudgetCentavos).isEqualTo(5_000_000L)
+
+        val decCycleId = rolloverUseCase(YearMonth.of(2026, 12))
+        val decMeralco = db.obligationDao().getBillsForCycleOnce(decCycleId).first { it.name == "Meralco" }
+        assertThat(decMeralco.amountCentavos).isEqualTo(450_000L)
+        assertThat(decMeralco.templateGroupId).isEqualTo(meralcoTemplate.id.toString())
+
+        // Now apply routine changes to current month too
+        val updatedEnvelopes = envTemplates.map {
+            if (it.name == "Groceries") it.copy(allocatedLimitCentavos = 1_800_000L) else it
+        }
+        repo.updateRoutineTemplate(
+            totalMonthlyBudgetCentavos = 5_800_000L,
+            autoRolloverEnabled = true,
+            envelopeTemplates = updatedEnvelopes,
+            billTemplates = updatedBills,
+            applyToCurrentMonth = true,
+            currentCycleMonth = YearMonth.of(2026, 11)
+        )
+
+        assertThat(db.budgetDao().getCycleById(novCycleId)!!.totalBudgetCentavos).isEqualTo(5_800_000L)
+        val novGroceriesAfter = db.budgetDao().getEnvelopeById(novGroceries.id)!!
+        assertThat(novGroceriesAfter.allocatedLimitCentavos).isEqualTo(1_800_000L)
+        assertThat(novGroceriesAfter.spentCentavos).isEqualTo(100_000L) // Existing spend preserved!
+        val novConvergeAfter = db.obligationDao().getBillById(novConverge.id)!!
+        assertThat(novConvergeAfter.isPaid).isTrue() // Already-paid bill preserved!
+        val novMeralcoAfter = db.obligationDao().getBillsForCycleOnce(novCycleId).first { it.name == "Meralco" }
+        assertThat(novMeralcoAfter.amountCentavos).isEqualTo(450_000L)
+    }
+
+    @Test
+    fun `MonthRolloverWorker creates current Asia Manila cycle when autoRolloverEnabled is true`() = runTest {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val worker = TestListenableWorkerBuilder<MonthRolloverWorker>(context)
+            .setWorkerFactory(
+                object : WorkerFactory() {
+                    override fun createWorker(
+                        appContext: Context,
+                        workerClassName: String,
+                        workerParameters: WorkerParameters
+                    ): ListenableWorker = MonthRolloverWorker(
+                        appContext = appContext,
+                        workerParams = workerParameters,
+                        monthRolloverUseCase = rolloverUseCase,
+                        routineDao = db.routineDao()
+                    )
+                }
+            )
+            .build()
+
+        val result = worker.doWork()
+        assertThat(result).isEqualTo(ListenableWorker.Result.success())
+        val expectedManilaMonth = YearMonth.now(ZoneId.of("Asia/Manila")).toString()
+        assertThat(db.budgetDao().getCycleByYearMonth(expectedManilaMonth)).isNotNull()
+    }
+
+    @Test
+    fun `envelope, bill, and loan CRUD methods update and delete entities cleanly`() = runTest {
+        val cycleId = rolloverUseCase(YearMonth.of(2026, 11))
+        val today = LocalDate.of(2026, 11, 14)
+
+        val envId = repo.addEnvelope(cycleId, "Pets", "🐶", 200_000L, "#A855F7", addToRoutine = false)
+        repo.updateEnvelopeIcon(envId, "🐱")
+        repo.updateEnvelope(envId, "Cats", "🐱", 250_000L, "#38BDF8")
+        val updatedEnv = db.budgetDao().getEnvelopeById(envId)!!
+        assertThat(updatedEnv.name).isEqualTo("Cats")
+        assertThat(updatedEnv.iconEmoji).isEqualTo("🐱")
+        assertThat(updatedEnv.allocatedLimitCentavos).isEqualTo(250_000L)
+        assertThat(db.budgetDao().getCycleById(cycleId)!!.totalBudgetCentavos).isEqualTo(5_250_000L)
+
+        val billId = repo.addBill(cycleId, "iCloud+", "☁️", 14_900L, 15, addToRoutine = false)
+        repo.updateBill(billId, "iCloud+ 200GB", "☁️", 17_900L, 16)
+        val updatedBill = db.obligationDao().getBillById(billId)!!
+        assertThat(updatedBill.name).isEqualTo("iCloud+ 200GB")
+        assertThat(updatedBill.amountCentavos).isEqualTo(17_900L)
+        assertThat(updatedBill.dueDayOfMonth).isEqualTo(16)
+        repo.deleteBill(billId)
+        assertThat(db.obligationDao().getBillById(billId)).isNull()
+
+        val loanId = repo.addLoan(
+            name = "Gadget Loan",
+            iconEmoji = "📱",
+            monthlyAmortizationCentavos = 150_000L,
+            totalInstallments = 6,
+            paidInstallments = 2,
+            dueDayOfMonth = 18,
+            nextDueYearMonth = YearMonth.of(2026, 11)
+        )
+        repo.updateLoan(
+            loanId = loanId,
+            name = "Phone Installment",
+            iconEmoji = "📲",
+            monthlyAmortizationCentavos = 160_000L,
+            totalInstallments = 6,
+            paidInstallments = 3,
+            dueDayOfMonth = 19,
+            nextDueYearMonth = YearMonth.of(2026, 12)
+        )
+        val updatedLoan = db.obligationDao().getLoanById(loanId)!!
+        assertThat(updatedLoan.name).isEqualTo("Phone Installment")
+        assertThat(updatedLoan.paidInstallments).isEqualTo(3)
+        assertThat(updatedLoan.nextDueYearMonth).isEqualTo("2026-12")
+        assertThat(updatedLoan.isActive).isTrue()
+
+        val overview = repo.observeActiveCycleOverview(YearMonth.of(2026, 11), today).first()
+        assertThat(overview.loans.first { it.loan.id == loanId }.isPaidForCycle).isTrue()
+
+        repo.deleteLoan(loanId)
+        assertThat(db.obligationDao().getLoanById(loanId)).isNull()
+    }
+}
