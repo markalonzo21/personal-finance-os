@@ -30,3 +30,7 @@ hs_err_pid*
 # OS
 .DS_Store
 Thumbs.db
+
+# Agent & Worktree Scratch
+.worktrees/
+.superpowers/
