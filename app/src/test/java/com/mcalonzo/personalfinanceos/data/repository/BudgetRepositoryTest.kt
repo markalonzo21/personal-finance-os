@@ -11,6 +11,8 @@ import com.google.common.truth.Truth.assertThat
 import com.mcalonzo.personalfinanceos.data.local.AppDatabase
 import com.mcalonzo.personalfinanceos.data.local.SeedDatabaseCallback
 import com.mcalonzo.personalfinanceos.data.local.entity.LoanEntity
+import com.mcalonzo.personalfinanceos.data.local.entity.RoutineBillTemplateEntity
+import com.mcalonzo.personalfinanceos.data.local.entity.RoutineEnvelopeTemplateEntity
 import com.mcalonzo.personalfinanceos.domain.usecase.MonthRolloverUseCase
 import com.mcalonzo.personalfinanceos.worker.MonthRolloverWorker
 import java.time.LocalDate
@@ -410,5 +412,231 @@ class BudgetRepositoryTest {
 
         repo.deleteLoan(loanId)
         assertThat(db.obligationDao().getLoanById(loanId)).isNull()
+    }
+
+    @Test
+    fun `updateRoutineTemplate applyToCurrentMonth preserves unpaid bill IDs and cadence flags while syncing additions and removals`() = runTest {
+        val novCycleId = rolloverUseCase(YearMonth.of(2026, 11))
+        val envTemplates = db.routineDao().getEnvelopeTemplatesOnce()
+        val billTemplates = db.routineDao().getBillTemplatesOnce()
+
+        val novBillsBefore = db.obligationDao().getBillsForCycleOnce(novCycleId)
+        val novMeralco = novBillsBefore.first { it.name == "Meralco" }
+        repo.updateBillReminderCadence(
+            billId = novMeralco.id,
+            notify7d = false,
+            notify3d = true,
+            notify1d = false,
+            notifyOnDue = true,
+            notifyDailyOverdue = false
+        )
+
+        val novConverge = novBillsBefore.first { it.name == "Converge FiberX" }
+        repo.settleBill(novConverge.id)
+        val customBillId = repo.addBill(
+            cycleId = novCycleId,
+            name = "One-Off Repair",
+            iconEmoji = "🔧",
+            amountCentavos = 50_000L,
+            dueDayOfMonth = 19,
+            addToRoutine = false
+        )
+
+        val updatedBillTemplates = billTemplates
+            .filterNot { it.name == "Spotify" }
+            .map { template ->
+                when (template.name) {
+                    "Meralco" -> template.copy(
+                        name = "Meralco Power",
+                        iconEmoji = "💡",
+                        defaultAmountCentavos = 460_000L,
+                        dueDayOfMonth = 25
+                    )
+                    "Netflix" -> template.copy(isActive = false)
+                    else -> template
+                }
+            } + RoutineBillTemplateEntity(
+            name = "Water District",
+            iconEmoji = "💧",
+            defaultAmountCentavos = 65_000L,
+            dueDayOfMonth = 15,
+            isActive = true
+        )
+
+        repo.updateRoutineTemplate(
+            totalMonthlyBudgetCentavos = 5_200_000L,
+            autoRolloverEnabled = true,
+            envelopeTemplates = envTemplates,
+            billTemplates = updatedBillTemplates,
+            applyToCurrentMonth = true,
+            currentCycleMonth = YearMonth.of(2026, 11)
+        )
+
+        val novBillsAfter = db.obligationDao().getBillsForCycleOnce(novCycleId)
+        val meralcoAfter = novBillsAfter.first { it.name == "Meralco Power" }
+        assertThat(meralcoAfter.id).isEqualTo(novMeralco.id)
+        assertThat(meralcoAfter.iconEmoji).isEqualTo("💡")
+        assertThat(meralcoAfter.amountCentavos).isEqualTo(460_000L)
+        assertThat(meralcoAfter.dueDayOfMonth).isEqualTo(25)
+        assertThat(meralcoAfter.notify7d).isFalse()
+        assertThat(meralcoAfter.notify3d).isTrue()
+        assertThat(meralcoAfter.notify1d).isFalse()
+        assertThat(meralcoAfter.notifyOnDue).isTrue()
+        assertThat(meralcoAfter.notifyDailyOverdue).isFalse()
+
+        assertThat(novBillsAfter.none { it.name == "Spotify" }).isTrue()
+        assertThat(novBillsAfter.none { it.name == "Netflix" }).isTrue()
+        assertThat(novBillsAfter.first { it.id == novConverge.id }.isPaid).isTrue()
+        assertThat(novBillsAfter.first { it.id == customBillId }.isPaid).isFalse()
+
+        val waterTemplate = db.routineDao().getBillTemplatesOnce().first { it.name == "Water District" }
+        val waterBill = novBillsAfter.first { it.name == "Water District" }
+        assertThat(waterBill.templateGroupId).isEqualTo(waterTemplate.id.toString())
+        assertThat(waterBill.amountCentavos).isEqualTo(65_000L)
+        assertThat(waterBill.isPaid).isFalse()
+    }
+
+    @Test
+    fun `settleLoan blocks duplicate settlement for already-satisfied cycle unless allowAdvancePayment is true`() = runTest {
+        val cycleId = rolloverUseCase(YearMonth.of(2026, 11))
+        val loanId = db.obligationDao().insertLoan(
+            LoanEntity(
+                name = "Overdue Catch-Up Loan",
+                iconEmoji = "🏦",
+                monthlyAmortizationCentavos = 120_000L,
+                totalInstallments = 12,
+                paidInstallments = 1,
+                dueDayOfMonth = 15,
+                nextDueYearMonth = "2026-10"
+            )
+        )
+
+        // First payment catches up 2026-10 -> nextDueYearMonth becomes 2026-11
+        repo.settleLoan(loanId, cycleId)
+        assertThat(db.obligationDao().getLoanById(loanId)!!.nextDueYearMonth).isEqualTo("2026-11")
+
+        // Second payment settles 2026-11 -> nextDueYearMonth becomes 2026-12
+        repo.settleLoan(loanId, cycleId)
+        val settledForCycle = db.obligationDao().getLoanById(loanId)!!
+        assertThat(settledForCycle.paidInstallments).isEqualTo(3)
+        assertThat(settledForCycle.nextDueYearMonth).isEqualTo("2026-12")
+
+        // Duplicate settlement for already-satisfied 2026-11 cycle throws IllegalStateException
+        assertThrows(IllegalStateException::class.java) {
+            kotlinx.coroutines.runBlocking {
+                repo.settleLoan(loanId, cycleId)
+            }
+        }
+        assertThat(db.obligationDao().getLoanById(loanId)!!.paidInstallments).isEqualTo(3)
+        assertThat(db.budgetDao().getTransactionsForCycleOnce(cycleId).count { it.loanId == loanId })
+            .isEqualTo(2)
+
+        // Explicit advance payment succeeds
+        repo.settleLoan(loanId, cycleId, allowAdvancePayment = true)
+        val afterAdvance = db.obligationDao().getLoanById(loanId)!!
+        assertThat(afterAdvance.paidInstallments).isEqualTo(4)
+        assertThat(afterAdvance.nextDueYearMonth).isEqualTo("2027-01")
+    }
+
+    @Test
+    fun `updateRoutineTemplate rejects invalid envelope and bill inputs and trims names`() = runTest {
+        val novCycleId = rolloverUseCase(YearMonth.of(2026, 11))
+        val envTemplates = db.routineDao().getEnvelopeTemplatesOnce()
+        val billTemplates = db.routineDao().getBillTemplatesOnce()
+
+        // Blank envelope name
+        assertThrows(IllegalArgumentException::class.java) {
+            kotlinx.coroutines.runBlocking {
+                repo.updateRoutineTemplate(
+                    totalMonthlyBudgetCentavos = 5_000_000L,
+                    autoRolloverEnabled = true,
+                    envelopeTemplates = envTemplates + RoutineEnvelopeTemplateEntity(
+                        name = "   ",
+                        iconEmoji = "📦",
+                        colorHex = "#38BDF8",
+                        allocatedLimitCentavos = 100_000L,
+                        sortOrder = envTemplates.size
+                    ),
+                    billTemplates = billTemplates
+                )
+            }
+        }
+
+        // Non-positive envelope limit
+        assertThrows(IllegalArgumentException::class.java) {
+            kotlinx.coroutines.runBlocking {
+                repo.updateRoutineTemplate(
+                    totalMonthlyBudgetCentavos = 5_000_000L,
+                    autoRolloverEnabled = true,
+                    envelopeTemplates = listOf(envTemplates.first().copy(allocatedLimitCentavos = 0L)),
+                    billTemplates = billTemplates
+                )
+            }
+        }
+
+        // Blank bill name
+        assertThrows(IllegalArgumentException::class.java) {
+            kotlinx.coroutines.runBlocking {
+                repo.updateRoutineTemplate(
+                    totalMonthlyBudgetCentavos = 5_000_000L,
+                    autoRolloverEnabled = true,
+                    envelopeTemplates = envTemplates,
+                    billTemplates = billTemplates + RoutineBillTemplateEntity(
+                        name = " \t ",
+                        iconEmoji = "🧾",
+                        defaultAmountCentavos = 50_000L,
+                        dueDayOfMonth = 10
+                    )
+                )
+            }
+        }
+
+        // Non-positive bill amount
+        assertThrows(IllegalArgumentException::class.java) {
+            kotlinx.coroutines.runBlocking {
+                repo.updateRoutineTemplate(
+                    totalMonthlyBudgetCentavos = 5_000_000L,
+                    autoRolloverEnabled = true,
+                    envelopeTemplates = envTemplates,
+                    billTemplates = listOf(billTemplates.first().copy(defaultAmountCentavos = -500L))
+                )
+            }
+        }
+
+        // Due day outside 1..31
+        for (invalidDay in listOf(0, 32)) {
+            assertThrows(IllegalArgumentException::class.java) {
+                kotlinx.coroutines.runBlocking {
+                    repo.updateRoutineTemplate(
+                        totalMonthlyBudgetCentavos = 5_000_000L,
+                        autoRolloverEnabled = true,
+                        envelopeTemplates = envTemplates,
+                        billTemplates = listOf(billTemplates.first().copy(dueDayOfMonth = invalidDay))
+                    )
+                }
+            }
+        }
+
+        // Valid input with surrounding whitespace trims stored names
+        val untrimmedEnvelopes = envTemplates.mapIndexed { idx, item ->
+            if (idx == 0) item.copy(name = "  Groceries  ") else item
+        }
+        val untrimmedBills = billTemplates.mapIndexed { idx, item ->
+            if (idx == 0) item.copy(name = "  Converge FiberX  ") else item
+        }
+        repo.updateRoutineTemplate(
+            totalMonthlyBudgetCentavos = 5_000_000L,
+            autoRolloverEnabled = true,
+            envelopeTemplates = untrimmedEnvelopes,
+            billTemplates = untrimmedBills,
+            applyToCurrentMonth = true,
+            currentCycleMonth = YearMonth.of(2026, 11)
+        )
+
+        assertThat(db.routineDao().getEnvelopeTemplatesOnce().first().name).isEqualTo("Groceries")
+        assertThat(db.routineDao().getBillTemplatesOnce().first { it.id == untrimmedBills.first().id }.name)
+            .isEqualTo("Converge FiberX")
+        assertThat(db.obligationDao().getBillsForCycleOnce(novCycleId).any { it.name == "Converge FiberX" })
+            .isTrue()
     }
 }

@@ -229,7 +229,11 @@ class BudgetRepository @Inject constructor(
         }
     }
 
-    suspend fun settleLoan(loanId: Long, cycleId: Long): UndoAction {
+    suspend fun settleLoan(
+        loanId: Long,
+        cycleId: Long,
+        allowAdvancePayment: Boolean = false
+    ): UndoAction {
         return db.withTransaction {
             val loan = obligationDao.getLoanById(loanId)
                 ?: throw IllegalArgumentException("Loan $loanId not found")
@@ -237,6 +241,12 @@ class BudgetRepository @Inject constructor(
                 ?: throw IllegalArgumentException("Budget cycle $cycleId not found")
             check(loan.isActive && loan.paidInstallments < loan.totalInstallments) {
                 "Loan ${loan.id} (${loan.name}) is already completed or inactive"
+            }
+            check(
+                allowAdvancePayment ||
+                    !YearMonth.parse(loan.nextDueYearMonth).isAfter(YearMonth.parse(cycle.yearMonth))
+            ) {
+                "Loan ${loan.id} (${loan.name}) is already settled for cycle ${cycle.yearMonth}"
             }
 
             val updatedPaid = loan.paidInstallments + 1
@@ -689,6 +699,25 @@ class BudgetRepository @Inject constructor(
         currentCycleMonth: YearMonth = YearMonth.now(MANILA_ZONE)
     ) {
         require(totalMonthlyBudgetCentavos >= 0L) { "Monthly budget cannot be negative" }
+        val validatedEnvelopes = envelopeTemplates.map { envelope ->
+            val trimmedName = envelope.name.trim()
+            require(trimmedName.isNotEmpty()) { "Envelope template name cannot be blank" }
+            require(envelope.allocatedLimitCentavos > 0L) {
+                "Envelope template limit must be positive"
+            }
+            envelope.copy(name = trimmedName)
+        }
+        val validatedBills = billTemplates.map { bill ->
+            val trimmedName = bill.name.trim()
+            require(trimmedName.isNotEmpty()) { "Bill template name cannot be blank" }
+            require(bill.defaultAmountCentavos > 0L) {
+                "Bill template default amount must be positive"
+            }
+            require(bill.dueDayOfMonth in 1..31) {
+                "Bill template due day must be in 1..31"
+            }
+            bill.copy(name = trimmedName)
+        }
 
         db.withTransaction {
             routineDao.upsertRoutineTemplate(
@@ -700,8 +729,8 @@ class BudgetRepository @Inject constructor(
                 )
             )
 
-            syncEnvelopeTemplatesInPlace(envelopeTemplates)
-            syncBillTemplatesInPlace(billTemplates)
+            syncEnvelopeTemplatesInPlace(validatedEnvelopes)
+            syncBillTemplatesInPlace(validatedBills)
 
             if (applyToCurrentMonth) {
                 applyRoutineToCycle(currentCycleMonth, totalMonthlyBudgetCentavos)
@@ -803,18 +832,37 @@ class BudgetRepository @Inject constructor(
             .forEach { budgetDao.deleteEnvelopeById(it.id) }
 
         val savedActiveBills = routineDao.getActiveBillTemplatesOnce()
+        val activeBillsByGroupId = savedActiveBills.associateBy { it.id.toString() }
         val currentBills = obligationDao.getBillsForCycleOnce(existingCycle.id)
-        currentBills
-            .filter {
-                !it.isPaid &&
-                    !it.templateGroupId.startsWith("custom_") &&
-                    !it.templateGroupId.startsWith("test_")
-            }
-            .forEach { obligationDao.deleteBillById(it.id) }
+        val presentGroupIds = mutableSetOf<String>()
 
-        val paidGroupIds = currentBills.filter { it.isPaid }.map { it.templateGroupId }.toSet()
+        currentBills.forEach { existing ->
+            val isRoutineBill = !existing.templateGroupId.startsWith("custom_") &&
+                !existing.templateGroupId.startsWith("test_")
+            if (!isRoutineBill) return@forEach
+
+            if (existing.isPaid) {
+                presentGroupIds.add(existing.templateGroupId)
+            } else {
+                val template = activeBillsByGroupId[existing.templateGroupId]
+                if (template != null) {
+                    presentGroupIds.add(existing.templateGroupId)
+                    obligationDao.updateBill(
+                        existing.copy(
+                            name = template.name,
+                            iconEmoji = template.iconEmoji,
+                            amountCentavos = template.defaultAmountCentavos,
+                            dueDayOfMonth = template.dueDayOfMonth
+                        )
+                    )
+                } else {
+                    obligationDao.deleteBillById(existing.id)
+                }
+            }
+        }
+
         val billsToInsert = savedActiveBills
-            .filter { it.id.toString() !in paidGroupIds }
+            .filter { it.id.toString() !in presentGroupIds }
             .map { template ->
                 BillEntity(
                     cycleId = existingCycle.id,
