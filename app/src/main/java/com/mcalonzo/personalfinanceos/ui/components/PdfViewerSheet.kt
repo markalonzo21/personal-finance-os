@@ -527,6 +527,7 @@ private fun PdfPagesViewport(
     var offset by remember(localPath) { mutableStateOf(Offset.Zero) }
     var viewportSize by remember { mutableStateOf(IntSize.Zero) }
     var isMultiTouch by remember(localPath) { mutableStateOf(false) }
+    val activePages = remember(localPath) { mutableSetOf<Int>() }
 
     Box(
         modifier = modifier
@@ -579,16 +580,30 @@ private fun PdfPagesViewport(
             items(count = pageCount, key = { it }) { pageIndex ->
                 val bitmap = renderedPages[pageIndex]
                 val hasFailed = failedPages[pageIndex] == true
+                val needsRender = bitmap == null && !hasFailed
 
-                LaunchedEffect(session, pageIndex) {
-                    if (session != null && bitmap == null && !hasFailed) {
+                DisposableEffect(session, pageIndex) {
+                    activePages.add(pageIndex)
+                    onDispose { activePages.remove(pageIndex) }
+                }
+
+                LaunchedEffect(session, pageIndex, needsRender) {
+                    if (session != null && needsRender) {
                         val rendered = session.renderPage(pageIndex)
                         if (rendered != null) {
-                            if (renderedPages.size >= MAX_CACHED_PAGES) {
-                                val farthestKey = renderedPages.keys.maxByOrNull { abs(it - pageIndex) }
-                                if (farthestKey != null && farthestKey != pageIndex) {
-                                    renderedPages.remove(farthestKey)
-                                }
+                            val visibleIndices = listState.layoutInfo.visibleItemsInfo
+                                .mapTo(HashSet()) { it.index }
+                            while (renderedPages.size >= MAX_CACHED_PAGES) {
+                                val farthestOffscreenKey = renderedPages.keys
+                                    .asSequence()
+                                    .filter {
+                                        it != pageIndex &&
+                                            it !in visibleIndices &&
+                                            it !in activePages
+                                    }
+                                    .maxByOrNull { abs(it - pageIndex) }
+                                    ?: break
+                                renderedPages.remove(farthestOffscreenKey)
                             }
                             renderedPages[pageIndex] = rendered
                         } else {

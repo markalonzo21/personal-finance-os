@@ -30,10 +30,12 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -97,44 +99,60 @@ class BudgetRepository(
     suspend fun attachSoaPdf(
         cycleId: Long,
         yearMonth: String,
-        uri: Uri,
-        contextOverride: Context? = null,
-        storageOverride: SoaStorageManager? = null
+        uri: Uri
     ): StoredSoaFile {
         SoaStorageManager.validateYearMonth(yearMonth)
-        val resolvedContext = contextOverride ?: appContext
+        val resolvedContext = appContext
             ?: throw IllegalStateException("Application context is required to attach SOA PDF")
-        val resolvedStorage = storageOverride ?: soaStorageManager
+        val resolvedStorage = soaStorageManager
             ?: SoaStorageManager(File(resolvedContext.filesDir, "soa"))
 
         val cycle = budgetDao.getCycleById(cycleId)
             ?: throw IllegalArgumentException("Budget cycle $cycleId not found")
 
-        val stored = withContext(Dispatchers.IO) {
-            val contentResolver = resolvedContext.contentResolver
-            val displayName = resolveSoaDisplayName(
-                contentResolver = contentResolver,
-                uri = uri,
-                fallback = "SOA_${yearMonth}.pdf"
-            )
-            val inputStream = contentResolver.openInputStream(uri)
-                ?: throw IOException("Unable to open SOA PDF stream for $uri")
-            inputStream.use { stream ->
-                resolvedStorage.saveOrReplaceSoa(
-                    yearMonth = yearMonth,
-                    inputStream = stream,
-                    originalFileName = displayName,
-                    previousLocalPath = cycle.soaPdfLocalUri
+        val savedFileRef = AtomicReference<StoredSoaFile?>(null)
+        val stored = try {
+            val saved = withContext(Dispatchers.IO) {
+                val contentResolver = resolvedContext.contentResolver
+                val displayName = resolveSoaDisplayName(
+                    contentResolver = contentResolver,
+                    uri = uri,
+                    fallback = "SOA_${yearMonth}.pdf"
                 )
+                val inputStream = contentResolver.openInputStream(uri)
+                    ?: throw IOException("Unable to open SOA PDF stream for $uri")
+                inputStream.use { stream ->
+                    resolvedStorage.saveOrReplaceSoa(
+                        yearMonth = yearMonth,
+                        inputStream = stream,
+                        originalFileName = displayName,
+                        previousLocalPath = null
+                    ).also { savedFileRef.set(it) }
+                }
             }
+
+            budgetDao.updateCycleSoa(
+                cycleId = cycleId,
+                localUri = saved.localPath,
+                fileName = saved.fileName,
+                uploadedAtEpochMs = saved.savedAtEpochMs
+            )
+            saved
+        } catch (t: Throwable) {
+            withContext(NonCancellable + Dispatchers.IO) {
+                savedFileRef.get()?.let { orphan ->
+                    resolvedStorage.deleteManagedFileIfSafe(orphan.localPath)
+                }
+            }
+            throw t
         }
 
-        budgetDao.updateCycleSoa(
-            cycleId = cycleId,
-            localUri = stored.localPath,
-            fileName = stored.fileName,
-            uploadedAtEpochMs = stored.savedAtEpochMs
-        )
+        withContext(NonCancellable + Dispatchers.IO) {
+            resolvedStorage.deleteManagedFileIfSafe(
+                localPath = cycle.soaPdfLocalUri,
+                excludePath = stored.localPath
+            )
+        }
         return stored
     }
 

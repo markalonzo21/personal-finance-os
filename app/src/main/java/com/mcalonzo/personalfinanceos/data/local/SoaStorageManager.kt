@@ -74,7 +74,7 @@ class SoaStorageManager(
             }
         }
 
-        deletePreviousIfSafe(previousLocalPath, targetFile)
+        deleteManagedFileIfSafe(previousLocalPath, excludePath = targetFile.absolutePath)
 
         return StoredSoaFile(
             localPath = targetFile.absolutePath,
@@ -109,18 +109,24 @@ class SoaStorageManager(
         }
     }
 
-    private fun deletePreviousIfSafe(previousLocalPath: String?, newFile: File) {
-        if (previousLocalPath.isNullOrBlank()) return
+    /**
+     * Deletes [localPath] only when it resolves to a regular file directly inside
+     * [storageDir] and does not match [excludePath].
+     */
+    fun deleteManagedFileIfSafe(localPath: String?, excludePath: String? = null) {
+        if (localPath.isNullOrBlank()) return
         runCatching {
             val canonicalStorageDir = storageDir.canonicalFile
-            val previousFile = File(previousLocalPath).canonicalFile
-            val canonicalNewFile = newFile.canonicalFile
+            val targetFile = File(localPath).canonicalFile
+            val canonicalExclude = excludePath
+                ?.takeIf { it.isNotBlank() }
+                ?.let { File(it).canonicalFile }
             if (
-                previousFile != canonicalNewFile &&
-                previousFile.parentFile == canonicalStorageDir &&
-                previousFile.isFile
+                targetFile != canonicalExclude &&
+                targetFile.parentFile == canonicalStorageDir &&
+                targetFile.isFile
             ) {
-                previousFile.delete()
+                targetFile.delete()
             }
         }
     }

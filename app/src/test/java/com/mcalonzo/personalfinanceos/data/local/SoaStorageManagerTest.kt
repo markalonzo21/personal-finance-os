@@ -5,6 +5,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.Cursor
 import android.database.MatrixCursor
+import android.database.sqlite.SQLiteException
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.provider.OpenableColumns
@@ -18,6 +19,8 @@ import java.io.File
 import java.io.IOException
 import java.io.InputStream
 import java.time.YearMonth
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertThrows
@@ -40,16 +43,20 @@ class SoaStorageManagerTest {
 
     private lateinit var context: Context
     private lateinit var db: AppDatabase
+    private lateinit var soaDir: File
+    private lateinit var storageManager: SoaStorageManager
     private lateinit var repo: BudgetRepository
 
     @Before
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
+        soaDir = tempFolder.newFolder("repo_soa")
+        storageManager = SoaStorageManager(soaDir)
         db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .addCallback(SeedDatabaseCallback({ db }) { YearMonth.of(2026, 11) })
             .allowMainThreadQueries()
             .build()
-        repo = BudgetRepository(db, MonthRolloverUseCase(db))
+        repo = BudgetRepository(db, MonthRolloverUseCase(db), storageManager, context)
     }
 
     @After
@@ -168,9 +175,7 @@ class SoaStorageManagerTest {
     }
 
     @Test
-    fun `attachSoaPdf updates BudgetCycleEntity and preserves old PDF on stream failure`() = runTest {
-        val soaDir = tempFolder.newFolder("repo_soa")
-        val manager = SoaStorageManager(soaDir)
+    fun `attachSoaPdf via Inject constructor updates BudgetCycleEntity and preserves old PDF on stream failure`() = runTest {
         val cycleId = db.budgetDao().insertCycle(
             BudgetCycleEntity(
                 yearMonth = "2026-11",
@@ -192,12 +197,12 @@ class SoaStorageManagerTest {
         val firstStored = repo.attachSoaPdf(
             cycleId = cycleId,
             yearMonth = "2026-11",
-            uri = firstUri,
-            contextOverride = context,
-            storageOverride = manager
+            uri = firstUri
         )
 
         assertThat(firstStored.fileName).isEqualTo("BPI_2026_11.pdf")
+        assertThat(File(firstStored.localPath).canonicalFile.parentFile)
+            .isEqualTo(soaDir.canonicalFile)
         assertThat(File(firstStored.localPath).exists()).isTrue()
         assertThat(File(firstStored.localPath).readText()).isEqualTo("%PDF-1.4 cycle-1")
 
@@ -218,9 +223,7 @@ class SoaStorageManagerTest {
             repo.attachSoaPdf(
                 cycleId = cycleId,
                 yearMonth = "2026-11",
-                uri = failingUri,
-                contextOverride = context,
-                storageOverride = manager
+                uri = failingUri
             )
             fail("Expected IOException when stream fails")
         } catch (_: IOException) {
@@ -240,12 +243,12 @@ class SoaStorageManagerTest {
         val secondStored = repo.attachSoaPdf(
             cycleId = cycleId,
             yearMonth = "2026-11",
-            uri = secondUri,
-            contextOverride = context,
-            storageOverride = manager
+            uri = secondUri
         )
 
         assertThat(secondStored.fileName).isEqualTo("SOA_2026-11.pdf")
+        assertThat(File(secondStored.localPath).canonicalFile.parentFile)
+            .isEqualTo(soaDir.canonicalFile)
         assertThat(File(secondStored.localPath).exists()).isTrue()
         assertThat(File(secondStored.localPath).readText()).isEqualTo("%PDF-1.4 cycle-2")
         assertThat(File(firstStored.localPath).exists()).isFalse()
@@ -254,6 +257,113 @@ class SoaStorageManagerTest {
         assertThat(cycleAfterSecond.soaPdfLocalUri).isEqualTo(secondStored.localPath)
         assertThat(cycleAfterSecond.soaFileName).isEqualTo("SOA_2026-11.pdf")
         assertThat(cycleAfterSecond.soaUploadedAtEpochMs).isEqualTo(secondStored.savedAtEpochMs)
+    }
+
+    @Test
+    fun `attachSoaPdf preserves previous PDF and deletes orphaned new PDF when updateCycleSoa fails`() = runTest {
+        val cycleId = db.budgetDao().insertCycle(
+            BudgetCycleEntity(
+                yearMonth = "2026-11",
+                totalBudgetCentavos = 500_000L,
+                createdAtEpochMs = 1_000L
+            )
+        )
+
+        val initialUri = Uri.parse("content://com.mcalonzo.personalfinanceos.test.db/initial")
+        Shadows.shadowOf(context.contentResolver)
+            .registerInputStream(initialUri, "%PDF-1.4 initial".byteInputStream())
+        val initialStored = repo.attachSoaPdf(
+            cycleId = cycleId,
+            yearMonth = "2026-11",
+            uri = initialUri
+        )
+        assertThat(File(initialStored.localPath).exists()).isTrue()
+
+        db.openHelper.writableDatabase.execSQL(
+            """
+            CREATE TRIGGER fail_soa_update BEFORE UPDATE OF soaPdfLocalUri ON budget_cycles
+            BEGIN
+                SELECT RAISE(ABORT, 'Simulated DB failure');
+            END;
+            """.trimIndent()
+        )
+
+        val replacementUri = Uri.parse("content://com.mcalonzo.personalfinanceos.test.db/replacement")
+        Shadows.shadowOf(context.contentResolver)
+            .registerInputStream(replacementUri, "%PDF-1.4 replacement".byteInputStream())
+
+        try {
+            repo.attachSoaPdf(
+                cycleId = cycleId,
+                yearMonth = "2026-11",
+                uri = replacementUri
+            )
+            fail("Expected SQLiteException when updateCycleSoa fails")
+        } catch (_: SQLiteException) {
+            // Expected
+        }
+
+        assertThat(File(initialStored.localPath).exists()).isTrue()
+        assertThat(File(initialStored.localPath).readText()).isEqualTo("%PDF-1.4 initial")
+        assertThat(soaDir.listFiles()?.map { it.name })
+            .containsExactly(File(initialStored.localPath).name)
+
+        val cycleAfterFailure = db.budgetDao().getCycleById(cycleId)!!
+        assertThat(cycleAfterFailure.soaPdfLocalUri).isEqualTo(initialStored.localPath)
+        assertThat(cycleAfterFailure.soaUploadedAtEpochMs).isEqualTo(initialStored.savedAtEpochMs)
+    }
+
+    @Test
+    fun `attachSoaPdf preserves previous PDF and deletes orphaned new PDF when cancelled before Room commit`() = runTest {
+        val cycleId = db.budgetDao().insertCycle(
+            BudgetCycleEntity(
+                yearMonth = "2026-11",
+                totalBudgetCentavos = 500_000L,
+                createdAtEpochMs = 1_000L
+            )
+        )
+
+        val initialUri = Uri.parse("content://com.mcalonzo.personalfinanceos.test.cancel/initial")
+        Shadows.shadowOf(context.contentResolver)
+            .registerInputStream(initialUri, "%PDF-1.4 initial-cancel".byteInputStream())
+        val initialStored = repo.attachSoaPdf(
+            cycleId = cycleId,
+            yearMonth = "2026-11",
+            uri = initialUri
+        )
+
+        val cancelUri = Uri.parse("content://com.mcalonzo.personalfinanceos.test.cancel/replacement")
+        var jobRef: Job? = null
+        val payload = "%PDF-1.4 cancelled".toByteArray()
+        val cancellingStream = object : InputStream() {
+            private var index = 0
+            override fun read(): Int {
+                if (index < payload.size) {
+                    return payload[index++].toInt() and 0xFF
+                }
+                jobRef?.cancel()
+                return -1
+            }
+        }
+        Shadows.shadowOf(context.contentResolver).registerInputStream(cancelUri, cancellingStream)
+
+        val launched = launch {
+            repo.attachSoaPdf(
+                cycleId = cycleId,
+                yearMonth = "2026-11",
+                uri = cancelUri
+            )
+        }
+        jobRef = launched
+        launched.join()
+
+        assertThat(launched.isCancelled).isTrue()
+        assertThat(File(initialStored.localPath).exists()).isTrue()
+        assertThat(File(initialStored.localPath).readText()).isEqualTo("%PDF-1.4 initial-cancel")
+        assertThat(soaDir.listFiles()?.map { it.name })
+            .containsExactly(File(initialStored.localPath).name)
+        val cycleAfterCancel = db.budgetDao().getCycleById(cycleId)!!
+        assertThat(cycleAfterCancel.soaPdfLocalUri).isEqualTo(initialStored.localPath)
     }
 
     class FakeSoaContentProvider : ContentProvider() {
