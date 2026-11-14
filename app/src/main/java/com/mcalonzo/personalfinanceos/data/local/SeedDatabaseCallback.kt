@@ -4,14 +4,22 @@ import android.content.ContentValues
 import android.database.sqlite.SQLiteDatabase
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
+import java.time.YearMonth
+import java.time.ZoneId
 
 /**
  * Populates initial Philippine Peso routine, obligations, Honda Click 160 profile,
  * PMS schedule, and Petron Fairview fuel baseline synchronously during database creation.
  */
 class SeedDatabaseCallback(
-    @Suppress("unused") private val dbProvider: () -> AppDatabase
+    @Suppress("unused") private val dbProvider: () -> AppDatabase,
+    private val yearMonthProvider: () -> YearMonth
 ) : RoomDatabase.Callback() {
+
+    constructor(dbProvider: () -> AppDatabase) : this(
+        dbProvider = dbProvider,
+        yearMonthProvider = { YearMonth.now(ZoneId.of("Asia/Manila")) }
+    )
 
     override fun onCreate(db: SupportSQLiteDatabase) {
         super.onCreate(db)
@@ -82,6 +90,7 @@ class SeedDatabaseCallback(
     }
 
     private fun seedInitialLoans(db: SupportSQLiteDatabase) {
+        val initialDueYearMonth = yearMonthProvider().toString()
         val loans = listOf(
             LoanSeed(
                 name = "Honda Click 160 Loan",
@@ -90,7 +99,7 @@ class SeedDatabaseCallback(
                 totalInstallments = 24,
                 paidInstallments = 14,
                 dueDayOfMonth = 20,
-                nextDueYearMonth = "2026-11"
+                nextDueYearMonth = initialDueYearMonth
             ),
             LoanSeed(
                 name = "Personal Bank Loan",
@@ -99,7 +108,7 @@ class SeedDatabaseCallback(
                 totalInstallments = 12,
                 paidInstallments = 6,
                 dueDayOfMonth = 25,
-                nextDueYearMonth = "2026-11"
+                nextDueYearMonth = initialDueYearMonth
             )
         )
         loans.forEach { loan ->
