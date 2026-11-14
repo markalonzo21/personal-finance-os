@@ -1,0 +1,32 @@
+# Gradle & Android Studio
+*.apk
+*.ap_
+*.aab
+*.dex
+*.class
+bin/
+gen/
+out/
+release/
+build/
+.gradle/
+local.properties
+*.iml
+.idea/
+captures/
+.externalNativeBuild/
+.cxx/
+.navigation/
+
+# Kotlin & Logs
+*.hprof
+*.log
+hs_err_pid*
+
+# Keystore & Secrets
+*.jks
+*.keystore
+
+# OS
+.DS_Store
+Thumbs.db
