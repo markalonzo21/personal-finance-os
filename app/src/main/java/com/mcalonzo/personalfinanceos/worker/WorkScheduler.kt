@@ -1,13 +1,13 @@
 package com.mcalonzo.personalfinanceos.worker
 
 import androidx.work.Constraints
+import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
-import androidx.work.workDataOf
 import java.time.DayOfWeek
 import java.time.Duration
 import java.time.LocalTime
@@ -98,13 +98,23 @@ object WorkScheduler {
         )
     }
 
-    fun scheduleSnoozeReminder(workManager: WorkManager, itemKey: String) {
+    fun scheduleSnoozeReminder(
+        workManager: WorkManager,
+        itemKey: String,
+        expectedDueYearMonth: String? = null
+    ) {
         val normalizedKey = itemKey.trim()
         if (normalizedKey.isEmpty()) return
 
+        val inputDataBuilder = Data.Builder()
+            .putString(DueReminderWorker.INPUT_ITEM_KEY, normalizedKey)
+        expectedDueYearMonth?.trim()?.takeIf { it.isNotEmpty() }?.let { dueYearMonth ->
+            inputDataBuilder.putString(DueReminderWorker.INPUT_EXPECTED_DUE_YEAR_MONTH, dueYearMonth)
+        }
+
         val request = OneTimeWorkRequestBuilder<DueReminderWorker>()
             .setInitialDelay(1, TimeUnit.HOURS)
-            .setInputData(workDataOf(DueReminderWorker.INPUT_ITEM_KEY to normalizedKey))
+            .setInputData(inputDataBuilder.build())
             .build()
 
         workManager.enqueueUniqueWork(

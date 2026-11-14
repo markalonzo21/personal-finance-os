@@ -44,7 +44,10 @@ class NotificationActionReceiver : BroadcastReceiver() {
     private fun handlePayNow(appContext: Context, intent: Intent, notificationId: Int) {
         val entityType = intent.getStringExtra(EXTRA_ENTITY_TYPE)
         val entityId = intent.getLongExtra(EXTRA_ENTITY_ID, -1L)
-        val extraCycleId = intent.getLongExtra(EXTRA_CYCLE_ID, -1L)
+        val expectedDueMonth = intent.getStringExtra(EXTRA_DUE_YEAR_MONTH)
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { rawMonth -> runCatching { YearMonth.parse(rawMonth) }.getOrNull() }
         val pendingResult: PendingResult? = goAsync()
         val dispatcher = testDispatcherOverride ?: Dispatchers.IO
 
@@ -63,13 +66,11 @@ class NotificationActionReceiver : BroadcastReceiver() {
 
                         ENTITY_TYPE_LOAN -> {
                             val today = testTodayProvider?.invoke() ?: LocalDate.now(MANILA_ZONE)
-                            val cycleId = if (extraCycleId > 0L) {
-                                extraCycleId
-                            } else {
-                                repo.getOrCreateCycleId(YearMonth.from(today))
-                            }
+                            val activeMonth = YearMonth.from(today)
+                            val targetMonth = expectedDueMonth?.let { maxOf(activeMonth, it) }
+                                ?: activeMonth
                             settleIgnoringAlreadyPaid {
-                                repo.settleLoan(entityId, cycleId)
+                                repo.settleLoan(entityId, repo.getOrCreateCycleId(targetMonth))
                             }
                         }
                     }
@@ -95,12 +96,19 @@ class NotificationActionReceiver : BroadcastReceiver() {
                     null
                 }
             }
+        val expectedDueYearMonth = intent.getStringExtra(EXTRA_DUE_YEAR_MONTH)
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
 
         if (notificationId != -1) {
             NotificationHelper.cancelNotification(appContext, notificationId)
         }
         if (itemKey != null) {
-            WorkScheduler.scheduleSnoozeReminder(WorkManager.getInstance(appContext), itemKey)
+            WorkScheduler.scheduleSnoozeReminder(
+                workManager = WorkManager.getInstance(appContext),
+                itemKey = itemKey,
+                expectedDueYearMonth = expectedDueYearMonth
+            )
         }
     }
 
@@ -122,7 +130,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
         const val EXTRA_ENTITY_ID = "extra_entity_id"
         const val EXTRA_NOTIFICATION_ID = "extra_notification_id"
         const val EXTRA_ITEM_KEY = "extra_item_key"
-        const val EXTRA_CYCLE_ID = "extra_cycle_id"
+        const val EXTRA_DUE_YEAR_MONTH = "extra_due_year_month"
 
         const val ENTITY_TYPE_BILL = "bill"
         const val ENTITY_TYPE_LOAN = "loan"

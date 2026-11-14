@@ -55,9 +55,12 @@ class DueReminderWorker @AssistedInject constructor(
         return try {
             val today = testTodayProvider?.invoke() ?: LocalDate.now(MANILA_ZONE)
             val targetItemKey = inputData.getString(INPUT_ITEM_KEY)?.trim()?.takeIf { it.isNotEmpty() }
+            val expectedDueYearMonth = inputData.getString(INPUT_EXPECTED_DUE_YEAR_MONTH)
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
 
             if (targetItemKey != null) {
-                handleSnoozedItem(targetItemKey, today)
+                handleSnoozedItem(targetItemKey, expectedDueYearMonth, today)
             } else {
                 evaluateAllObligations(today)
             }
@@ -69,7 +72,11 @@ class DueReminderWorker @AssistedInject constructor(
         }
     }
 
-    private suspend fun handleSnoozedItem(itemKey: String, today: LocalDate) {
+    private suspend fun handleSnoozedItem(
+        itemKey: String,
+        expectedDueYearMonth: String?,
+        today: LocalDate
+    ) {
         val obligationDao = database.obligationDao()
         val budgetDao = database.budgetDao()
 
@@ -99,13 +106,28 @@ class DueReminderWorker @AssistedInject constructor(
                 val loan = obligationDao.getLoanById(loanId) ?: return
                 if (!loan.isActive || loan.paidInstallments >= loan.totalInstallments) return
 
+                val dueMonth = YearMonth.parse(loan.nextDueYearMonth)
                 val daysUntilDue = DueDateCalculator.daysUntilDue(
-                    yearMonth = YearMonth.parse(loan.nextDueYearMonth),
+                    yearMonth = dueMonth,
                     dueDayOfMonth = loan.dueDayOfMonth,
                     today = today
                 )
-                val activeCycleId = budgetDao.getCycleByYearMonth(YearMonth.from(today).toString())?.id
-                postLoanNotification(loan, daysUntilDue, activeCycleId)
+                if (expectedDueYearMonth != null) {
+                    if (loan.nextDueYearMonth != expectedDueYearMonth) return
+                } else {
+                    val shouldNotifyDue = DueDateCalculator.shouldNotify(
+                        daysUntilDue = daysUntilDue,
+                        notify7d = loan.notify7d,
+                        notify3d = loan.notify3d,
+                        notify1d = loan.notify1d,
+                        notifyOnDue = loan.notifyOnDue,
+                        notifyDailyOverdue = loan.notifyDailyOverdue
+                    )
+                    if (dueMonth.isAfter(YearMonth.from(today)) && !shouldNotifyDue) {
+                        return
+                    }
+                }
+                postLoanNotification(loan, daysUntilDue)
             }
         }
     }
@@ -156,7 +178,7 @@ class DueReminderWorker @AssistedInject constructor(
                 notifyDailyOverdue = loan.notifyDailyOverdue
             )
             if (shouldAlert) {
-                postLoanNotification(loan, daysUntilDue, activeCycle?.id)
+                postLoanNotification(loan, daysUntilDue)
             }
         }
     }
@@ -171,12 +193,11 @@ class DueReminderWorker @AssistedInject constructor(
             body = formatDueStatusBody(daysUntilDue, bill.amountCentavos),
             entityType = NotificationActionReceiver.ENTITY_TYPE_BILL,
             entityId = bill.id,
-            amountCentavos = bill.amountCentavos,
-            cycleId = bill.cycleId
+            amountCentavos = bill.amountCentavos
         )
     }
 
-    private fun postLoanNotification(loan: LoanEntity, daysUntilDue: Long, cycleId: Long?) {
+    private fun postLoanNotification(loan: LoanEntity, daysUntilDue: Long) {
         val itemKey = "${NotificationActionReceiver.ENTITY_TYPE_LOAN}_${loan.id}"
         NotificationHelper.showDueAlert(
             context = applicationContext,
@@ -187,7 +208,7 @@ class DueReminderWorker @AssistedInject constructor(
             entityType = NotificationActionReceiver.ENTITY_TYPE_LOAN,
             entityId = loan.id,
             amountCentavos = loan.monthlyAmortizationCentavos,
-            cycleId = cycleId
+            dueYearMonth = loan.nextDueYearMonth
         )
     }
 
@@ -212,6 +233,7 @@ class DueReminderWorker @AssistedInject constructor(
         const val UNIQUE_DAILY_WORK_NAME = "daily_due_date_reminders"
         const val SNOOZE_WORK_PREFIX = "due_reminder_snooze_"
         const val INPUT_ITEM_KEY = "input_item_key"
+        const val INPUT_EXPECTED_DUE_YEAR_MONTH = "input_expected_due_year_month"
 
         private val MANILA_ZONE: ZoneId = ZoneId.of("Asia/Manila")
 

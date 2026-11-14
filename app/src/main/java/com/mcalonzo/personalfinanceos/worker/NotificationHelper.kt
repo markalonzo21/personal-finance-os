@@ -83,7 +83,7 @@ object NotificationHelper {
         entityType: String,
         entityId: Long,
         amountCentavos: Long,
-        cycleId: Long? = null
+        dueYearMonth: String? = null
     ) {
         ensureChannel(context)
 
@@ -95,6 +95,7 @@ object NotificationHelper {
         }
 
         val notificationManager = context.getSystemService(NotificationManager::class.java) ?: return
+        val normalizedDueYearMonth = dueYearMonth?.trim()?.takeIf { it.isNotEmpty() }
 
         val contentIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -112,8 +113,8 @@ object NotificationHelper {
             putExtra(NotificationActionReceiver.EXTRA_ENTITY_ID, entityId)
             putExtra(NotificationActionReceiver.EXTRA_NOTIFICATION_ID, notificationId)
             putExtra(NotificationActionReceiver.EXTRA_ITEM_KEY, itemKey)
-            if (cycleId != null && cycleId > 0L) {
-                putExtra(NotificationActionReceiver.EXTRA_CYCLE_ID, cycleId)
+            if (normalizedDueYearMonth != null) {
+                putExtra(NotificationActionReceiver.EXTRA_DUE_YEAR_MONTH, normalizedDueYearMonth)
             }
         }
         val payPendingIntent = PendingIntent.getBroadcast(
@@ -127,6 +128,9 @@ object NotificationHelper {
             action = NotificationActionReceiver.ACTION_SNOOZE_1H
             putExtra(NotificationActionReceiver.EXTRA_ITEM_KEY, itemKey)
             putExtra(NotificationActionReceiver.EXTRA_NOTIFICATION_ID, notificationId)
+            if (normalizedDueYearMonth != null) {
+                putExtra(NotificationActionReceiver.EXTRA_DUE_YEAR_MONTH, normalizedDueYearMonth)
+            }
         }
         val snoozePendingIntent = PendingIntent.getBroadcast(
             context,

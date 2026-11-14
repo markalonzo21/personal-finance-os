@@ -3,6 +3,7 @@ package com.mcalonzo.personalfinanceos.worker
 import android.Manifest
 import android.app.Application
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.util.Log
@@ -443,5 +444,333 @@ class DueReminderWorkerTest {
         )
         val nm = context.getSystemService(NotificationManager::class.java)
         assertThat(nm.activeNotifications).isEmpty()
+    }
+
+    @Test
+    fun `broadcast ACTION_PAY_NOW settles next-month 1d 3d 7d loans and ignores duplicate tap`() = runTest {
+        NotificationActionReceiver.testDispatcherOverride = StandardTestDispatcher(testScheduler)
+        val novToday = LocalDate.of(2026, 11, 30)
+        DueReminderWorker.testTodayProvider = { novToday }
+        NotificationActionReceiver.testTodayProvider = { novToday }
+
+        val novCycleId = db.budgetDao().insertCycle(
+            BudgetCycleEntity(
+                yearMonth = "2026-11",
+                totalBudgetCentavos = 5_000_000L,
+                createdAtEpochMs = 1_000L
+            )
+        )
+        db.obligationDao().getActiveLoansOnce().forEach { seededLoan ->
+            db.obligationDao().updateLoan(seededLoan.copy(isActive = false))
+        }
+        val loan1dId = db.obligationDao().insertLoan(
+            LoanEntity(
+                name = "Loan 1d",
+                iconEmoji = "🚗",
+                monthlyAmortizationCentavos = 100_000L,
+                totalInstallments = 6,
+                paidInstallments = 1,
+                dueDayOfMonth = 1,
+                nextDueYearMonth = "2026-12",
+                notify1d = true,
+                isActive = true
+            )
+        )
+        val loan3dId = db.obligationDao().insertLoan(
+            LoanEntity(
+                name = "Loan 3d",
+                iconEmoji = "🛵",
+                monthlyAmortizationCentavos = 200_000L,
+                totalInstallments = 6,
+                paidInstallments = 1,
+                dueDayOfMonth = 3,
+                nextDueYearMonth = "2026-12",
+                notify3d = true,
+                isActive = true
+            )
+        )
+        val loan7dId = db.obligationDao().insertLoan(
+            LoanEntity(
+                name = "Loan 7d",
+                iconEmoji = "🏠",
+                monthlyAmortizationCentavos = 300_000L,
+                totalInstallments = 6,
+                paidInstallments = 1,
+                dueDayOfMonth = 7,
+                nextDueYearMonth = "2026-12",
+                notify7d = true,
+                isActive = true
+            )
+        )
+
+        val result = TestListenableWorkerBuilder<DueReminderWorker>(context).build().doWork()
+        assertThat(result).isEqualTo(ListenableWorker.Result.success())
+
+        val nm = context.getSystemService(NotificationManager::class.java)
+        val notif1dId = NotificationHelper.stableNotificationId("loan_$loan1dId")
+        val notif3dId = NotificationHelper.stableNotificationId("loan_$loan3dId")
+        val notif7dId = NotificationHelper.stableNotificationId("loan_$loan7dId")
+        assertThat(nm.activeNotifications.map { it.id })
+            .containsExactly(notif1dId, notif3dId, notif7dId)
+
+        val payIntentsByLoan = listOf(loan1dId to notif1dId, loan3dId to notif3dId, loan7dId to notif7dId)
+            .associate { (loanId, notifId) ->
+                val posted = nm.activeNotifications.first { it.id == notifId }
+                val payIntent = Shadows.shadowOf(posted.notification.actions[0].actionIntent).savedIntent
+                assertThat(payIntent.action).isEqualTo(NotificationActionReceiver.ACTION_PAY_NOW)
+                assertThat(payIntent.getStringExtra(NotificationActionReceiver.EXTRA_DUE_YEAR_MONTH))
+                    .isEqualTo("2026-12")
+                loanId to payIntent
+            }
+
+        payIntentsByLoan.forEach { (loanId, payIntent) ->
+            NotificationActionReceiver().onReceive(context, payIntent)
+            advanceUntilIdle()
+
+            val settled = db.obligationDao().getLoanById(loanId)!!
+            assertThat(settled.paidInstallments).isEqualTo(2)
+            assertThat(settled.nextDueYearMonth).isEqualTo("2027-01")
+            assertThat(settled.lastPaidCycleYearMonth).isEqualTo("2026-12")
+        }
+
+        assertThat(nm.activeNotifications).isEmpty()
+        val decCycle = db.budgetDao().getCycleByYearMonth("2026-12")!!
+        assertThat(db.budgetDao().getTransactionsForCycleOnce(decCycle.id)).hasSize(3)
+        assertThat(db.budgetDao().getTransactionsForCycleOnce(novCycleId)).isEmpty()
+
+        // Duplicate tap on already-settled December installment does not double-pay or crash.
+        val dupPayIntent = payIntentsByLoan.getValue(loan3dId)
+        NotificationActionReceiver().onReceive(context, dupPayIntent)
+        advanceUntilIdle()
+
+        val afterDup = db.obligationDao().getLoanById(loan3dId)!!
+        assertThat(afterDup.paidInstallments).isEqualTo(2)
+        assertThat(afterDup.nextDueYearMonth).isEqualTo("2027-01")
+        assertThat(db.budgetDao().getTransactionsForCycleOnce(decCycle.id)).hasSize(3)
+    }
+
+    @Test
+    fun `broadcast ACTION_PAY_NOW routes delayed cross-month loan tap into active month cycle`() = runTest {
+        NotificationActionReceiver.testDispatcherOverride = StandardTestDispatcher(testScheduler)
+        val novCycleId = rolloverUseCase(YearMonth.of(2026, 11))
+        val loanId = db.obligationDao().insertLoan(
+            LoanEntity(
+                name = "Delayed Tap Loan",
+                iconEmoji = "🏦",
+                monthlyAmortizationCentavos = 180_000L,
+                totalInstallments = 6,
+                paidInstallments = 1,
+                dueDayOfMonth = 28,
+                nextDueYearMonth = "2026-11",
+                isActive = true
+            )
+        )
+
+        val notifId = NotificationHelper.stableNotificationId("loan_$loanId")
+        NotificationHelper.showDueAlert(
+            context = context,
+            itemKey = "loan_$loanId",
+            notificationId = notifId,
+            title = "Delayed Tap Loan",
+            body = "Due Today • ₱1,800.00",
+            entityType = NotificationActionReceiver.ENTITY_TYPE_LOAN,
+            entityId = loanId,
+            amountCentavos = 180_000L,
+            dueYearMonth = "2026-11"
+        )
+
+        val posted = context.getSystemService(NotificationManager::class.java)
+            .activeNotifications.first { it.id == notifId }
+        val payIntent = Shadows.shadowOf(posted.notification.actions[0].actionIntent).savedIntent
+
+        // User taps November's Pay action after crossing into December.
+        NotificationActionReceiver.testTodayProvider = { LocalDate.of(2026, 12, 2) }
+        NotificationActionReceiver().onReceive(context, payIntent)
+        advanceUntilIdle()
+
+        val settled = db.obligationDao().getLoanById(loanId)!!
+        assertThat(settled.paidInstallments).isEqualTo(2)
+        assertThat(settled.nextDueYearMonth).isEqualTo("2026-12")
+        assertThat(settled.lastPaidCycleYearMonth).isEqualTo("2026-12")
+
+        val decCycle = db.budgetDao().getCycleByYearMonth("2026-12")!!
+        assertThat(db.budgetDao().getTransactionsForCycleOnce(decCycle.id)).hasSize(1)
+        assertThat(db.budgetDao().getTransactionsForCycleOnce(novCycleId)).isEmpty()
+        assertThat(context.getSystemService(NotificationManager::class.java).activeNotifications).isEmpty()
+    }
+
+    @Test
+    fun `snoozed INPUT_ITEM_KEY skips multi-installment loan after one installment paid in-app`() = runTest {
+        val novCycleId = db.budgetDao().insertCycle(
+            BudgetCycleEntity(
+                yearMonth = "2026-11",
+                totalBudgetCentavos = 5_000_000L,
+                createdAtEpochMs = 1_000L
+            )
+        )
+        val loanId = db.obligationDao().insertLoan(
+            LoanEntity(
+                name = "Multi-Installment Loan",
+                iconEmoji = "🛵",
+                monthlyAmortizationCentavos = 450_000L,
+                totalInstallments = 12,
+                paidInstallments = 1,
+                dueDayOfMonth = 14,
+                nextDueYearMonth = "2026-11",
+                isActive = true
+            )
+        )
+        val itemKey = "loan_$loanId"
+        val notifId = NotificationHelper.stableNotificationId(itemKey)
+
+        // Daily run posts alert carrying dueYearMonth = "2026-11" in the Snooze PendingIntent.
+        assertThat(TestListenableWorkerBuilder<DueReminderWorker>(context).build().doWork())
+            .isEqualTo(ListenableWorker.Result.success())
+        val nm = context.getSystemService(NotificationManager::class.java)
+        val posted = nm.activeNotifications.first { it.id == notifId }
+        val snoozeIntent = Shadows.shadowOf(posted.notification.actions[1].actionIntent).savedIntent
+        assertThat(snoozeIntent.getStringExtra(NotificationActionReceiver.EXTRA_DUE_YEAR_MONTH))
+            .isEqualTo("2026-11")
+
+        NotificationActionReceiver().onReceive(context, snoozeIntent)
+        assertThat(nm.activeNotifications.none { it.id == notifId }).isTrue()
+        val snoozeWorkInfos = WorkManager.getInstance(context)
+            .getWorkInfosForUniqueWork(WorkScheduler.snoozeWorkName(itemKey))
+            .get()
+        assertThat(snoozeWorkInfos).hasSize(1)
+        assertThat(snoozeWorkInfos.single().state).isEqualTo(WorkInfo.State.ENQUEUED)
+        nm.cancelAll()
+
+        // Unpaid installment still re-alerts when snooze fires.
+        val unpaidSnoozeResult = TestListenableWorkerBuilder<DueReminderWorker>(context)
+            .setInputData(
+                workDataOf(
+                    DueReminderWorker.INPUT_ITEM_KEY to itemKey,
+                    DueReminderWorker.INPUT_EXPECTED_DUE_YEAR_MONTH to "2026-11"
+                )
+            )
+            .build()
+            .doWork()
+        assertThat(unpaidSnoozeResult).isEqualTo(ListenableWorker.Result.success())
+        assertThat(nm.activeNotifications.map { it.id }).containsExactly(notifId)
+        nm.cancelAll()
+
+        // Paying 1 installment in-app advances nextDueYearMonth to 2026-12 while keeping loan active.
+        repo.settleLoan(loanId, novCycleId)
+        val afterInAppPay = db.obligationDao().getLoanById(loanId)!!
+        assertThat(afterInAppPay.isActive).isTrue()
+        assertThat(afterInAppPay.paidInstallments).isEqualTo(2)
+        assertThat(afterInAppPay.nextDueYearMonth).isEqualTo("2026-12")
+
+        // Snooze run with expectedDueYearMonth stays silent.
+        val afterPaidExpectedResult = TestListenableWorkerBuilder<DueReminderWorker>(context)
+            .setInputData(
+                workDataOf(
+                    DueReminderWorker.INPUT_ITEM_KEY to itemKey,
+                    DueReminderWorker.INPUT_EXPECTED_DUE_YEAR_MONTH to "2026-11"
+                )
+            )
+            .build()
+            .doWork()
+        assertThat(afterPaidExpectedResult).isEqualTo(ListenableWorker.Result.success())
+        assertThat(nm.activeNotifications).isEmpty()
+
+        // Fallback suppression when INPUT_EXPECTED_DUE_YEAR_MONTH is absent also stays silent.
+        val afterPaidFallbackResult = TestListenableWorkerBuilder<DueReminderWorker>(context)
+            .setInputData(workDataOf(DueReminderWorker.INPUT_ITEM_KEY to itemKey))
+            .build()
+            .doWork()
+        assertThat(afterPaidFallbackResult).isEqualTo(ListenableWorker.Result.success())
+        assertThat(nm.activeNotifications).isEmpty()
+
+        // Next-month loan snoozed across midnight still re-alerts while unpaid, then skips once paid.
+        val nextMonthLoanId = db.obligationDao().insertLoan(
+            LoanEntity(
+                name = "Next-Month Snoozed Loan",
+                iconEmoji = "🚗",
+                monthlyAmortizationCentavos = 520_000L,
+                totalInstallments = 12,
+                paidInstallments = 0,
+                dueDayOfMonth = 4,
+                nextDueYearMonth = "2026-12",
+                isActive = true
+            )
+        )
+        val nextMonthKey = "loan_$nextMonthLoanId"
+        DueReminderWorker.testTodayProvider = { LocalDate.of(2026, 11, 28) }
+        val nextMonthUnpaidSnooze = TestListenableWorkerBuilder<DueReminderWorker>(context)
+            .setInputData(
+                workDataOf(
+                    DueReminderWorker.INPUT_ITEM_KEY to nextMonthKey,
+                    DueReminderWorker.INPUT_EXPECTED_DUE_YEAR_MONTH to "2026-12"
+                )
+            )
+            .build()
+            .doWork()
+        assertThat(nextMonthUnpaidSnooze).isEqualTo(ListenableWorker.Result.success())
+        assertThat(nm.activeNotifications.map { it.id })
+            .containsExactly(NotificationHelper.stableNotificationId(nextMonthKey))
+        nm.cancelAll()
+
+        val decCycleId = rolloverUseCase(YearMonth.of(2026, 12))
+        repo.settleLoan(nextMonthLoanId, decCycleId)
+        val nextMonthPaidSnooze = TestListenableWorkerBuilder<DueReminderWorker>(context)
+            .setInputData(
+                workDataOf(
+                    DueReminderWorker.INPUT_ITEM_KEY to nextMonthKey,
+                    DueReminderWorker.INPUT_EXPECTED_DUE_YEAR_MONTH to "2026-12"
+                )
+            )
+            .build()
+            .doWork()
+        assertThat(nextMonthPaidSnooze).isEqualTo(ListenableWorker.Result.success())
+        assertThat(nm.activeNotifications).isEmpty()
+    }
+
+    @Test
+    fun `due_date_alerts channel uses IMPORTANCE_HIGH and Pay Snooze PendingIntents are distinct and immutable`() {
+        val itemKey = "loan_42"
+        val notificationId = NotificationHelper.stableNotificationId(itemKey)
+        NotificationHelper.showDueAlert(
+            context = context,
+            itemKey = itemKey,
+            notificationId = notificationId,
+            title = "Car Loan",
+            body = "Due in 3 days • ₱15,000.00",
+            entityType = NotificationActionReceiver.ENTITY_TYPE_LOAN,
+            entityId = 42L,
+            amountCentavos = 1_500_000L,
+            dueYearMonth = "2026-12"
+        )
+
+        val nm = context.getSystemService(NotificationManager::class.java)
+        val channel = nm.getNotificationChannel(NotificationHelper.CHANNEL_ID)
+        assertThat(channel).isNotNull()
+        assertThat(channel!!.importance).isEqualTo(NotificationManager.IMPORTANCE_HIGH)
+        assertThat(channel.name.toString()).isEqualTo(NotificationHelper.CHANNEL_NAME)
+
+        val posted = nm.activeNotifications.first { it.id == notificationId }.notification
+        assertThat(posted.channelId).isEqualTo(NotificationHelper.CHANNEL_ID)
+        assertThat(posted.actions).hasLength(2)
+
+        val payPendingIntent = posted.actions[0].actionIntent
+        val snoozePendingIntent = posted.actions[1].actionIntent
+        assertThat(payPendingIntent).isNotEqualTo(snoozePendingIntent)
+
+        val shadowPay = Shadows.shadowOf(payPendingIntent)
+        val shadowSnooze = Shadows.shadowOf(snoozePendingIntent)
+        assertThat(shadowPay.requestCode).isNotEqualTo(shadowSnooze.requestCode)
+        assertThat(shadowPay.isBroadcastIntent).isTrue()
+        assertThat(shadowSnooze.isBroadcastIntent).isTrue()
+        assertThat(shadowPay.flags and PendingIntent.FLAG_IMMUTABLE)
+            .isEqualTo(PendingIntent.FLAG_IMMUTABLE)
+        assertThat(shadowSnooze.flags and PendingIntent.FLAG_IMMUTABLE)
+            .isEqualTo(PendingIntent.FLAG_IMMUTABLE)
+        assertThat(shadowPay.savedIntent.action).isEqualTo(NotificationActionReceiver.ACTION_PAY_NOW)
+        assertThat(shadowPay.savedIntent.getStringExtra(NotificationActionReceiver.EXTRA_DUE_YEAR_MONTH))
+            .isEqualTo("2026-12")
+        assertThat(shadowSnooze.savedIntent.action).isEqualTo(NotificationActionReceiver.ACTION_SNOOZE_1H)
+        assertThat(shadowSnooze.savedIntent.getStringExtra(NotificationActionReceiver.EXTRA_DUE_YEAR_MONTH))
+            .isEqualTo("2026-12")
     }
 }
