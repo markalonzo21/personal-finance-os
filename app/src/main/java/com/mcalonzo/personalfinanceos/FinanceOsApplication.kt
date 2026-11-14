@@ -1,6 +1,7 @@
 package com.mcalonzo.personalfinanceos
 
 import android.app.Application
+import android.os.Build
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import androidx.work.WorkManager
@@ -21,6 +22,11 @@ class FinanceOsApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
-        WorkScheduler.scheduleStartupWork(WorkManager.getInstance(this))
+        if (::workerFactory.isInitialized && !isRobolectricEnvironment()) {
+            WorkScheduler.scheduleStartupWork(WorkManager.getInstance(this))
+        }
     }
+
+    private fun isRobolectricEnvironment(): Boolean =
+        Build.FINGERPRINT.equals("robolectric", ignoreCase = true)
 }

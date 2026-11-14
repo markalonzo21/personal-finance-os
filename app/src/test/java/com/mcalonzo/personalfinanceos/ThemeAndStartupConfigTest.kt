@@ -7,7 +7,10 @@ import androidx.compose.ui.text.font.FontListFontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.ResourceFont
 import androidx.test.core.app.ApplicationProvider
+import androidx.work.Configuration
 import androidx.work.WorkManager
+import androidx.work.testing.SynchronousExecutor
+import androidx.work.testing.WorkManagerTestInitHelper
 import com.google.common.truth.Truth.assertThat
 import com.mcalonzo.personalfinanceos.ui.theme.FinanceTypography
 import com.mcalonzo.personalfinanceos.ui.theme.JetBrainsMonoFamily
@@ -91,6 +94,16 @@ class ThemeAndStartupConfigTest {
         val app = context.applicationContext as FinanceOsApplication
         val config = app.workManagerConfiguration
         assertThat(config.workerFactory).isSameInstanceAs(app.workerFactory)
-        assertThat(WorkManager.getInstance(context)).isNotNull()
+        val testConfig = Configuration.Builder()
+            .setWorkerFactory(app.workerFactory)
+            .setExecutor(SynchronousExecutor())
+            .setTaskExecutor(SynchronousExecutor())
+            .build()
+        WorkManagerTestInitHelper.initializeTestWorkManager(context, testConfig)
+        try {
+            assertThat(WorkManager.getInstance(context)).isNotNull()
+        } finally {
+            WorkManagerTestInitHelper.closeWorkDatabase()
+        }
     }
 }
