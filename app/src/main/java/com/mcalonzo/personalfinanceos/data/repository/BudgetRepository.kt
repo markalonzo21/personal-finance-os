@@ -1,7 +1,13 @@
 package com.mcalonzo.personalfinanceos.data.repository
 
+import android.content.ContentResolver
+import android.content.Context
+import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.room.withTransaction
 import com.mcalonzo.personalfinanceos.data.local.AppDatabase
+import com.mcalonzo.personalfinanceos.data.local.SoaStorageManager
+import com.mcalonzo.personalfinanceos.data.local.StoredSoaFile
 import com.mcalonzo.personalfinanceos.data.local.entity.BillEntity
 import com.mcalonzo.personalfinanceos.data.local.entity.BudgetCycleEntity
 import com.mcalonzo.personalfinanceos.data.local.entity.EnvelopeEntity
@@ -17,28 +23,47 @@ import com.mcalonzo.personalfinanceos.domain.model.CycleOverview
 import com.mcalonzo.personalfinanceos.domain.model.LoanWithStatus
 import com.mcalonzo.personalfinanceos.domain.model.UndoAction
 import com.mcalonzo.personalfinanceos.domain.usecase.MonthRolloverUseCase
+import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.File
+import java.io.IOException
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.withContext
 
 /**
  * Coordinates atomic Room budget cycle queries, expense logging, variable bill and loan
  * settlement, 5-second undo reversal, and baseline monthly routine updates.
  */
 @Singleton
-class BudgetRepository @Inject constructor(
+class BudgetRepository(
     private val db: AppDatabase,
     private val monthRolloverUseCase: MonthRolloverUseCase
 ) {
+    private var soaStorageManager: SoaStorageManager? = null
+    private var appContext: Context? = null
+
+    @Inject
+    constructor(
+        db: AppDatabase,
+        monthRolloverUseCase: MonthRolloverUseCase,
+        soaStorageManager: SoaStorageManager,
+        @ApplicationContext appContext: Context
+    ) : this(db, monthRolloverUseCase) {
+        this.soaStorageManager = soaStorageManager
+        this.appContext = appContext
+    }
+
     constructor(db: AppDatabase) : this(db, MonthRolloverUseCase(db))
 
     private val routineDao = db.routineDao()
@@ -68,6 +93,50 @@ class BudgetRepository @Inject constructor(
 
     suspend fun getCycleById(cycleId: Long): BudgetCycleEntity? =
         budgetDao.getCycleById(cycleId)
+
+    suspend fun attachSoaPdf(
+        cycleId: Long,
+        yearMonth: String,
+        uri: Uri,
+        contextOverride: Context? = null,
+        storageOverride: SoaStorageManager? = null
+    ): StoredSoaFile {
+        SoaStorageManager.validateYearMonth(yearMonth)
+        val resolvedContext = contextOverride ?: appContext
+            ?: throw IllegalStateException("Application context is required to attach SOA PDF")
+        val resolvedStorage = storageOverride ?: soaStorageManager
+            ?: SoaStorageManager(File(resolvedContext.filesDir, "soa"))
+
+        val cycle = budgetDao.getCycleById(cycleId)
+            ?: throw IllegalArgumentException("Budget cycle $cycleId not found")
+
+        val stored = withContext(Dispatchers.IO) {
+            val contentResolver = resolvedContext.contentResolver
+            val displayName = resolveSoaDisplayName(
+                contentResolver = contentResolver,
+                uri = uri,
+                fallback = "SOA_${yearMonth}.pdf"
+            )
+            val inputStream = contentResolver.openInputStream(uri)
+                ?: throw IOException("Unable to open SOA PDF stream for $uri")
+            inputStream.use { stream ->
+                resolvedStorage.saveOrReplaceSoa(
+                    yearMonth = yearMonth,
+                    inputStream = stream,
+                    originalFileName = displayName,
+                    previousLocalPath = cycle.soaPdfLocalUri
+                )
+            }
+        }
+
+        budgetDao.updateCycleSoa(
+            cycleId = cycleId,
+            localUri = stored.localPath,
+            fileName = stored.fileName,
+            uploadedAtEpochMs = stored.savedAtEpochMs
+        )
+        return stored
+    }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     fun observeActiveCycleOverview(
@@ -980,6 +1049,34 @@ class BudgetRepository @Inject constructor(
             overdueLoansCount = loansWithStatus.count { it.isOverdue },
             transactions = transactions
         )
+    }
+
+    private fun resolveSoaDisplayName(
+        contentResolver: ContentResolver,
+        uri: Uri,
+        fallback: String
+    ): String {
+        val queried = runCatching {
+            contentResolver.query(
+                uri,
+                arrayOf(OpenableColumns.DISPLAY_NAME),
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (index >= 0 && !cursor.isNull(index)) {
+                        cursor.getString(index)?.takeIf { it.isNotBlank() }
+                    } else {
+                        null
+                    }
+                } else {
+                    null
+                }
+            }
+        }.getOrNull()
+        return queried ?: fallback
     }
 
     companion object {
