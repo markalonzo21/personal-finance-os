@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GasWatchPH - Quezon City Fuel Prices</title>
+  <script>
+    window.__GASWATCH_ENV__ = { city: "quezon-city", currency: "PHP" };
+  </script>
+  <script>
+    (function () {
+      window.__GASWATCH_TELEMETRY__ = { renderedAt: "2026-11-14T12:00:00+08:00" };
+    })();
+  </script>
+  <script src="/_next/static/chunks/main-app.js" defer></script>
+</head>
+<body>
+  <main>
+    <h1>Quezon City Gas Stations</h1>
+    <div id="station-list">Loading prices...</div>
+  </main>
+  <script id="quezon-city-stations-data" type="application/json">
+    {
+      "city": "Quezon City",
+      "updatedAt": "2026-11-14T11:55:00+08:00",
+      "stations": [
+        {
+          "id": 619,
+          "brand": "shell",
+          "name": "Shell Regalado Ave",
+          "prices": {
+            "premium95": 79.15,
+            "unleaded91": 75.8,
+            "diesel": 62.1
+          }
+        },
+        {
+          "id": 6210,
+          "brand": "caltex",
+          "name": "Caltex Mindanao Ave",
+          "prices": {
+            "premium95": 80.25,
+            "diesel": 63.0
+          }
+        },
+        {
+          "id": 620,
+          "brand": "seaoil",
+          "name": "Seaoil Zabarte Rd",
+          "prices": {
+            "premium95": null,
+            "diesel": 59.9
+          }
+        },
+        {
+          "id": 621,
+          "brand": "petron",
+          "name": "Petron Commonwealth Ave Fairview",
+          "prices": {
+            "premium95": 78.4,
+            "unleaded91": 74.9,
+            "diesel": 61.2
+          }
+        },
+        {
+          "id": 622,
+          "brand": "cleanfuel",
+          "name": "Cleanfuel Fairview",
+          "prices": {
+            "premium95": 77.6,
+            "diesel": 60.5
+          }
+        }
+      ]
+    }
+  </script>
+</body>
+</html>
