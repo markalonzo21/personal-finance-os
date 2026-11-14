@@ -21,6 +21,7 @@ import com.mcalonzo.personalfinanceos.data.repository.GasPriceRepository
 import java.time.Duration
 import java.time.YearMonth
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import kotlinx.coroutines.test.runTest
 import okhttp3.MediaType.Companion.toMediaType
@@ -95,7 +96,21 @@ class WorkSchedulerTest {
 
         val utcFriday = ZonedDateTime.of(2026, 11, 13, 18, 0, 0, 0, ZoneId.of("UTC"))
         assertThat(WorkScheduler.nextSaturdayNoonDelay(utcFriday))
-            .isEqualTo(Duration.ofHours(18))
+            .isEqualTo(Duration.ofHours(10))
+
+        // 2026-11-13T20:00-08:00 is already Saturday 12:00:00 in Asia/Manila -> rolls to next Saturday
+        val acrossDateBoundaryExactManilaNoon = ZonedDateTime.of(
+            2026, 11, 13, 20, 0, 0, 0, ZoneOffset.ofHours(-8)
+        )
+        assertThat(WorkScheduler.nextSaturdayNoonDelay(acrossDateBoundaryExactManilaNoon))
+            .isEqualTo(Duration.ofDays(7))
+
+        // 2026-11-13T21:00-08:00 is Saturday 13:00:00 in Asia/Manila -> 6 days 23 hours
+        val acrossDateBoundaryPastManilaNoon = ZonedDateTime.of(
+            2026, 11, 13, 21, 0, 0, 0, ZoneOffset.ofHours(-8)
+        )
+        assertThat(WorkScheduler.nextSaturdayNoonDelay(acrossDateBoundaryPastManilaNoon))
+            .isEqualTo(Duration.ofDays(7).minusHours(1))
     }
 
     @Test

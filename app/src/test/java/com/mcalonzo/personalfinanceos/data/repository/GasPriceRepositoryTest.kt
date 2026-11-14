@@ -6,8 +6,17 @@ import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
 import com.mcalonzo.personalfinanceos.data.local.AppDatabase
 import com.mcalonzo.personalfinanceos.data.local.SeedDatabaseCallback
+import com.mcalonzo.personalfinanceos.data.local.dao.MotoDao
+import com.mcalonzo.personalfinanceos.data.local.entity.GasPriceHistoryEntity
 import java.io.IOException
 import java.time.YearMonth
+import java.util.concurrent.CyclicBarrier
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import okhttp3.MediaType.Companion.toMediaType
@@ -233,5 +242,110 @@ class GasPriceRepositoryTest {
         assertThat(synced.isManualOverride).isFalse()
         assertThat(synced.pricePerLiterCentavos).isEqualTo(8050L)
         assertThat(synced.diffCentavos).isEqualTo(0L)
+    }
+
+    @Test
+    fun `concurrent syncFromRemote calls run network in parallel and avoid duplicate unchanged inserts`() = runTest {
+        val inFlightNetworkBarrier = CyclicBarrier(2)
+        val client = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                inFlightNetworkBarrier.await(5, TimeUnit.SECONDS)
+                Response.Builder()
+                    .request(chain.request())
+                    .protocol(Protocol.HTTP_1_1)
+                    .code(200)
+                    .message("OK")
+                    .body(
+                        """<script>{"id":621,"name":"Petron Commonwealth Ave Fairview","prices":{"premium95":79.25}}</script>"""
+                            .toResponseBody("text/html".toMediaType())
+                    )
+                    .build()
+            }
+            .build()
+
+        val repo = GasPriceRepository(db.motoDao(), client)
+        val results = awaitAll(
+            async(Dispatchers.Default) { repo.syncFromRemote() },
+            async(Dispatchers.Default) { repo.syncFromRemote() }
+        )
+
+        assertThat(results.all { it.isSuccess }).isTrue()
+        val history = db.motoDao().observeGasPriceHistory().first()
+        assertThat(history).hasSize(2)
+        assertThat(history[0].pricePerLiterCentavos).isEqualTo(7925L)
+        assertThat(history[0].previousPricePerLiterCentavos).isEqualTo(7840L)
+        assertThat(history[0].diffCentavos).isEqualTo(85L)
+        assertThat(history[1].pricePerLiterCentavos).isEqualTo(7840L)
+    }
+
+    @Test
+    fun `concurrent syncFromRemote and setManualPriceOverride serialize without stale diff`() = runTest {
+        val client = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                Response.Builder()
+                    .request(chain.request())
+                    .protocol(Protocol.HTTP_1_1)
+                    .code(200)
+                    .message("OK")
+                    .body(
+                        """<script>{"id":621,"name":"Petron Commonwealth Ave Fairview","prices":{"premium95":79.25}}</script>"""
+                            .toResponseBody("text/html".toMediaType())
+                    )
+                    .build()
+            }
+            .build()
+
+        val delegate = db.motoDao()
+        val readCount = AtomicInteger(0)
+        val firstReadEntered = CompletableDeferred<Unit>()
+        val allowFirstReadToFinish = CompletableDeferred<Unit>()
+        val slowDao = object : MotoDao by delegate {
+            override suspend fun getLatestGasPriceOnce(): GasPriceHistoryEntity? {
+                val readNumber = readCount.incrementAndGet()
+                val snapshot = delegate.getLatestGasPriceOnce()
+                if (readNumber == 1) {
+                    firstReadEntered.complete(Unit)
+                    allowFirstReadToFinish.await()
+                }
+                return snapshot
+            }
+        }
+
+        val repo = GasPriceRepository(slowDao, client)
+        val syncJob = async(Dispatchers.Default) { repo.syncFromRemote() }
+        firstReadEntered.await()
+
+        val overrideAttemptStarted = CompletableDeferred<Unit>()
+        val overrideJob = async(Dispatchers.Default) {
+            overrideAttemptStarted.complete(Unit)
+            repo.setManualPriceOverride(8100L)
+        }
+        overrideAttemptStarted.await()
+        Thread.sleep(50)
+        assertThat(readCount.get()).isEqualTo(1)
+
+        allowFirstReadToFinish.complete(Unit)
+        assertThat(syncJob.await().isSuccess).isTrue()
+        overrideJob.await()
+
+        assertThat(readCount.get()).isEqualTo(2)
+        val history = delegate.observeGasPriceHistory().first()
+        assertThat(history).hasSize(3)
+
+        val manual = history[0]
+        assertThat(manual.isManualOverride).isTrue()
+        assertThat(manual.pricePerLiterCentavos).isEqualTo(8100L)
+        assertThat(manual.previousPricePerLiterCentavos).isEqualTo(7925L)
+        assertThat(manual.diffCentavos).isEqualTo(175L)
+
+        val synced = history[1]
+        assertThat(synced.isManualOverride).isFalse()
+        assertThat(synced.pricePerLiterCentavos).isEqualTo(7925L)
+        assertThat(synced.previousPricePerLiterCentavos).isEqualTo(7840L)
+        assertThat(synced.diffCentavos).isEqualTo(85L)
+
+        val seeded = history[2]
+        assertThat(seeded.pricePerLiterCentavos).isEqualTo(7840L)
+        assertThat(seeded.diffCentavos).isEqualTo(45L)
     }
 }

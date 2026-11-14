@@ -10,6 +10,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -26,6 +28,8 @@ class GasPriceRepository internal constructor(
     private val ioDispatcher: CoroutineDispatcher,
     private val clockMs: () -> Long
 ) {
+    private val dbMutex = Mutex()
+
     @Inject
     constructor(
         motoDao: MotoDao,
@@ -92,54 +96,58 @@ class GasPriceRepository internal constructor(
                 IllegalStateException("Station $STATION_ID Premium 95 price unavailable")
             )
 
-        val latest = motoDao.getLatestGasPriceOnce()
-        if (latest != null &&
-            !latest.isManualOverride &&
-            latest.pricePerLiterCentavos == parsed.premium95Centavos
-        ) {
-            // Preserve the most recent price movement badge instead of overwriting diff with 0L.
-            return Result.success(latest)
-        }
+        return dbMutex.withLock {
+            val latest = motoDao.getLatestGasPriceOnce()
+            if (latest != null &&
+                !latest.isManualOverride &&
+                latest.pricePerLiterCentavos == parsed.premium95Centavos
+            ) {
+                // Preserve the most recent price movement badge instead of overwriting diff with 0L.
+                return@withLock Result.success(latest)
+            }
 
-        val previousCentavos = latest?.pricePerLiterCentavos
-        val diffCentavos = MotoCalculator.calculatePriceDiff(
-            newPriceCentavos = parsed.premium95Centavos,
-            previousPriceCentavos = previousCentavos
-        )
-        val entry = GasPriceHistoryEntity(
-            stationId = STATION_ID,
-            stationDisplayName = STATION_DISPLAY_NAME,
-            fuelType = FUEL_TYPE_PREMIUM_95,
-            pricePerLiterCentavos = parsed.premium95Centavos,
-            previousPricePerLiterCentavos = previousCentavos,
-            diffCentavos = diffCentavos,
-            fetchedAtEpochMs = clockMs(),
-            isManualOverride = false
-        )
-        val insertedId = motoDao.insertGasPrice(entry)
-        return Result.success(entry.copy(id = insertedId))
+            val previousCentavos = latest?.pricePerLiterCentavos
+            val diffCentavos = MotoCalculator.calculatePriceDiff(
+                newPriceCentavos = parsed.premium95Centavos,
+                previousPriceCentavos = previousCentavos
+            )
+            val entry = GasPriceHistoryEntity(
+                stationId = STATION_ID,
+                stationDisplayName = STATION_DISPLAY_NAME,
+                fuelType = FUEL_TYPE_PREMIUM_95,
+                pricePerLiterCentavos = parsed.premium95Centavos,
+                previousPricePerLiterCentavos = previousCentavos,
+                diffCentavos = diffCentavos,
+                fetchedAtEpochMs = clockMs(),
+                isManualOverride = false
+            )
+            val insertedId = motoDao.insertGasPrice(entry)
+            Result.success(entry.copy(id = insertedId))
+        }
     }
 
     suspend fun setManualPriceOverride(priceCentavos: Long) {
         require(priceCentavos > 0L) { "Manual fuel price override must be positive" }
-        val latest = motoDao.getLatestGasPriceOnce()
-        val previousCentavos = latest?.pricePerLiterCentavos
-        val diffCentavos = MotoCalculator.calculatePriceDiff(
-            newPriceCentavos = priceCentavos,
-            previousPriceCentavos = previousCentavos
-        )
-        motoDao.insertGasPrice(
-            GasPriceHistoryEntity(
-                stationId = STATION_ID,
-                stationDisplayName = STATION_DISPLAY_NAME,
-                fuelType = FUEL_TYPE_PREMIUM_95,
-                pricePerLiterCentavos = priceCentavos,
-                previousPricePerLiterCentavos = previousCentavos,
-                diffCentavos = diffCentavos,
-                fetchedAtEpochMs = clockMs(),
-                isManualOverride = true
+        dbMutex.withLock {
+            val latest = motoDao.getLatestGasPriceOnce()
+            val previousCentavos = latest?.pricePerLiterCentavos
+            val diffCentavos = MotoCalculator.calculatePriceDiff(
+                newPriceCentavos = priceCentavos,
+                previousPriceCentavos = previousCentavos
             )
-        )
+            motoDao.insertGasPrice(
+                GasPriceHistoryEntity(
+                    stationId = STATION_ID,
+                    stationDisplayName = STATION_DISPLAY_NAME,
+                    fuelType = FUEL_TYPE_PREMIUM_95,
+                    pricePerLiterCentavos = priceCentavos,
+                    previousPricePerLiterCentavos = previousCentavos,
+                    diffCentavos = diffCentavos,
+                    fetchedAtEpochMs = clockMs(),
+                    isManualOverride = true
+                )
+            )
+        }
     }
 
     companion object {

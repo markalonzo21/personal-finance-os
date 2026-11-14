@@ -26,15 +26,16 @@ object WorkScheduler {
     private val MANILA_ZONE: ZoneId = ZoneId.of("Asia/Manila")
 
     /**
-     * Computes delay until the next strictly-future Saturday 12:00:00 in [now]'s time zone.
+     * Computes delay from [now] until the next strictly-future Saturday 12:00:00 in Asia/Manila.
      */
     fun nextSaturdayNoonDelay(now: ZonedDateTime): Duration {
-        val saturdayDate = now.toLocalDate().with(TemporalAdjusters.nextOrSame(DayOfWeek.SATURDAY))
-        var candidate = ZonedDateTime.of(saturdayDate, LocalTime.NOON, now.zone)
-        if (!candidate.isAfter(now)) {
-            candidate = ZonedDateTime.of(saturdayDate.plusWeeks(1), LocalTime.NOON, now.zone)
+        val manilaNow = now.withZoneSameInstant(MANILA_ZONE)
+        val saturdayDate = manilaNow.toLocalDate().with(TemporalAdjusters.nextOrSame(DayOfWeek.SATURDAY))
+        var candidate = ZonedDateTime.of(saturdayDate, LocalTime.NOON, MANILA_ZONE)
+        if (!candidate.isAfter(manilaNow)) {
+            candidate = ZonedDateTime.of(saturdayDate.plusWeeks(1), LocalTime.NOON, MANILA_ZONE)
         }
-        return Duration.between(now, candidate)
+        return Duration.between(manilaNow, candidate)
     }
 
     fun enqueueWeeklyGasWatcher(workManager: WorkManager) {
