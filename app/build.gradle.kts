@@ -20,9 +20,24 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            val keystoreFile = file("release.jks")
+            if (keystoreFile.exists()) {
+                storeFile = keystoreFile
+                storePassword = System.getenv("FINANCEOS_STORE_PASSWORD") ?: "android"
+                keyAlias = System.getenv("FINANCEOS_KEY_ALIAS") ?: "personal_finance_os"
+                keyPassword = System.getenv("FINANCEOS_KEY_PASSWORD") ?: "android"
+            } else {
+                initWith(getByName("debug"))
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

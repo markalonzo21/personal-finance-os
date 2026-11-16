@@ -19,6 +19,7 @@ captures/
 .navigation/
 
 # Kotlin & Logs
+.kotlin/
 *.hprof
 *.log
 hs_err_pid*
