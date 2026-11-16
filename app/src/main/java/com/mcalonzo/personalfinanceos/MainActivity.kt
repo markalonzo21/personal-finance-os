@@ -59,7 +59,17 @@ class MainActivity : ComponentActivity() {
                     onDeleteTransaction = viewModel::deleteTransaction,
                     onSaveRoutine = viewModel::saveRoutine,
                     onPickSoaPdf = { soaPdfPicker.launch(arrayOf("application/pdf")) },
-                    onClearMessages = viewModel::clearMessages
+                    onClearMessages = viewModel::clearMessages,
+                    onToggleGlobalPush = viewModel::toggleGlobalPush,
+                    onPreviewDueAlert = { viewModel.previewDueNotification() },
+                    onUpdateReminderCadence = viewModel::updateReminderCadence,
+                    onUpdateOdometer = viewModel::updateOdometer,
+                    onLogFullTank = viewModel::logClick160FullTank,
+                    onRefreshGas = viewModel::triggerManualGasSync,
+                    onOverridePrice = viewModel::overrideGasPrice,
+                    onSavePms = viewModel::addPmsInterval,
+                    onLogPmsService = viewModel::logPmsService,
+                    onDeletePms = viewModel::deletePmsInterval
                 )
             }
         }

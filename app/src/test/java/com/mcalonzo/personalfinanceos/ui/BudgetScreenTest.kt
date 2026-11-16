@@ -391,7 +391,7 @@ class BudgetScreenTest {
     }
 
     @Test
-    fun `bottom navigation switches between budget, reminders, and moto care placeholders`() {
+    fun `bottom navigation switches between budget, reminders, and moto care screens`() {
         var bottomTab by mutableStateOf(BottomTab.BUDGET)
 
         rule.setContent {
@@ -414,7 +414,7 @@ class BudgetScreenTest {
 
         rule.onNodeWithText("Moto Care").performClick()
         rule.onAllNodesWithText("Moto Care").assertCountEquals(2)
-        rule.onNodeWithText("YAMAHA NMAX").assertIsDisplayed()
+        rule.onNodeWithText("Honda Click 160").assertIsDisplayed()
     }
 
     @Test

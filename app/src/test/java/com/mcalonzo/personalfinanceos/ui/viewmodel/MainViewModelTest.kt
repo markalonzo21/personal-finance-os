@@ -78,6 +78,8 @@ class MainViewModelTest {
                 return MainViewModel(
                     budgetRepository = budgetRepository,
                     gasPriceRepository = gasPriceRepository,
+                    motoDao = db.motoDao(),
+                    context = context,
                     todayProvider = { fixedToday },
                     undoTimeoutMs = 5_000L
                 ) as T
@@ -264,5 +266,93 @@ class MainViewModelTest {
         }
         assertThat(afterAdd.budgetState.envelopes.first { it.name == "Emergency" }.allocatedLimitCentavos)
             .isEqualTo(500_000L)
+    }
+
+    @Test
+    fun `moto care state loads Honda Click 160 profile, seeded Petron Fairview price, and PMS intervals`() = runTest(testDispatcher.scheduler) {
+        val state = pumpUntil { !it.isLoading && it.motoState.pmsItems.isNotEmpty() }
+
+        assertThat(state.motoState.modelName).isEqualTo("Honda Click 160")
+        assertThat(state.motoState.odometerKm).isEqualTo(8450)
+        assertThat(state.motoState.stationDisplayName).isEqualTo("Petron Fairview")
+        assertThat(state.motoState.fuelType).isEqualTo("Premium 95")
+        assertThat(state.motoState.pricePerLiterFormatted).isEqualTo("₱78.40")
+        assertThat(state.motoState.fullTankCostFormatted).isEqualTo("₱431.20")
+        assertThat(state.motoState.pmsItems).hasSize(3)
+        assertThat(state.motoState.pmsItems.first().taskName).isEqualTo("Honda 4T SL 10W-30 Engine Oil")
+    }
+
+    @Test
+    fun `updateOdometer and overrideGasPrice mutate moto state reactively`() = runTest(testDispatcher.scheduler) {
+        pumpUntil { !it.isLoading && it.motoState.pmsItems.isNotEmpty() }
+
+        viewModel.updateOdometer(8600)
+        val afterOdo = pumpUntil { it.motoState.odometerKm == 8600 }
+        assertThat(afterOdo.motoState.odometerKm).isEqualTo(8600)
+
+        viewModel.overrideGasPrice(8000L)
+        val afterPrice = pumpUntil { it.motoState.pricePerLiterFormatted == "₱80.00" }
+        assertThat(afterPrice.motoState.pricePerLiterFormatted).isEqualTo("₱80.00")
+        assertThat(afterPrice.motoState.fullTankCostFormatted).isEqualTo("₱440.00")
+    }
+
+    @Test
+    fun `logClick160FullTank inserts gas transaction and sets activeUndo`() = runTest(testDispatcher.scheduler) {
+        pumpUntil { !it.isLoading && it.motoState.pmsItems.isNotEmpty() }
+
+        viewModel.logClick160FullTank()
+        val afterFullTank = pumpUntil {
+            it.activeUndo != null && it.budgetState.transactions.any { tx -> tx.title == "Honda Click 160 Full Tank" }
+        }
+
+        assertThat(afterFullTank.budgetState.spentSoFarFormatted).isEqualTo("₱431.20")
+        assertThat(afterFullTank.activeUndo?.label).isEqualTo("Honda Click 160 Full Tank")
+    }
+
+    @Test
+    fun `logPmsService updates last service odometer and logs expense if cost positive`() = runTest(testDispatcher.scheduler) {
+        val initial = pumpUntil { !it.isLoading && it.motoState.pmsItems.isNotEmpty() }
+        val engineOil = initial.motoState.pmsItems.first { it.taskName.contains("Engine Oil") }
+
+        viewModel.logPmsService(
+            pmsId = engineOil.id,
+            serviceKm = 8500,
+            costCentavos = 35_000L
+        )
+
+        val afterPms = pumpUntil {
+            it.motoState.pmsItems.first { p -> p.id == engineOil.id }.lastServiceOdometerKm == 8500 &&
+                it.activeUndo != null
+        }
+
+        assertThat(afterPms.motoState.odometerKm).isEqualTo(8500)
+        assertThat(afterPms.activeUndo?.label).contains("Engine Oil")
+    }
+
+    @Test
+    fun `updateReminderCadence and toggleGlobalPush update cadence flags and global push state`() = runTest(testDispatcher.scheduler) {
+        val initial = pumpUntil { !it.isLoading && it.remindersState.items.isNotEmpty() }
+        val converge = initial.remindersState.items.first { it.title == "Converge FiberX" }
+
+        viewModel.updateReminderCadence(
+            itemKey = converge.itemKey,
+            notify7d = false,
+            notify3d = true,
+            notify1d = false,
+            notifyOnDue = true,
+            notifyDailyOverdue = false
+        )
+
+        val afterCadence = pumpUntil {
+            val item = it.remindersState.items.first { i -> i.itemKey == converge.itemKey }
+            !item.notify7d && !item.notify1d && !item.notifyDailyOverdue
+        }
+        val updatedConverge = afterCadence.remindersState.items.first { it.itemKey == converge.itemKey }
+        assertThat(updatedConverge.notify7d).isFalse()
+        assertThat(updatedConverge.notify3d).isTrue()
+
+        viewModel.toggleGlobalPush(false)
+        val afterPush = pumpUntil { !it.remindersState.globalPushEnabled }
+        assertThat(afterPush.remindersState.globalPushEnabled).isFalse()
     }
 }

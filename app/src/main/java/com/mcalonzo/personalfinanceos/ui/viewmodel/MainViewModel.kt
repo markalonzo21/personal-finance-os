@@ -1,18 +1,26 @@
 package com.mcalonzo.personalfinanceos.ui.viewmodel
 
+import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mcalonzo.personalfinanceos.data.local.dao.MotoDao
 import com.mcalonzo.personalfinanceos.data.local.entity.BudgetCycleEntity
+import com.mcalonzo.personalfinanceos.data.local.entity.GasPriceHistoryEntity
+import com.mcalonzo.personalfinanceos.data.local.entity.MotoProfileEntity
+import com.mcalonzo.personalfinanceos.data.local.entity.PmsIntervalEntity
 import com.mcalonzo.personalfinanceos.data.local.entity.RoutineBillTemplateEntity
 import com.mcalonzo.personalfinanceos.data.local.entity.RoutineEnvelopeTemplateEntity
 import com.mcalonzo.personalfinanceos.data.local.entity.RoutineTemplateEntity
 import com.mcalonzo.personalfinanceos.data.repository.BudgetRepository
 import com.mcalonzo.personalfinanceos.data.repository.GasPriceRepository
 import com.mcalonzo.personalfinanceos.domain.calculator.BudgetCalculator
+import com.mcalonzo.personalfinanceos.domain.calculator.MotoCalculator
 import com.mcalonzo.personalfinanceos.domain.model.CycleOverview
 import com.mcalonzo.personalfinanceos.domain.model.UndoAction
+import com.mcalonzo.personalfinanceos.worker.NotificationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
@@ -32,6 +40,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
@@ -167,6 +176,64 @@ data class BudgetUiState(
     val availableCycles: List<CycleOptionUi> = emptyList()
 )
 
+data class PmsItemUi(
+    val id: Long = 0L,
+    val taskName: String = "",
+    val iconEmoji: String = "🔧",
+    val intervalKm: Int = 3000,
+    val lastServiceOdometerKm: Int = 0,
+    val remainingKm: Int = 0,
+    val isOverdue: Boolean = false,
+    val dueStatusText: String = "",
+    val lastServiceEpochMs: Long = 0L
+)
+
+data class MotoUiState(
+    val modelName: String = "Honda Click 160",
+    val odometerKm: Int = 8450,
+    val tankCapacityLiters: Double = 5.5,
+    val stationDisplayName: String = "Petron Fairview",
+    val fuelType: String = "Premium 95",
+    val pricePerLiterFormatted: String = "₱78.40",
+    val prevPriceFormatted: String = "",
+    val trendBadgeText: String = "— ₱0.00",
+    val isPriceUp: Boolean = false,
+    val isPriceDown: Boolean = false,
+    val fullTankCostFormatted: String = "₱431.20",
+    val pmsItems: List<PmsItemUi> = emptyList(),
+    val pricePerLiterCentavos: Long = 7840L,
+    val isSyncing: Boolean = false
+)
+
+data class DueReminderItemUi(
+    val id: Long,
+    val itemKey: String,
+    val title: String,
+    val iconEmoji: String,
+    val amountCentavos: Long,
+    val amountFormatted: String,
+    val isLoan: Boolean,
+    val dueDateLabel: String,
+    val dueDayOfMonth: Int,
+    val daysUntilDue: Long,
+    val isOverdue: Boolean,
+    val overdueDays: Int,
+    val isPaid: Boolean,
+    val dueStatusText: String,
+    val notify7d: Boolean = true,
+    val notify3d: Boolean = true,
+    val notify1d: Boolean = true,
+    val notifyOnDue: Boolean = true,
+    val notifyDailyOverdue: Boolean = true,
+    val dueYearMonth: String? = null,
+    val categoryLabel: String = if (isLoan) "Loan" else "Bill"
+)
+
+data class RemindersUiState(
+    val globalPushEnabled: Boolean = true,
+    val items: List<DueReminderItemUi> = emptyList()
+)
+
 data class MainUiState(
     val budgetState: BudgetUiState = BudgetUiState(),
     val selectedBottomTab: BottomTab = BottomTab.BUDGET,
@@ -174,27 +241,49 @@ data class MainUiState(
     val routineState: RoutineUiState = RoutineUiState(),
     val errorMessage: String? = null,
     val infoMessage: String? = null,
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val motoState: MotoUiState = MotoUiState(),
+    val remindersState: RemindersUiState = RemindersUiState()
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class MainViewModel internal constructor(
     private val budgetRepository: BudgetRepository,
-    @Suppress("unused") private val gasPriceRepository: GasPriceRepository,
-    private val todayProvider: () -> LocalDate,
-    private val undoTimeoutMs: Long
+    private val gasPriceRepository: GasPriceRepository,
+    private val motoDao: MotoDao? = null,
+    @ApplicationContext private val context: Context? = null,
+    private val todayProvider: () -> LocalDate = { LocalDate.now(MANILA_ZONE) },
+    private val undoTimeoutMs: Long = DEFAULT_UNDO_TIMEOUT_MS
 ) : ViewModel() {
 
     @Inject
     constructor(
         budgetRepository: BudgetRepository,
-        gasPriceRepository: GasPriceRepository
+        gasPriceRepository: GasPriceRepository,
+        motoDao: MotoDao,
+        @ApplicationContext context: Context
     ) : this(
         budgetRepository = budgetRepository,
         gasPriceRepository = gasPriceRepository,
+        motoDao = motoDao,
+        context = context,
         todayProvider = { LocalDate.now(MANILA_ZONE) },
         undoTimeoutMs = DEFAULT_UNDO_TIMEOUT_MS
+    )
+
+    internal constructor(
+        budgetRepository: BudgetRepository,
+        gasPriceRepository: GasPriceRepository,
+        todayProvider: () -> LocalDate,
+        undoTimeoutMs: Long
+    ) : this(
+        budgetRepository = budgetRepository,
+        gasPriceRepository = gasPriceRepository,
+        motoDao = null,
+        context = null,
+        todayProvider = todayProvider,
+        undoTimeoutMs = undoTimeoutMs
     )
 
     private val selectedYearMonth = MutableStateFlow(YearMonth.from(todayProvider()))
@@ -203,6 +292,10 @@ class MainViewModel internal constructor(
     private val activeUndo = MutableStateFlow<UndoAction?>(null)
     private val errorMessage = MutableStateFlow<String?>(null)
     private val infoMessage = MutableStateFlow<String?>(null)
+    private val isGasSyncing = MutableStateFlow(false)
+    private val globalPushEnabledFlow = MutableStateFlow(
+        context?.let { NotificationHelper.isGlobalPushEnabled(it) } ?: true
+    )
 
     private var undoTimerJob: Job? = null
 
@@ -253,12 +346,50 @@ class MainViewModel internal constructor(
         )
     }
 
-    val uiState: StateFlow<MainUiState> = combine(
+    private val motoProfileFlow: Flow<MotoProfileEntity?> =
+        motoDao?.observeMotoProfile() ?: flowOf(MotoProfileEntity())
+
+    private val pmsIntervalsFlow: Flow<List<PmsIntervalEntity>> =
+        motoDao?.observePmsIntervals() ?: flowOf(emptyList())
+
+    private val gasPriceFlow: Flow<GasPriceHistoryEntity?> =
+        gasPriceRepository.observeLatestPrice()
+
+    private val motoUiStateFlow: Flow<MotoUiState> = combine(
+        motoProfileFlow,
+        gasPriceFlow,
+        pmsIntervalsFlow,
+        isGasSyncing
+    ) { profile, gasPrice, pmsList, isSyncing ->
+        mapMotoToUi(profile, gasPrice, pmsList, isSyncing)
+    }
+
+    private val remindersUiStateFlow: Flow<RemindersUiState> = combine(
+        overviewFlow,
+        globalPushEnabledFlow
+    ) { overview, pushEnabled ->
+        if (overview == null) {
+            RemindersUiState(globalPushEnabled = pushEnabled, items = emptyList())
+        } else {
+            mapRemindersToUi(overview, pushEnabled)
+        }
+    }
+
+    private val budgetDataFlow = combine(
         overviewFlow,
         budgetRepository.observeAllCycles(),
-        routineStateFlow,
-        chromeControlsFlow
-    ) { overview, allCycles, routineState, chrome ->
+        routineStateFlow
+    ) { overview, allCycles, routineState ->
+        Triple(overview, allCycles, routineState)
+    }
+
+    val uiState: StateFlow<MainUiState> = combine(
+        budgetDataFlow,
+        chromeControlsFlow,
+        motoUiStateFlow,
+        remindersUiStateFlow
+    ) { budgetData, chrome, motoState, remindersState ->
+        val (overview, allCycles, routineState) = budgetData
         val today = todayProvider()
         val budgetUi = if (overview != null) {
             mapOverviewToUi(
@@ -283,7 +414,9 @@ class MainViewModel internal constructor(
             routineState = routineState,
             errorMessage = chrome.error,
             infoMessage = chrome.info,
-            isLoading = overview == null
+            isLoading = overview == null,
+            motoState = motoState,
+            remindersState = remindersState
         )
     }.stateIn(
         scope = viewModelScope,
@@ -605,6 +738,401 @@ class MainViewModel internal constructor(
     fun clearMessages() {
         errorMessage.value = null
         infoMessage.value = null
+    }
+
+    // --- Task 8 Moto Care & Reminders Methods ---
+
+    fun updateOdometer(newKm: Int) {
+        viewModelScope.launch {
+            runMutation("Unable to update odometer") {
+                motoDao?.updateOdometerKm(newKm)
+                infoMessage.value = "Odometer updated to $newKm km"
+            }
+        }
+    }
+
+    fun logClick160FullTank() {
+        viewModelScope.launch {
+            runMutation("Unable to log full tank") {
+                val cycleId = resolveActiveCycleId()
+                val latestPrice = motoDao?.getLatestGasPriceOnce()
+                val priceCentavos = latestPrice?.pricePerLiterCentavos ?: 7840L
+                val profile = motoDao?.getMotoProfileOnce()
+                val tankCapacity = profile?.tankCapacityLiters ?: 5.5
+                val cost = MotoCalculator.calculateFullTankCentavos(priceCentavos, tankCapacity)
+                val undo = budgetRepository.logGasFullTank(
+                    cycleId = cycleId,
+                    amountCentavos = cost,
+                    label = "Honda Click 160 Full Tank"
+                )
+                startUndoWindow(undo)
+            }
+        }
+    }
+
+    fun triggerManualGasSync() {
+        viewModelScope.launch {
+            runMutation("Unable to sync fuel price") {
+                isGasSyncing.value = true
+                val result = try {
+                    gasPriceRepository.syncFromRemote()
+                } finally {
+                    isGasSyncing.value = false
+                }
+                result.onSuccess {
+                    infoMessage.value = "Gas price synced: ${BudgetCalculator.formatPeso(it.pricePerLiterCentavos)}/L"
+                }.onFailure { err ->
+                    errorMessage.value = err.message ?: "Failed to sync fuel price"
+                }
+            }
+        }
+    }
+
+    fun overrideGasPrice(priceCentavos: Long) {
+        viewModelScope.launch {
+            runMutation("Unable to override gas price") {
+                gasPriceRepository.setManualPriceOverride(priceCentavos)
+                infoMessage.value = "Fuel price updated to ${BudgetCalculator.formatPeso(priceCentavos)}/L"
+            }
+        }
+    }
+
+    fun logPmsService(pmsId: Long, serviceKm: Int, costCentavos: Long = 0L) {
+        viewModelScope.launch {
+            runMutation("Unable to log PMS service") {
+                val existing = motoDao?.getPmsIntervalById(pmsId)
+                if (existing != null) {
+                    motoDao.updatePmsInterval(
+                        existing.copy(
+                            lastServiceOdometerKm = serviceKm,
+                            lastServiceEpochMs = System.currentTimeMillis()
+                        )
+                    )
+                    val profile = motoDao.getMotoProfileOnce()
+                    if (profile != null && serviceKm > profile.currentOdometerKm) {
+                        motoDao.updateOdometerKm(serviceKm)
+                    }
+                }
+                if (costCentavos > 0L) {
+                    val cycleId = resolveActiveCycleId()
+                    val undo = budgetRepository.logGasFullTank(
+                        cycleId = cycleId,
+                        amountCentavos = costCentavos,
+                        label = "PMS: ${existing?.taskName ?: "Service"}"
+                    )
+                    startUndoWindow(undo)
+                } else {
+                    infoMessage.value = "Logged service for ${existing?.taskName ?: "PMS"}"
+                }
+            }
+        }
+    }
+
+    fun addPmsInterval(
+        taskName: String,
+        iconEmoji: String,
+        intervalKm: Int,
+        lastServiceKm: Int,
+        costCentavos: Long = 0L
+    ) {
+        viewModelScope.launch {
+            runMutation("Unable to add PMS schedule") {
+                motoDao?.insertPmsInterval(
+                    PmsIntervalEntity(
+                        taskName = taskName,
+                        iconEmoji = iconEmoji,
+                        intervalKm = intervalKm,
+                        lastServiceOdometerKm = lastServiceKm,
+                        lastServiceEpochMs = System.currentTimeMillis()
+                    )
+                )
+                if (costCentavos > 0L) {
+                    val cycleId = resolveActiveCycleId()
+                    val undo = budgetRepository.logGasFullTank(
+                        cycleId = cycleId,
+                        amountCentavos = costCentavos,
+                        label = "PMS: $taskName"
+                    )
+                    startUndoWindow(undo)
+                } else {
+                    infoMessage.value = "Added PMS task $taskName"
+                }
+            }
+        }
+    }
+
+    fun deletePmsInterval(id: Long) {
+        viewModelScope.launch {
+            runMutation("Unable to delete PMS task") {
+                motoDao?.deletePmsIntervalById(id)
+                infoMessage.value = "Deleted PMS task"
+            }
+        }
+    }
+
+    fun toggleGlobalPush(enabled: Boolean) {
+        context?.let { ctx ->
+            NotificationHelper.setGlobalPushEnabled(ctx, enabled)
+        }
+        globalPushEnabledFlow.value = enabled
+        infoMessage.value = if (enabled) "Push notifications enabled" else "Push notifications disabled"
+    }
+
+    fun previewDueNotification(item: DueReminderItemUi? = null) {
+        val target = item ?: uiState.value.remindersState.items.firstOrNull { !it.isPaid }
+        val ctx = context
+        if (ctx == null) {
+            infoMessage.value = "Notification preview triggered"
+            return
+        }
+        if (target != null) {
+            val notifId = NotificationHelper.stableNotificationId(target.itemKey)
+            NotificationHelper.showDueAlert(
+                context = ctx,
+                itemKey = target.itemKey,
+                notificationId = notifId,
+                title = target.title,
+                body = "₱${BudgetCalculator.formatPeso(target.amountCentavos)} due ${target.dueDateLabel} (${target.dueStatusText})",
+                entityType = if (target.isLoan) "loan" else "bill",
+                entityId = target.id,
+                amountCentavos = target.amountCentavos,
+                dueYearMonth = target.dueYearMonth
+            )
+            infoMessage.value = "Preview notification sent for ${target.title}"
+        } else {
+            NotificationHelper.showDueAlert(
+                context = ctx,
+                itemKey = "preview_test",
+                notificationId = 9999,
+                title = "Due Date Alert Preview",
+                body = "Converge FiberX ₱1,500.00 is due today",
+                entityType = "bill",
+                entityId = 1L,
+                amountCentavos = 150_000L,
+                dueYearMonth = null
+            )
+            infoMessage.value = "Test notification sent"
+        }
+    }
+
+    fun updateReminderCadence(
+        itemKey: String,
+        notify7d: Boolean,
+        notify3d: Boolean,
+        notify1d: Boolean,
+        notifyOnDue: Boolean,
+        notifyDailyOverdue: Boolean
+    ) {
+        viewModelScope.launch {
+            runMutation("Unable to update reminder cadence") {
+                if (itemKey.startsWith("bill_")) {
+                    val id = itemKey.removePrefix("bill_").toLongOrNull() ?: return@runMutation
+                    budgetRepository.updateBillReminderCadence(
+                        billId = id,
+                        notify7d = notify7d,
+                        notify3d = notify3d,
+                        notify1d = notify1d,
+                        notifyOnDue = notifyOnDue,
+                        notifyDailyOverdue = notifyDailyOverdue
+                    )
+                } else if (itemKey.startsWith("loan_")) {
+                    val id = itemKey.removePrefix("loan_").toLongOrNull() ?: return@runMutation
+                    budgetRepository.updateLoanReminderCadence(
+                        loanId = id,
+                        notify7d = notify7d,
+                        notify3d = notify3d,
+                        notify1d = notify1d,
+                        notifyOnDue = notifyOnDue,
+                        notifyDailyOverdue = notifyDailyOverdue
+                    )
+                }
+                infoMessage.value = "Updated reminder cadence"
+            }
+        }
+    }
+
+    fun updateBillCadence(
+        billId: Long,
+        notify7d: Boolean,
+        notify3d: Boolean,
+        notify1d: Boolean,
+        notifyOnDue: Boolean,
+        notifyDailyOverdue: Boolean
+    ) = updateReminderCadence("bill_$billId", notify7d, notify3d, notify1d, notifyOnDue, notifyDailyOverdue)
+
+    fun updateLoanCadence(
+        loanId: Long,
+        notify7d: Boolean,
+        notify3d: Boolean,
+        notify1d: Boolean,
+        notifyOnDue: Boolean,
+        notifyDailyOverdue: Boolean
+    ) = updateReminderCadence("loan_$loanId", notify7d, notify3d, notify1d, notifyOnDue, notifyDailyOverdue)
+
+    private fun mapMotoToUi(
+        profile: MotoProfileEntity?,
+        gasPrice: GasPriceHistoryEntity?,
+        pmsList: List<PmsIntervalEntity>,
+        isSyncing: Boolean
+    ): MotoUiState {
+        val modelName = profile?.modelName ?: "Honda Click 160"
+        val odoKm = profile?.currentOdometerKm ?: 8450
+        val tankLiters = profile?.tankCapacityLiters ?: 5.5
+        val stationName = gasPrice?.stationDisplayName ?: "Petron Fairview"
+        val fuelType = gasPrice?.fuelType ?: "Premium 95"
+        val priceCentavos = gasPrice?.pricePerLiterCentavos ?: 7840L
+        val priceFormatted = BudgetCalculator.formatPeso(priceCentavos)
+        val fullTankCostCentavos = MotoCalculator.calculateFullTankCentavos(priceCentavos, tankLiters)
+        val fullTankFormatted = BudgetCalculator.formatPeso(fullTankCostCentavos)
+
+        val diff = gasPrice?.diffCentavos ?: 0L
+        val isPriceUp = diff > 0L
+        val isPriceDown = diff < 0L
+        val trendText = when {
+            isPriceUp -> "▲ +${BudgetCalculator.formatPeso(diff)}"
+            isPriceDown -> "▼ -${BudgetCalculator.formatPeso(kotlin.math.abs(diff))}"
+            else -> "— ₱0.00"
+        }
+        val prevPriceFormatted = if (gasPrice?.previousPricePerLiterCentavos != null) {
+            val prevFormatted = BudgetCalculator.formatPeso(gasPrice.previousPricePerLiterCentavos)
+            when {
+                isPriceUp -> "Prev: $prevFormatted/L (+${BudgetCalculator.formatPeso(diff)})"
+                isPriceDown -> "Prev: $prevFormatted/L (-${BudgetCalculator.formatPeso(kotlin.math.abs(diff))})"
+                else -> "Prev: $prevFormatted/L (— ₱0.00)"
+            }
+        } else {
+            ""
+        }
+
+        val pmsItems = pmsList.map { pms ->
+            val remainingKm = MotoCalculator.calculatePmsRemainingKm(
+                currentOdometerKm = odoKm,
+                intervalKm = pms.intervalKm,
+                lastServiceOdometerKm = pms.lastServiceOdometerKm
+            )
+            val isOverdue = remainingKm < 0
+            val statusText = when {
+                isOverdue -> "Overdue by ${kotlin.math.abs(remainingKm)} km"
+                remainingKm == 0 -> "Due now"
+                else -> "Due in $remainingKm km"
+            }
+            PmsItemUi(
+                id = pms.id,
+                taskName = pms.taskName,
+                iconEmoji = pms.iconEmoji,
+                intervalKm = pms.intervalKm,
+                lastServiceOdometerKm = pms.lastServiceOdometerKm,
+                remainingKm = remainingKm,
+                isOverdue = isOverdue,
+                dueStatusText = statusText,
+                lastServiceEpochMs = pms.lastServiceEpochMs
+            )
+        }
+
+        return MotoUiState(
+            modelName = modelName,
+            odometerKm = odoKm,
+            tankCapacityLiters = tankLiters,
+            stationDisplayName = stationName,
+            fuelType = fuelType,
+            pricePerLiterFormatted = priceFormatted,
+            prevPriceFormatted = prevPriceFormatted,
+            trendBadgeText = trendText,
+            isPriceUp = isPriceUp,
+            isPriceDown = isPriceDown,
+            fullTankCostFormatted = fullTankFormatted,
+            pmsItems = pmsItems,
+            pricePerLiterCentavos = priceCentavos,
+            isSyncing = isSyncing
+        )
+    }
+
+    private fun mapRemindersToUi(
+        overview: CycleOverview,
+        pushEnabled: Boolean
+    ): RemindersUiState {
+        val billItems = overview.bills.map { bws ->
+            val dueStatus = when {
+                bws.bill.isPaid -> "Paid"
+                bws.isOverdue -> "Overdue by ${bws.overdueDays} day${if (bws.overdueDays == 1) "" else "s"}"
+                bws.daysUntilDue == 0L -> "Due today"
+                bws.daysUntilDue == 1L -> "Due tomorrow"
+                else -> "Due in ${bws.daysUntilDue} days"
+            }
+            DueReminderItemUi(
+                id = bws.bill.id,
+                itemKey = "bill_${bws.bill.id}",
+                title = bws.bill.name,
+                iconEmoji = bws.bill.iconEmoji,
+                amountCentavos = bws.bill.amountCentavos,
+                amountFormatted = BudgetCalculator.formatPeso(bws.bill.amountCentavos),
+                isLoan = false,
+                dueDateLabel = bws.dueDate.format(SHORT_DATE_FORMATTER),
+                dueDayOfMonth = bws.bill.dueDayOfMonth,
+                daysUntilDue = bws.daysUntilDue,
+                isOverdue = bws.isOverdue,
+                overdueDays = bws.overdueDays,
+                isPaid = bws.bill.isPaid,
+                dueStatusText = dueStatus,
+                notify7d = bws.bill.notify7d,
+                notify3d = bws.bill.notify3d,
+                notify1d = bws.bill.notify1d,
+                notifyOnDue = bws.bill.notifyOnDue,
+                notifyDailyOverdue = bws.bill.notifyDailyOverdue,
+                dueYearMonth = null,
+                categoryLabel = "Bill"
+            )
+        }
+
+        val loanItems = overview.loans
+            .filter { it.loan.isActive }
+            .map { lws ->
+                val dueStatus = when {
+                    lws.isPaidForCycle -> "Paid"
+                    lws.isOverdue -> "Overdue by ${lws.overdueDays} day${if (lws.overdueDays == 1) "" else "s"}"
+                    lws.daysUntilDue == 0L -> "Due today"
+                    lws.daysUntilDue == 1L -> "Due tomorrow"
+                    else -> "Due in ${lws.daysUntilDue} days"
+                }
+                DueReminderItemUi(
+                    id = lws.loan.id,
+                    itemKey = "loan_${lws.loan.id}",
+                    title = lws.loan.name,
+                    iconEmoji = lws.loan.iconEmoji,
+                    amountCentavos = lws.loan.monthlyAmortizationCentavos,
+                    amountFormatted = BudgetCalculator.formatPeso(lws.loan.monthlyAmortizationCentavos),
+                    isLoan = true,
+                    dueDateLabel = lws.dueDate.format(SHORT_DATE_FORMATTER),
+                    dueDayOfMonth = lws.loan.dueDayOfMonth,
+                    daysUntilDue = lws.daysUntilDue,
+                    isOverdue = lws.isOverdue,
+                    overdueDays = lws.overdueDays,
+                    isPaid = lws.isPaidForCycle,
+                    dueStatusText = dueStatus,
+                    notify7d = lws.loan.notify7d,
+                    notify3d = lws.loan.notify3d,
+                    notify1d = lws.loan.notify1d,
+                    notifyOnDue = lws.loan.notifyOnDue,
+                    notifyDailyOverdue = lws.loan.notifyDailyOverdue,
+                    dueYearMonth = lws.loan.nextDueYearMonth,
+                    categoryLabel = "Loan"
+                )
+            }
+
+        val sortedItems = (billItems + loanItems).sortedWith(
+            compareBy(
+                { it.isPaid },
+                { !it.isOverdue },
+                { it.daysUntilDue },
+                { it.dueDayOfMonth },
+                { it.title }
+            )
+        )
+
+        return RemindersUiState(
+            globalPushEnabled = pushEnabled,
+            items = sortedItems
+        )
     }
 
     private suspend fun resolveActiveCycleId(): Long {

@@ -134,6 +134,24 @@ fun MainScreen(
     ) -> Unit = { _, _, _, _, _ -> },
     onPickSoaPdf: () -> Unit = {},
     onClearMessages: () -> Unit = {},
+    onToggleGlobalPush: (Boolean) -> Unit = {},
+    onPreviewDueAlert: () -> Unit = {},
+    onUpdateReminderCadence: (
+        itemKey: String,
+        notify7d: Boolean,
+        notify3d: Boolean,
+        notify1d: Boolean,
+        notifyOnDue: Boolean,
+        notifyDailyOverdue: Boolean
+    ) -> Unit = { _, _, _, _, _, _ -> },
+    onUpdateOdometer: (Int) -> Unit = {},
+    onLogFullTank: () -> Unit = {},
+    onRefreshGas: () -> Unit = {},
+    onOverridePrice: (Long) -> Unit = {},
+    onAddPms: () -> Unit = {},
+    onSavePms: (taskName: String, iconEmoji: String, intervalKm: Int, lastServiceKm: Int, costCentavos: Long) -> Unit = { _, _, _, _, _ -> },
+    onLogPmsService: (id: Long, serviceKm: Int, costCentavos: Long) -> Unit = { _, _, _ -> },
+    onDeletePms: (id: Long) -> Unit = {},
     motoContent: (@Composable () -> Unit)? = null,
     remindersContent: (@Composable () -> Unit)? = null
 ) {
@@ -317,12 +335,13 @@ fun MainScreen(
                     if (remindersContent != null) {
                         remindersContent()
                     } else {
-                        TabPlaceholderScreen(
-                            badge = "SCHEDULED ALERTS",
-                            title = "Bill & Loan Reminders",
-                            subtitle = "Unified due-date timeline and per-obligation notification schedules arrive in Task 8.",
-                            metricLabel = "Overdue Bills",
-                            metricValue = state.budgetState.overdueBillsCount.toString()
+                        RemindersScreen(
+                            state = state.remindersState,
+                            onToggleGlobalPush = onToggleGlobalPush,
+                            onPreviewDueAlert = onPreviewDueAlert,
+                            onSettleBill = { billId -> onSettleBill(billId, null) },
+                            onSettleLoan = { loanId -> onSettleLoan(loanId, false) },
+                            onUpdateCadence = onUpdateReminderCadence
                         )
                     }
                 }
@@ -331,14 +350,16 @@ fun MainScreen(
                     if (motoContent != null) {
                         motoContent()
                     } else {
-                        TabPlaceholderScreen(
-                            badge = "YAMAHA NMAX",
-                            title = "Moto Care",
-                            subtitle = "Odometer logging, preventive maintenance intervals, and fuel tracker arrive in Task 8.",
-                            metricLabel = "Fuel Envelope",
-                            metricValue = state.budgetState.envelopes
-                                .firstOrNull { it.isGasEnvelope }
-                                ?.name ?: "Gas & Fuel"
+                        MotoCareScreen(
+                            state = state.motoState,
+                            onLogFullTank = onLogFullTank,
+                            onRefreshGas = onRefreshGas,
+                            onEditOdometer = onUpdateOdometer,
+                            onOverridePrice = onOverridePrice,
+                            onAddPms = onAddPms,
+                            onSavePms = onSavePms,
+                            onLogPmsService = onLogPmsService,
+                            onDeletePms = onDeletePms
                         )
                     }
                 }
