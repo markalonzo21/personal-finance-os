@@ -20,11 +20,15 @@ import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextReplacement
 import com.google.common.truth.Truth.assertThat
+import com.mcalonzo.personalfinanceos.ui.screens.MainScreen
 import com.mcalonzo.personalfinanceos.ui.screens.MotoCareScreen
 import com.mcalonzo.personalfinanceos.ui.screens.RemindersScreen
 import com.mcalonzo.personalfinanceos.ui.theme.PersonalFinanceTheme
+import com.mcalonzo.personalfinanceos.ui.viewmodel.BottomTab
+import com.mcalonzo.personalfinanceos.ui.viewmodel.BudgetUiState
 import com.mcalonzo.personalfinanceos.ui.viewmodel.DueReminderItemUi
 import com.mcalonzo.personalfinanceos.ui.viewmodel.EnvelopeItemUi
+import com.mcalonzo.personalfinanceos.ui.viewmodel.MainUiState
 import com.mcalonzo.personalfinanceos.ui.viewmodel.MotoUiState
 import com.mcalonzo.personalfinanceos.ui.viewmodel.PmsItemUi
 import com.mcalonzo.personalfinanceos.ui.viewmodel.RemindersUiState
@@ -457,5 +461,77 @@ class MotoAndRemindersScreenTest {
         }
         rule.onNodeWithText("Preview Alert").performClick()
         assertThat(previewTriggered).isTrue()
+    }
+
+    @Test
+    fun `MainScreen forwards explicit envelopeId from LogPmsServiceDialog to onLogPmsService callback`() {
+        var dispatchedPmsId: Long? = null
+        var dispatchedKm: Int? = null
+        var dispatchedCost: Long? = null
+        var dispatchedEnvId: Long? = null
+
+        val pms = PmsItemUi(
+            id = 205L,
+            taskName = "Final Gear Oil",
+            iconEmoji = "⚙️",
+            intervalKm = 3000,
+            lastServiceOdometerKm = 6000,
+            remainingKm = 550,
+            isOverdue = false,
+            dueStatusText = "Due in 550 km"
+        )
+        val gasEnv = EnvelopeItemUi(
+            id = 10L,
+            name = "Motorcycle Gas",
+            iconEmoji = "⛽",
+            colorHex = "#F59E0B",
+            allocatedLimitCentavos = 350_000L,
+            spentCentavos = 0L,
+            isGasEnvelope = true
+        )
+        val miscEnv = EnvelopeItemUi(
+            id = 20L,
+            name = "Personal & Misc",
+            iconEmoji = "🎧",
+            colorHex = "#F43F5E",
+            allocatedLimitCentavos = 400_000L,
+            spentCentavos = 0L,
+            isGasEnvelope = false
+        )
+        val uiState = MainUiState(
+            selectedBottomTab = BottomTab.MOTO,
+            budgetState = BudgetUiState(
+                envelopes = listOf(gasEnv, miscEnv)
+            ),
+            motoState = MotoUiState(
+                odometerKm = 8450,
+                pmsItems = listOf(pms)
+            )
+        )
+
+        rule.setContent {
+            PersonalFinanceTheme {
+                MainScreen(
+                    state = uiState,
+                    onLogPmsService = { id, km, cost, envId ->
+                        dispatchedPmsId = id
+                        dispatchedKm = km
+                        dispatchedCost = cost
+                        dispatchedEnvId = envId
+                    }
+                )
+            }
+        }
+
+        rule.onNode(hasScrollToIndexAction()).performScrollToIndex(4)
+        rule.onNodeWithText("Log Service").performClick()
+        rule.onNode(hasText("Optional Cost (₱)") and hasSetTextAction()).performTextReplacement("250.00")
+        rule.onNodeWithText("🎧 Personal & Misc").performSemanticsAction(SemanticsActions.OnClick)
+        rule.onNodeWithText("Confirm Service").performClick()
+
+        assertThat(dispatchedPmsId).isEqualTo(205L)
+        assertThat(dispatchedKm).isEqualTo(8450)
+        assertThat(dispatchedCost).isEqualTo(25_000L)
+        assertThat(dispatchedEnvId).isEqualTo(20L)
     }
 }

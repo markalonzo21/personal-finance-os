@@ -149,8 +149,8 @@ fun MainScreen(
     onRefreshGas: () -> Unit = {},
     onOverridePrice: (Long) -> Unit = {},
     onAddPms: () -> Unit = {},
-    onSavePms: (taskName: String, iconEmoji: String, intervalKm: Int, lastServiceKm: Int, costCentavos: Long) -> Unit = { _, _, _, _, _ -> },
-    onLogPmsService: (id: Long, serviceKm: Int, costCentavos: Long) -> Unit = { _, _, _ -> },
+    onSavePms: (taskName: String, iconEmoji: String, intervalKm: Int, lastServiceKm: Int, costCentavos: Long, envelopeId: Long?) -> Unit = { _, _, _, _, _, _ -> },
+    onLogPmsService: (id: Long, serviceKm: Int, costCentavos: Long, envelopeId: Long?) -> Unit = { _, _, _, _ -> },
     onUpdatePms: (id: Long, taskName: String, iconEmoji: String, intervalKm: Int, lastServiceKm: Int) -> Unit = { _, _, _, _, _ -> },
     onDeletePms: (id: Long) -> Unit = {},
     motoContent: (@Composable () -> Unit)? = null,
@@ -359,8 +359,10 @@ fun MainScreen(
                             onEditOdometer = onUpdateOdometer,
                             onOverridePrice = onOverridePrice,
                             onAddPms = onAddPms,
-                            onSavePms = onSavePms,
-                            onLogPmsService = onLogPmsService,
+                            onSavePms = { name, emoji, interval, lastKm, cost -> onSavePms(name, emoji, interval, lastKm, cost, null) },
+                            onSavePmsWithEnvelope = onSavePms,
+                            onLogPmsService = { id, km, cost -> onLogPmsService(id, km, cost, null) },
+                            onLogPmsServiceWithEnvelope = onLogPmsService,
                             onUpdatePms = onUpdatePms,
                             onDeletePms = onDeletePms
                         )
