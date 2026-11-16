@@ -23,7 +23,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.LocalGasStation
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Speed
@@ -33,12 +34,14 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,7 +50,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -57,25 +59,36 @@ import com.mcalonzo.personalfinanceos.ui.components.CurrencyFormatters
 import com.mcalonzo.personalfinanceos.ui.theme.FinanceTypography
 import com.mcalonzo.personalfinanceos.ui.theme.NumericTextStyles
 import com.mcalonzo.personalfinanceos.ui.theme.OLEDColors
+import com.mcalonzo.personalfinanceos.ui.viewmodel.EnvelopeItemUi
 import com.mcalonzo.personalfinanceos.ui.viewmodel.MotoUiState
 import com.mcalonzo.personalfinanceos.ui.viewmodel.PmsItemUi
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MotoCareScreen(
     state: MotoUiState,
     modifier: Modifier = Modifier,
+    availableEnvelopes: List<EnvelopeItemUi> = emptyList(),
     onLogFullTank: () -> Unit = {},
     onRefreshGas: () -> Unit = {},
     onEditOdometer: (Int) -> Unit = {},
     onOverridePrice: (Long) -> Unit = {},
     onAddPms: () -> Unit = {},
     onSavePms: (taskName: String, iconEmoji: String, intervalKm: Int, lastServiceKm: Int, costCentavos: Long) -> Unit = { _, _, _, _, _ -> },
+    onSavePmsWithEnvelope: (taskName: String, iconEmoji: String, intervalKm: Int, lastServiceKm: Int, costCentavos: Long, envelopeId: Long?) -> Unit = { taskName, icon, interval, lastKm, cost, _ ->
+        onSavePms(taskName, icon, interval, lastKm, cost)
+    },
     onLogPmsService: (id: Long, serviceKm: Int, costCentavos: Long) -> Unit = { _, _, _ -> },
+    onLogPmsServiceWithEnvelope: (id: Long, serviceKm: Int, costCentavos: Long, envelopeId: Long?) -> Unit = { id, km, cost, _ ->
+        onLogPmsService(id, km, cost)
+    },
+    onUpdatePms: (id: Long, taskName: String, iconEmoji: String, intervalKm: Int, lastServiceKm: Int) -> Unit = { _, _, _, _, _ -> },
     onDeletePms: (id: Long) -> Unit = {}
 ) {
     var showOdometerDialog by remember { mutableStateOf(false) }
     var showOverridePriceDialog by remember { mutableStateOf(false) }
     var showAddPmsDialog by remember { mutableStateOf(false) }
+    var editingPmsItem by remember { mutableStateOf<PmsItemUi?>(null) }
     var servicingPmsItem by remember { mutableStateOf<PmsItemUi?>(null) }
 
     Column(
@@ -83,126 +96,132 @@ fun MotoCareScreen(
             .fillMaxSize()
             .background(OLEDColors.bgBase)
     ) {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+        PullToRefreshBox(
+            isRefreshing = state.isSyncingGas,
+            onRefresh = onRefreshGas,
+            modifier = Modifier.fillMaxSize()
         ) {
-            item(key = "screen_header") {
-                Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                    Text(
-                        text = "FLEET & MAINTENANCE",
-                        style = FinanceTypography.labelSmall,
-                        color = OLEDColors.accentSky,
-                        letterSpacing = 1.2.sp
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Moto Care",
-                        style = FinanceTypography.headlineMedium,
-                        color = OLEDColors.textPrimary
-                    )
-                    Text(
-                        text = "Preventive Maintenance Schedule & Fuel Price Watcher",
-                        style = FinanceTypography.bodyMedium,
-                        color = OLEDColors.textSecondary
-                    )
-                }
-            }
-
-            item(key = "hero_moto_card") {
-                MotoHeroCard(
-                    modelName = state.modelName,
-                    odometerKm = state.odometerKm,
-                    tankCapacityLiters = state.tankCapacityLiters,
-                    onEditOdometerClick = { showOdometerDialog = true }
-                )
-            }
-
-            item(key = "gas_price_card") {
-                GasPriceWatcherCard(
-                    state = state,
-                    onLogFullTank = onLogFullTank,
-                    onRefreshGas = onRefreshGas,
-                    onTapPrice = { showOverridePriceDialog = true }
-                )
-            }
-
-            item(key = "pms_header") {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                item(key = "screen_header") {
+                    Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
                         Text(
-                            text = "PREVENTIVE MAINTENANCE (PMS)",
+                            text = "FLEET & MAINTENANCE",
                             style = FinanceTypography.labelSmall,
-                            color = OLEDColors.textSecondary,
-                            letterSpacing = 1.1.sp
+                            color = OLEDColors.accentSky,
+                            letterSpacing = 1.2.sp
                         )
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Service Intervals",
-                            style = FinanceTypography.titleMedium,
+                            text = "Moto Care",
+                            style = FinanceTypography.headlineMedium,
                             color = OLEDColors.textPrimary
                         )
-                    }
-                    Button(
-                        onClick = {
-                            showAddPmsDialog = true
-                            onAddPms()
-                        },
-                        modifier = Modifier.defaultMinSize(minHeight = 48.dp),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = OLEDColors.bgCardElevated,
-                            contentColor = OLEDColors.accentSky
+                        Text(
+                            text = "Preventive Maintenance Schedule & Fuel Price Watcher",
+                            style = FinanceTypography.bodyMedium,
+                            color = OLEDColors.textSecondary
                         )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Add,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("+ Log PMS", style = FinanceTypography.labelMedium)
                     }
                 }
-            }
 
-            if (state.pmsItems.isEmpty()) {
-                item(key = "empty_pms") {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = OLEDColors.bgCardSubtle),
-                        shape = RoundedCornerShape(14.dp)
+                item(key = "hero_moto_card") {
+                    MotoHeroCard(
+                        modelName = state.modelName,
+                        odometerKm = state.odometerKm,
+                        tankCapacityLiters = state.tankCapacityLiters,
+                        onEditOdometerClick = { showOdometerDialog = true }
+                    )
+                }
+
+                item(key = "gas_price_card") {
+                    GasPriceWatcherCard(
+                        state = state,
+                        onLogFullTank = onLogFullTank,
+                        onRefreshGas = onRefreshGas,
+                        onTapPrice = { showOverridePriceDialog = true }
+                    )
+                }
+
+                item(key = "pms_header") {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(24.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "No PMS schedules configured",
-                                style = FinanceTypography.bodyMedium,
-                                color = OLEDColors.textSecondary
+                                text = "PREVENTIVE MAINTENANCE (PMS)",
+                                style = FinanceTypography.labelSmall,
+                                color = OLEDColors.textSecondary,
+                                letterSpacing = 1.1.sp
                             )
+                            Text(
+                                text = "Service Intervals",
+                                style = FinanceTypography.titleMedium,
+                                color = OLEDColors.textPrimary
+                            )
+                        }
+                        Button(
+                            onClick = {
+                                editingPmsItem = null
+                                showAddPmsDialog = true
+                                onAddPms()
+                            },
+                            modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = OLEDColors.bgCardElevated,
+                                contentColor = OLEDColors.accentSky
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Add,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("+ Log PMS", style = FinanceTypography.labelMedium)
                         }
                     }
                 }
-            } else {
-                items(
-                    items = state.pmsItems,
-                    key = { it.id }
-                ) { pms ->
-                    PmsCard(
-                        item = pms,
-                        onLogServiceClick = { servicingPmsItem = pms }
-                    )
+
+                if (state.pmsItems.isEmpty()) {
+                    item(key = "empty_pms") {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = OLEDColors.bgCardSubtle),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "No PMS schedules configured",
+                                    style = FinanceTypography.bodyMedium,
+                                    color = OLEDColors.textSecondary
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    items(
+                        items = state.pmsItems,
+                        key = { it.id }
+                    ) { pms ->
+                        PmsCard(
+                            item = pms,
+                            onEditClick = { editingPmsItem = pms },
+                            onLogServiceClick = { servicingPmsItem = pms }
+                        )
+                    }
                 }
             }
         }
@@ -231,12 +250,34 @@ fun MotoCareScreen(
     }
 
     if (showAddPmsDialog) {
-        AddPmsDialog(
+        AddEditPmsDialog(
+            editingItem = null,
             currentOdometerKm = state.odometerKm,
+            availableEnvelopes = availableEnvelopes,
             onDismiss = { showAddPmsDialog = false },
-            onConfirm = { name, emoji, intervalKm, lastServiceKm, costCentavos ->
-                onSavePms(name, emoji, intervalKm, lastServiceKm, costCentavos)
+            onSaveNew = { name, emoji, intervalKm, lastServiceKm, costCentavos, envelopeId ->
+                onSavePmsWithEnvelope(name, emoji, intervalKm, lastServiceKm, costCentavos, envelopeId)
                 showAddPmsDialog = false
+            },
+            onUpdateExisting = { _, _, _, _, _ -> },
+            onDelete = {}
+        )
+    }
+
+    editingPmsItem?.let { pms ->
+        AddEditPmsDialog(
+            editingItem = pms,
+            currentOdometerKm = state.odometerKm,
+            availableEnvelopes = availableEnvelopes,
+            onDismiss = { editingPmsItem = null },
+            onSaveNew = { _, _, _, _, _, _ -> },
+            onUpdateExisting = { id, name, emoji, intervalKm, lastServiceKm ->
+                onUpdatePms(id, name, emoji, intervalKm, lastServiceKm)
+                editingPmsItem = null
+            },
+            onDelete = { id ->
+                onDeletePms(id)
+                editingPmsItem = null
             }
         )
     }
@@ -245,9 +286,10 @@ fun MotoCareScreen(
         LogPmsServiceDialog(
             item = pms,
             currentOdometerKm = state.odometerKm,
+            availableEnvelopes = availableEnvelopes,
             onDismiss = { servicingPmsItem = null },
-            onConfirm = { serviceKm, costCentavos ->
-                onLogPmsService(pms.id, serviceKm, costCentavos)
+            onConfirm = { serviceKm, costCentavos, envelopeId ->
+                onLogPmsServiceWithEnvelope(pms.id, serviceKm, costCentavos, envelopeId)
                 servicingPmsItem = null
             }
         )
@@ -307,13 +349,15 @@ private fun MotoHeroCard(
 
                 Box(
                     modifier = Modifier
+                        .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(OLEDColors.bgCardElevated)
                         .clickable(
                             role = Role.Button,
                             onClick = onEditOdometerClick
                         )
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
@@ -415,7 +459,7 @@ private fun GasPriceWatcherCard(
 
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(48.dp)
                         .clip(CircleShape)
                         .background(OLEDColors.bgCardElevated)
                         .clickable(
@@ -510,6 +554,7 @@ private fun GasPriceWatcherCard(
 @Composable
 private fun PmsCard(
     item: PmsItemUi,
+    onEditClick: () -> Unit,
     onLogServiceClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -569,21 +614,44 @@ private fun PmsCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            Button(
-                onClick = onLogServiceClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .defaultMinSize(minHeight = 48.dp),
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = OLEDColors.bgCardElevated,
-                    contentColor = OLEDColors.accentSky
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Log Service",
-                    style = FinanceTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
-                )
+                OutlinedButton(
+                    onClick = onEditClick,
+                    modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = OLEDColors.textSecondary
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Edit,
+                        contentDescription = "Edit PMS Task",
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Edit", style = FinanceTypography.labelMedium)
+                }
+
+                Button(
+                    onClick = onLogServiceClick,
+                    modifier = Modifier
+                        .weight(1f)
+                        .defaultMinSize(minHeight = 48.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = OLEDColors.bgCardElevated,
+                        contentColor = OLEDColors.accentSky
+                    )
+                ) {
+                    Text(
+                        text = "Log Service",
+                        style = FinanceTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                }
             }
         }
     }
@@ -735,11 +803,18 @@ private fun OverrideGasPriceDialog(
 private fun LogPmsServiceDialog(
     item: PmsItemUi,
     currentOdometerKm: Int,
+    availableEnvelopes: List<EnvelopeItemUi> = emptyList(),
     onDismiss: () -> Unit,
-    onConfirm: (serviceKm: Int, costCentavos: Long) -> Unit
+    onConfirm: (serviceKm: Int, costCentavos: Long, envelopeId: Long?) -> Unit
 ) {
     var rawKm by remember { mutableStateOf(currentOdometerKm.toString()) }
     var rawCost by remember { mutableStateOf("") }
+    val defaultEnvId = remember(availableEnvelopes) {
+        availableEnvelopes.firstOrNull { it.isGasEnvelope }?.id
+            ?: availableEnvelopes.firstOrNull { it.name.contains("Personal", ignoreCase = true) }?.id
+            ?: availableEnvelopes.firstOrNull()?.id
+    }
+    var selectedEnvId by remember { mutableStateOf(defaultEnvId) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -759,7 +834,7 @@ private fun LogPmsServiceDialog(
                     color = OLEDColors.textPrimary
                 )
                 Text(
-                    text = "Update last service odometer and optionally log budget expense.",
+                    text = "Update last service odometer and optionally charge maintenance cost to an envelope.",
                     style = FinanceTypography.bodySmall,
                     color = OLEDColors.textSecondary
                 )
@@ -792,6 +867,43 @@ private fun LogPmsServiceDialog(
                         unfocusedTextColor = OLEDColors.textPrimary
                     )
                 )
+
+                val parsedCost = CurrencyFormatters.parsePesoToCentavos(rawCost) ?: 0L
+                if (parsedCost > 0L && availableEnvelopes.isNotEmpty()) {
+                    Text(
+                        text = "Charge Expense To:",
+                        style = FinanceTypography.labelMedium,
+                        color = OLEDColors.accentSky
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        availableEnvelopes.take(3).forEach { env ->
+                            val isSelected = env.id == selectedEnvId
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) OLEDColors.accentSky.copy(alpha = 0.2f) else OLEDColors.bgCardSubtle)
+                                    .border(
+                                        1.dp,
+                                        if (isSelected) OLEDColors.accentSky else OLEDColors.borderSubtle,
+                                        RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable { selectedEnvId = env.id }
+                                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = "${env.iconEmoji} ${env.name}",
+                                    style = FinanceTypography.labelSmall.copy(
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                    ),
+                                    color = if (isSelected) OLEDColors.accentSky else OLEDColors.textSecondary
+                                )
+                            }
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
@@ -799,7 +911,7 @@ private fun LogPmsServiceDialog(
                 onClick = {
                     val km = rawKm.toIntOrNull() ?: currentOdometerKm
                     val cost = CurrencyFormatters.parsePesoToCentavos(rawCost) ?: 0L
-                    onConfirm(km, cost)
+                    onConfirm(km, cost, if (cost > 0L) selectedEnvId else null)
                 },
                 modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                 colors = ButtonDefaults.buttonColors(
@@ -822,23 +934,34 @@ private fun LogPmsServiceDialog(
 }
 
 @Composable
-private fun AddPmsDialog(
+private fun AddEditPmsDialog(
+    editingItem: PmsItemUi?,
     currentOdometerKm: Int,
+    availableEnvelopes: List<EnvelopeItemUi> = emptyList(),
     onDismiss: () -> Unit,
-    onConfirm: (taskName: String, iconEmoji: String, intervalKm: Int, lastServiceKm: Int, costCentavos: Long) -> Unit
+    onSaveNew: (taskName: String, iconEmoji: String, intervalKm: Int, lastServiceKm: Int, costCentavos: Long, envelopeId: Long?) -> Unit,
+    onUpdateExisting: (id: Long, taskName: String, iconEmoji: String, intervalKm: Int, lastServiceKm: Int) -> Unit,
+    onDelete: (id: Long) -> Unit
 ) {
-    var taskName by remember { mutableStateOf("") }
-    var iconEmoji by remember { mutableStateOf("🔧") }
-    var intervalKm by remember { mutableStateOf("3000") }
-    var lastServiceKm by remember { mutableStateOf(currentOdometerKm.toString()) }
+    val isEditing = editingItem != null
+    var taskName by remember(editingItem) { mutableStateOf(editingItem?.taskName ?: "") }
+    var iconEmoji by remember(editingItem) { mutableStateOf(editingItem?.iconEmoji ?: "🔧") }
+    var intervalKm by remember(editingItem) { mutableStateOf(editingItem?.intervalKm?.toString() ?: "3000") }
+    var lastServiceKm by remember(editingItem) {
+        mutableStateOf(editingItem?.lastServiceOdometerKm?.toString() ?: currentOdometerKm.toString())
+    }
     var rawCost by remember { mutableStateOf("") }
+    val defaultEnvId = remember(availableEnvelopes) {
+        availableEnvelopes.firstOrNull { it.isGasEnvelope }?.id ?: availableEnvelopes.firstOrNull()?.id
+    }
+    var selectedEnvId by remember { mutableStateOf(defaultEnvId) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = OLEDColors.bgCard,
         title = {
             Text(
-                "Add PMS Schedule",
+                if (isEditing) "Edit PMS Schedule" else "Add PMS Schedule",
                 style = FinanceTypography.headlineSmall,
                 color = OLEDColors.textPrimary
             )
@@ -902,21 +1025,23 @@ private fun AddPmsDialog(
                         unfocusedTextColor = OLEDColors.textPrimary
                     )
                 )
-                OutlinedTextField(
-                    value = rawCost,
-                    onValueChange = { rawCost = CurrencyFormatters.sanitizeDecimalInput(it) },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Optional Cost (₱)") },
-                    placeholder = { Text("0.00") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = OLEDColors.accentSky,
-                        unfocusedBorderColor = OLEDColors.borderSubtle,
-                        focusedTextColor = OLEDColors.textPrimary,
-                        unfocusedTextColor = OLEDColors.textPrimary
+                if (!isEditing) {
+                    OutlinedTextField(
+                        value = rawCost,
+                        onValueChange = { rawCost = CurrencyFormatters.sanitizeDecimalInput(it) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Optional Cost (₱)") },
+                        placeholder = { Text("0.00") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = OLEDColors.accentSky,
+                            unfocusedBorderColor = OLEDColors.borderSubtle,
+                            focusedTextColor = OLEDColors.textPrimary,
+                            unfocusedTextColor = OLEDColors.textPrimary
+                        )
                     )
-                )
+                }
             }
         },
         confirmButton = {
@@ -925,8 +1050,12 @@ private fun AddPmsDialog(
                     if (taskName.isNotBlank()) {
                         val interval = intervalKm.toIntOrNull() ?: 3000
                         val lastKm = lastServiceKm.toIntOrNull() ?: currentOdometerKm
-                        val cost = CurrencyFormatters.parsePesoToCentavos(rawCost) ?: 0L
-                        onConfirm(taskName.trim(), iconEmoji.ifBlank { "🔧" }, interval, lastKm, cost)
+                        if (editingItem != null) {
+                            onUpdateExisting(editingItem.id, taskName.trim(), iconEmoji.ifBlank { "🔧" }, interval, lastKm)
+                        } else {
+                            val cost = CurrencyFormatters.parsePesoToCentavos(rawCost) ?: 0L
+                            onSaveNew(taskName.trim(), iconEmoji.ifBlank { "🔧" }, interval, lastKm, cost, if (cost > 0L) selectedEnvId else null)
+                        }
                     }
                 },
                 modifier = Modifier.defaultMinSize(minHeight = 48.dp),
@@ -935,15 +1064,32 @@ private fun AddPmsDialog(
                     contentColor = OLEDColors.bgBase
                 )
             ) {
-                Text("Save", style = FinanceTypography.labelLarge)
+                Text(if (isEditing) "Save Changes" else "Save", style = FinanceTypography.labelLarge)
             }
         },
         dismissButton = {
-            TextButton(
-                onClick = onDismiss,
-                modifier = Modifier.defaultMinSize(minHeight = 48.dp)
-            ) {
-                Text("Cancel", color = OLEDColors.textSecondary)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (editingItem != null) {
+                    TextButton(
+                        onClick = { onDelete(editingItem.id) },
+                        modifier = Modifier.defaultMinSize(minHeight = 48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Delete,
+                            contentDescription = null,
+                            tint = OLEDColors.accentRose,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Delete", color = OLEDColors.accentRose)
+                    }
+                }
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.defaultMinSize(minHeight = 48.dp)
+                ) {
+                    Text("Cancel", color = OLEDColors.textSecondary)
+                }
             }
         }
     )

@@ -10,6 +10,7 @@ import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -23,6 +24,7 @@ import com.mcalonzo.personalfinanceos.ui.screens.MotoCareScreen
 import com.mcalonzo.personalfinanceos.ui.screens.RemindersScreen
 import com.mcalonzo.personalfinanceos.ui.theme.PersonalFinanceTheme
 import com.mcalonzo.personalfinanceos.ui.viewmodel.DueReminderItemUi
+import com.mcalonzo.personalfinanceos.ui.viewmodel.EnvelopeItemUi
 import com.mcalonzo.personalfinanceos.ui.viewmodel.MotoUiState
 import com.mcalonzo.personalfinanceos.ui.viewmodel.PmsItemUi
 import com.mcalonzo.personalfinanceos.ui.viewmodel.RemindersUiState
@@ -195,6 +197,105 @@ class MotoAndRemindersScreenTest {
         assertThat(servicedPmsId).isEqualTo(101L)
         assertThat(servicedKm).isEqualTo(8450)
         assertThat(serviceCost).isEqualTo(0L)
+    }
+
+    @Test
+    fun `moto care editing and deleting PMS task invokes update and delete callbacks`() {
+        var updatedPms: Pair<String, Int>? = null
+        var deletedPmsId: Long? = null
+
+        val pms = PmsItemUi(
+            id = 101L,
+            taskName = "Honda 4T SL 10W-30 Engine Oil",
+            iconEmoji = "🛢️",
+            intervalKm = 1500,
+            lastServiceOdometerKm = 7500,
+            remainingKm = 550,
+            isOverdue = false,
+            dueStatusText = "Due in 550 km"
+        )
+        val motoState = MotoUiState(
+            odometerKm = 8450,
+            pmsItems = listOf(pms)
+        )
+        rule.setContent {
+            PersonalFinanceTheme {
+                MotoCareScreen(
+                    state = motoState,
+                    onUpdatePms = { id, name, _, interval, _ -> updatedPms = name to interval },
+                    onDeletePms = { deletedPmsId = it }
+                )
+            }
+        }
+        rule.onNode(hasScrollToIndexAction()).performScrollToIndex(4)
+        rule.onNodeWithText("Edit").performClick()
+        rule.onNodeWithText("Edit PMS Schedule").assertIsDisplayed()
+        rule.onNode(hasText("Task Name") and hasSetTextAction()).performTextReplacement("Synthetic Engine Oil")
+        rule.onNode(hasText("Interval (km)") and hasSetTextAction()).performTextReplacement("2000")
+        rule.onNodeWithText("Save Changes").performClick()
+
+        assertThat(updatedPms).isEqualTo("Synthetic Engine Oil" to 2000)
+
+        // Delete flow
+        rule.onNodeWithText("Edit").performClick()
+        rule.onNodeWithText("Delete").performClick()
+        assertThat(deletedPmsId).isEqualTo(101L)
+    }
+
+    @Test
+    fun `moto care log service with cost selects envelope and passes envelopeId`() {
+        var chargedEnvId: Long? = null
+        var chargedCost: Long? = null
+
+        val pms = PmsItemUi(
+            id = 101L,
+            taskName = "Honda 4T SL 10W-30 Engine Oil",
+            iconEmoji = "🛢️",
+            intervalKm = 1500,
+            lastServiceOdometerKm = 7500,
+            remainingKm = 550,
+            isOverdue = false,
+            dueStatusText = "Due in 550 km"
+        )
+        val gasEnv = EnvelopeItemUi(
+            id = 42L,
+            name = "Motorcycle Gas",
+            iconEmoji = "⛽",
+            colorHex = "#F59E0B",
+            allocatedLimitCentavos = 350_000L,
+            spentCentavos = 0L,
+            isGasEnvelope = true
+        )
+        val motoState = MotoUiState(
+            odometerKm = 8450,
+            pmsItems = listOf(pms)
+        )
+        rule.setContent {
+            PersonalFinanceTheme {
+                MotoCareScreen(
+                    state = motoState,
+                    availableEnvelopes = listOf(gasEnv),
+                    onLogPmsServiceWithEnvelope = { id, km, cost, envId ->
+                        chargedCost = cost
+                        chargedEnvId = envId
+                    }
+                )
+            }
+        }
+        rule.onNode(hasScrollToIndexAction()).performScrollToIndex(4)
+        rule.onNodeWithText("Log Service").performClick()
+        rule.onNode(hasText("Optional Cost (₱)") and hasSetTextAction()).performTextReplacement("350.00")
+        rule.onNodeWithText("Confirm Service").performClick()
+
+        assertThat(chargedCost).isEqualTo(35_000L)
+        assertThat(chargedEnvId).isEqualTo(42L)
+    }
+
+    @Test
+    fun `notification preview body contains exactly single peso sign without double symbol`() {
+        val preview = com.mcalonzo.personalfinanceos.domain.calculator.BudgetCalculator.formatPeso(150_000L)
+        assertThat(preview).isEqualTo("₱1,500.00")
+        assertThat(preview).doesNotContain("₱₱")
     }
 
     @Test

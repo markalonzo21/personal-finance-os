@@ -151,6 +151,7 @@ fun MainScreen(
     onAddPms: () -> Unit = {},
     onSavePms: (taskName: String, iconEmoji: String, intervalKm: Int, lastServiceKm: Int, costCentavos: Long) -> Unit = { _, _, _, _, _ -> },
     onLogPmsService: (id: Long, serviceKm: Int, costCentavos: Long) -> Unit = { _, _, _ -> },
+    onUpdatePms: (id: Long, taskName: String, iconEmoji: String, intervalKm: Int, lastServiceKm: Int) -> Unit = { _, _, _, _, _ -> },
     onDeletePms: (id: Long) -> Unit = {},
     motoContent: (@Composable () -> Unit)? = null,
     remindersContent: (@Composable () -> Unit)? = null
@@ -352,6 +353,7 @@ fun MainScreen(
                     } else {
                         MotoCareScreen(
                             state = state.motoState,
+                            availableEnvelopes = state.budgetState.envelopes,
                             onLogFullTank = onLogFullTank,
                             onRefreshGas = onRefreshGas,
                             onEditOdometer = onUpdateOdometer,
@@ -359,6 +361,7 @@ fun MainScreen(
                             onAddPms = onAddPms,
                             onSavePms = onSavePms,
                             onLogPmsService = onLogPmsService,
+                            onUpdatePms = onUpdatePms,
                             onDeletePms = onDeletePms
                         )
                     }

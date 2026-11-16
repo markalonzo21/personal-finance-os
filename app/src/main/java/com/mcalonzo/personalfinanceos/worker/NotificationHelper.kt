@@ -83,7 +83,8 @@ object NotificationHelper {
         entityType: String,
         entityId: Long,
         amountCentavos: Long,
-        dueYearMonth: String? = null
+        dueYearMonth: String? = null,
+        includeActions: Boolean = true
     ) {
         ensureChannel(context)
 
@@ -139,7 +140,7 @@ object NotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_alert)
             .setContentTitle(title)
             .setContentText(body)
@@ -148,11 +149,13 @@ object NotificationHelper {
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setAutoCancel(true)
             .setContentIntent(contentPendingIntent)
-            .addAction(0, "Pay ${BudgetCalculator.formatPeso(amountCentavos)}", payPendingIntent)
-            .addAction(0, "Remind in 1h", snoozePendingIntent)
-            .build()
 
-        notificationManager.notify(notificationId, notification)
+        if (includeActions && entityId > 0L) {
+            builder.addAction(0, "Pay ${BudgetCalculator.formatPeso(amountCentavos)}", payPendingIntent)
+            builder.addAction(0, "Remind in 1h", snoozePendingIntent)
+        }
+
+        notificationManager.notify(notificationId, builder.build())
     }
 
     fun cancelNotification(context: Context, notificationId: Int) {

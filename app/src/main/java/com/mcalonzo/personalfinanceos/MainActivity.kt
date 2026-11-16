@@ -69,6 +69,7 @@ class MainActivity : ComponentActivity() {
                     onOverridePrice = viewModel::overrideGasPrice,
                     onSavePms = viewModel::addPmsInterval,
                     onLogPmsService = viewModel::logPmsService,
+                    onUpdatePms = viewModel::updatePmsInterval,
                     onDeletePms = viewModel::deletePmsInterval
                 )
             }

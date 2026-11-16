@@ -202,7 +202,8 @@ data class MotoUiState(
     val fullTankCostFormatted: String = "₱431.20",
     val pmsItems: List<PmsItemUi> = emptyList(),
     val pricePerLiterCentavos: Long = 7840L,
-    val isSyncing: Boolean = false
+    val isSyncing: Boolean = false,
+    val isSyncingGas: Boolean = isSyncing
 )
 
 data class DueReminderItemUi(
@@ -797,32 +798,51 @@ class MainViewModel internal constructor(
         }
     }
 
-    fun logPmsService(pmsId: Long, serviceKm: Int, costCentavos: Long = 0L) {
+    fun logPmsService(
+        pmsId: Long,
+        serviceKm: Int,
+        costCentavos: Long = 0L,
+        envelopeId: Long? = null
+    ) {
         viewModelScope.launch {
             runMutation("Unable to log PMS service") {
                 val existing = motoDao?.getPmsIntervalById(pmsId)
-                if (existing != null) {
-                    motoDao.updatePmsInterval(
-                        existing.copy(
-                            lastServiceOdometerKm = serviceKm,
-                            lastServiceEpochMs = System.currentTimeMillis()
-                        )
-                    )
-                    val profile = motoDao.getMotoProfileOnce()
-                    if (profile != null && serviceKm > profile.currentOdometerKm) {
-                        motoDao.updateOdometerKm(serviceKm)
-                    }
-                }
+                    ?: throw IllegalArgumentException("PMS item $pmsId not found")
+
                 if (costCentavos > 0L) {
                     val cycleId = resolveActiveCycleId()
-                    val undo = budgetRepository.logGasFullTank(
+                    val activeEnvelopes = uiState.value.budgetState.envelopes
+                    val targetEnv = if (envelopeId != null) {
+                        activeEnvelopes.firstOrNull { it.id == envelopeId }
+                            ?: throw IllegalArgumentException("Selected envelope $envelopeId not found in cycle")
+                    } else {
+                        activeEnvelopes.firstOrNull { it.isGasEnvelope }
+                            ?: activeEnvelopes.firstOrNull { it.name.contains("Personal", ignoreCase = true) }
+                            ?: activeEnvelopes.firstOrNull()
+                            ?: throw IllegalStateException("No budget envelope available to charge PMS cost")
+                    }
+
+                    val undo = budgetRepository.logExpense(
                         cycleId = cycleId,
+                        envelopeId = targetEnv.id,
                         amountCentavos = costCentavos,
-                        label = "PMS: ${existing?.taskName ?: "Service"}"
+                        title = "PMS: ${existing.taskName}"
                     )
                     startUndoWindow(undo)
-                } else {
-                    infoMessage.value = "Logged service for ${existing?.taskName ?: "PMS"}"
+                }
+
+                motoDao?.updatePmsInterval(
+                    existing.copy(
+                        lastServiceOdometerKm = serviceKm,
+                        lastServiceEpochMs = System.currentTimeMillis()
+                    )
+                )
+                val profile = motoDao?.getMotoProfileOnce()
+                if (profile != null && serviceKm > profile.currentOdometerKm) {
+                    motoDao.updateOdometerKm(serviceKm)
+                }
+                if (costCentavos <= 0L) {
+                    infoMessage.value = "Logged service for ${existing.taskName}"
                 }
             }
         }
@@ -833,10 +853,33 @@ class MainViewModel internal constructor(
         iconEmoji: String,
         intervalKm: Int,
         lastServiceKm: Int,
-        costCentavos: Long = 0L
+        costCentavos: Long = 0L,
+        envelopeId: Long? = null
     ) {
         viewModelScope.launch {
             runMutation("Unable to add PMS schedule") {
+                if (costCentavos > 0L) {
+                    val cycleId = resolveActiveCycleId()
+                    val activeEnvelopes = uiState.value.budgetState.envelopes
+                    val targetEnv = if (envelopeId != null) {
+                        activeEnvelopes.firstOrNull { it.id == envelopeId }
+                            ?: throw IllegalArgumentException("Selected envelope $envelopeId not found in cycle")
+                    } else {
+                        activeEnvelopes.firstOrNull { it.isGasEnvelope }
+                            ?: activeEnvelopes.firstOrNull { it.name.contains("Personal", ignoreCase = true) }
+                            ?: activeEnvelopes.firstOrNull()
+                            ?: throw IllegalStateException("No budget envelope available to charge PMS cost")
+                    }
+
+                    val undo = budgetRepository.logExpense(
+                        cycleId = cycleId,
+                        envelopeId = targetEnv.id,
+                        amountCentavos = costCentavos,
+                        title = "PMS: $taskName"
+                    )
+                    startUndoWindow(undo)
+                }
+
                 motoDao?.insertPmsInterval(
                     PmsIntervalEntity(
                         taskName = taskName,
@@ -846,17 +889,33 @@ class MainViewModel internal constructor(
                         lastServiceEpochMs = System.currentTimeMillis()
                     )
                 )
-                if (costCentavos > 0L) {
-                    val cycleId = resolveActiveCycleId()
-                    val undo = budgetRepository.logGasFullTank(
-                        cycleId = cycleId,
-                        amountCentavos = costCentavos,
-                        label = "PMS: $taskName"
-                    )
-                    startUndoWindow(undo)
-                } else {
+                if (costCentavos <= 0L) {
                     infoMessage.value = "Added PMS task $taskName"
                 }
+            }
+        }
+    }
+
+    fun updatePmsInterval(
+        id: Long,
+        taskName: String,
+        iconEmoji: String,
+        intervalKm: Int,
+        lastServiceOdometerKm: Int
+    ) {
+        viewModelScope.launch {
+            runMutation("Unable to update PMS task") {
+                val existing = motoDao?.getPmsIntervalById(id)
+                    ?: throw IllegalArgumentException("PMS item $id not found")
+                motoDao.updatePmsInterval(
+                    existing.copy(
+                        taskName = taskName,
+                        iconEmoji = iconEmoji,
+                        intervalKm = intervalKm,
+                        lastServiceOdometerKm = lastServiceOdometerKm
+                    )
+                )
+                infoMessage.value = "Updated $taskName"
             }
         }
     }
@@ -865,7 +924,7 @@ class MainViewModel internal constructor(
         viewModelScope.launch {
             runMutation("Unable to delete PMS task") {
                 motoDao?.deletePmsIntervalById(id)
-                infoMessage.value = "Deleted PMS task"
+                infoMessage.value = "PMS task removed"
             }
         }
     }
@@ -885,18 +944,19 @@ class MainViewModel internal constructor(
             infoMessage.value = "Notification preview triggered"
             return
         }
-        if (target != null) {
+        if (target != null && target.id > 0L) {
             val notifId = NotificationHelper.stableNotificationId(target.itemKey)
             NotificationHelper.showDueAlert(
                 context = ctx,
                 itemKey = target.itemKey,
                 notificationId = notifId,
                 title = target.title,
-                body = "₱${BudgetCalculator.formatPeso(target.amountCentavos)} due ${target.dueDateLabel} (${target.dueStatusText})",
+                body = "${BudgetCalculator.formatPeso(target.amountCentavos)} due ${target.dueDateLabel} (${target.dueStatusText})",
                 entityType = if (target.isLoan) "loan" else "bill",
                 entityId = target.id,
                 amountCentavos = target.amountCentavos,
-                dueYearMonth = target.dueYearMonth
+                dueYearMonth = target.dueYearMonth,
+                includeActions = true
             )
             infoMessage.value = "Preview notification sent for ${target.title}"
         } else {
@@ -905,11 +965,12 @@ class MainViewModel internal constructor(
                 itemKey = "preview_test",
                 notificationId = 9999,
                 title = "Due Date Alert Preview",
-                body = "Converge FiberX ₱1,500.00 is due today",
-                entityType = "bill",
-                entityId = 1L,
+                body = "Converge FiberX ₱1,500.00 is due today (Sample Preview)",
+                entityType = "preview",
+                entityId = 0L,
                 amountCentavos = 150_000L,
-                dueYearMonth = null
+                dueYearMonth = null,
+                includeActions = false
             )
             infoMessage.value = "Test notification sent"
         }

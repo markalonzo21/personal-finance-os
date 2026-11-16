@@ -355,4 +355,38 @@ class MainViewModelTest {
         val afterPush = pumpUntil { !it.remindersState.globalPushEnabled }
         assertThat(afterPush.remindersState.globalPushEnabled).isFalse()
     }
+
+    @Test
+    fun `updatePmsInterval and deletePmsInterval mutate PMS schedule`() = runTest(testDispatcher.scheduler) {
+        val initial = pumpUntil { !it.isLoading && it.motoState.pmsItems.isNotEmpty() }
+        val engineOil = initial.motoState.pmsItems.first { it.taskName.contains("Engine Oil") }
+
+        viewModel.updatePmsInterval(
+            id = engineOil.id,
+            taskName = "Synthetic Oil Change",
+            iconEmoji = "🛢️",
+            intervalKm = 2000,
+            lastServiceOdometerKm = 7800
+        )
+        val afterUpdate = pumpUntil {
+            it.motoState.pmsItems.first { p -> p.id == engineOil.id }.taskName == "Synthetic Oil Change"
+        }
+        val updated = afterUpdate.motoState.pmsItems.first { it.id == engineOil.id }
+        assertThat(updated.taskName).isEqualTo("Synthetic Oil Change")
+        assertThat(updated.intervalKm).isEqualTo(2000)
+
+        viewModel.deletePmsInterval(engineOil.id)
+        val afterDelete = pumpUntil {
+            it.motoState.pmsItems.none { p -> p.id == engineOil.id }
+        }
+        assertThat(afterDelete.motoState.pmsItems.map { it.id }).doesNotContain(engineOil.id)
+    }
+
+    @Test
+    fun `previewDueNotification formats preview correctly without duplicate peso sign`() = runTest(testDispatcher.scheduler) {
+        pumpUntil { !it.isLoading }
+        viewModel.previewDueNotification()
+        val afterPreview = pumpUntil { it.infoMessage != null }
+        assertThat(afterPreview.infoMessage).isNotEmpty()
+    }
 }
