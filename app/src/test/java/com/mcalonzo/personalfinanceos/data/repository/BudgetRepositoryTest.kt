@@ -639,4 +639,62 @@ class BudgetRepositoryTest {
         assertThat(db.obligationDao().getBillsForCycleOnce(novCycleId).any { it.name == "Converge FiberX" })
             .isTrue()
     }
+
+    @Test
+    fun `cycle deletion cascades to child bills and foreign key constraint is enforced`() = runTest {
+        val cycleId = rolloverUseCase(YearMonth.of(2026, 11))
+        val bills = db.obligationDao().getBillsForCycleOnce(cycleId)
+        assertThat(bills).isNotEmpty()
+
+        // Deleting the cycle cascades to all child bills
+        db.budgetDao().deleteCycleById(cycleId)
+        assertThat(db.obligationDao().getBillsForCycleOnce(cycleId)).isEmpty()
+        assertThat(db.obligationDao().getBillById(bills.first().id)).isNull()
+    }
+
+    @Test
+    fun `updateRoutineTemplate applyToCurrentMonth preserves zero-spend custom envelopes while pruning zero-spend routine envelopes removed from template`() = runTest {
+        val novCycleId = rolloverUseCase(YearMonth.of(2026, 11))
+        val envTemplates = db.routineDao().getEnvelopeTemplatesOnce()
+        val billTemplates = db.routineDao().getBillTemplatesOnce()
+
+        // 1. Add a custom envelope with addToRoutine = false and 0 spend
+        val customEnvId = repo.addEnvelope(
+            cycleId = novCycleId,
+            name = "Concert Tickets",
+            iconEmoji = "🎟️",
+            colorHex = "#EC4899",
+            limitCentavos = 500_000L,
+            addToRoutine = false
+        )
+        val customEnv = db.budgetDao().getEnvelopeById(customEnvId)!!
+        assertThat(customEnv.isCustom).isTrue()
+        assertThat(customEnv.spentCentavos).isEqualTo(0L)
+
+        // 2. Remove one routine envelope (e.g. non-gas routine template) from routine templates
+        val removedRoutineName = envTemplates.first { !it.isGasEnvelope }.name
+        val updatedEnvTemplates = envTemplates.filterNot { it.name == removedRoutineName }
+        assertThat(updatedEnvTemplates.size).isEqualTo(envTemplates.size - 1)
+
+        // 3. Update routine template with applyToCurrentMonth = true
+        repo.updateRoutineTemplate(
+            totalMonthlyBudgetCentavos = 5_000_000L,
+            autoRolloverEnabled = true,
+            envelopeTemplates = updatedEnvTemplates,
+            billTemplates = billTemplates,
+            applyToCurrentMonth = true,
+            currentCycleMonth = YearMonth.of(2026, 11)
+        )
+
+        val envelopesAfter = db.budgetDao().getEnvelopesForCycleOnce(novCycleId)
+
+        // Custom envelope with zero spend must still exist!
+        val preservedCustomEnv = envelopesAfter.firstOrNull { it.id == customEnvId }
+        assertThat(preservedCustomEnv).isNotNull()
+        assertThat(preservedCustomEnv!!.name).isEqualTo("Concert Tickets")
+        assertThat(preservedCustomEnv.isCustom).isTrue()
+
+        // Zero-spend routine envelope removed from template must be pruned!
+        assertThat(envelopesAfter.none { it.name == removedRoutineName }).isTrue()
+    }
 }

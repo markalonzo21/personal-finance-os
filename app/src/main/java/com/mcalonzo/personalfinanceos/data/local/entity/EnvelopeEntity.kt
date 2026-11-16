@@ -25,5 +25,6 @@ data class EnvelopeEntity(
     val colorHex: String,
     val allocatedLimitCentavos: Long,
     val spentCentavos: Long = 0L,
-    val isGasEnvelope: Boolean = false
+    val isGasEnvelope: Boolean = false,
+    val isCustom: Boolean = false
 )

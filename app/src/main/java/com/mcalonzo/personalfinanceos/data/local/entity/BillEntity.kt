@@ -1,9 +1,22 @@
 package com.mcalonzo.personalfinanceos.data.local.entity
 
 import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "bills")
+@Entity(
+    tableName = "bills",
+    foreignKeys = [
+        ForeignKey(
+            entity = BudgetCycleEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["cycleId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("cycleId")]
+)
 data class BillEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val cycleId: Long,

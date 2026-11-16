@@ -488,7 +488,8 @@ class BudgetRepository(
                     colorHex = colorHex,
                     allocatedLimitCentavos = limitCentavos,
                     spentCentavos = 0L,
-                    isGasEnvelope = isGasEnvelope
+                    isGasEnvelope = isGasEnvelope,
+                    isCustom = !addToRoutine
                 )
             )
             budgetDao.updateCycleTotalBudget(cycleId, cycle.totalBudgetCentavos + limitCentavos)
@@ -896,7 +897,8 @@ class BudgetRepository(
                         iconEmoji = template.iconEmoji,
                         colorHex = template.colorHex,
                         allocatedLimitCentavos = template.allocatedLimitCentavos,
-                        isGasEnvelope = template.isGasEnvelope
+                        isGasEnvelope = template.isGasEnvelope,
+                        isCustom = false
                     )
                 )
             } else {
@@ -908,14 +910,15 @@ class BudgetRepository(
                         colorHex = template.colorHex,
                         allocatedLimitCentavos = template.allocatedLimitCentavos,
                         spentCentavos = 0L,
-                        isGasEnvelope = template.isGasEnvelope
+                        isGasEnvelope = template.isGasEnvelope,
+                        isCustom = false
                     )
                 )
             }
         }
 
         currentEnvelopes
-            .filter { it.id !in matchedEnvelopeIds && it.spentCentavos == 0L }
+            .filter { !it.isCustom && it.id !in matchedEnvelopeIds && it.spentCentavos == 0L }
             .forEach { budgetDao.deleteEnvelopeById(it.id) }
 
         val savedActiveBills = routineDao.getActiveBillTemplatesOnce()

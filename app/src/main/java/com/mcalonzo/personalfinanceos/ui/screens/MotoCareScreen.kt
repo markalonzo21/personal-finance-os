@@ -3,6 +3,8 @@ package com.mcalonzo.personalfinanceos.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -801,6 +803,56 @@ private fun OverrideGasPriceDialog(
 }
 
 @Composable
+private fun EnvelopeSelectorChips(
+    availableEnvelopes: List<EnvelopeItemUi>,
+    selectedEnvId: Long?,
+    onSelectEnvelope: (Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (availableEnvelopes.isEmpty()) return
+
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(
+            text = "Charge Expense To:",
+            style = FinanceTypography.labelMedium,
+            color = OLEDColors.accentSky
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            availableEnvelopes.take(3).forEach { env ->
+                val isSelected = env.id == selectedEnvId
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (isSelected) OLEDColors.accentSky.copy(alpha = 0.2f) else OLEDColors.bgCardSubtle)
+                        .border(
+                            1.dp,
+                            if (isSelected) OLEDColors.accentSky else OLEDColors.borderSubtle,
+                            RoundedCornerShape(8.dp)
+                        )
+                        .semantics(mergeDescendants = true) {}
+                        .clickable(role = Role.Button) { onSelectEnvelope(env.id) }
+                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = "${env.iconEmoji} ${env.name}",
+                        style = FinanceTypography.labelSmall.copy(
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                        ),
+                        color = if (isSelected) OLEDColors.accentSky else OLEDColors.textSecondary
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun LogPmsServiceDialog(
     item: PmsItemUi,
     currentOdometerKm: Int,
@@ -870,41 +922,12 @@ private fun LogPmsServiceDialog(
                 )
 
                 val parsedCost = CurrencyFormatters.parsePesoToCentavos(rawCost) ?: 0L
-                if (parsedCost > 0L && availableEnvelopes.isNotEmpty()) {
-                    Text(
-                        text = "Charge Expense To:",
-                        style = FinanceTypography.labelMedium,
-                        color = OLEDColors.accentSky
+                if (parsedCost > 0L) {
+                    EnvelopeSelectorChips(
+                        availableEnvelopes = availableEnvelopes,
+                        selectedEnvId = selectedEnvId,
+                        onSelectEnvelope = { selectedEnvId = it }
                     )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        availableEnvelopes.take(3).forEach { env ->
-                            val isSelected = env.id == selectedEnvId
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(if (isSelected) OLEDColors.accentSky.copy(alpha = 0.2f) else OLEDColors.bgCardSubtle)
-                                    .border(
-                                        1.dp,
-                                        if (isSelected) OLEDColors.accentSky else OLEDColors.borderSubtle,
-                                        RoundedCornerShape(8.dp)
-                                    )
-                                    .semantics(mergeDescendants = true) {}
-                                    .clickable(role = Role.Button) { selectedEnvId = env.id }
-                                    .padding(horizontal = 8.dp, vertical = 6.dp)
-                            ) {
-                                Text(
-                                    text = "${env.iconEmoji} ${env.name}",
-                                    style = FinanceTypography.labelSmall.copy(
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                    ),
-                                    color = if (isSelected) OLEDColors.accentSky else OLEDColors.textSecondary
-                                )
-                            }
-                        }
-                    }
                 }
             }
         },
@@ -969,7 +992,10 @@ private fun AddEditPmsDialog(
             )
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 OutlinedTextField(
                     value = taskName,
                     onValueChange = { taskName = it },
@@ -1043,6 +1069,15 @@ private fun AddEditPmsDialog(
                             unfocusedTextColor = OLEDColors.textPrimary
                         )
                     )
+
+                    val parsedCost = CurrencyFormatters.parsePesoToCentavos(rawCost) ?: 0L
+                    if (parsedCost > 0L) {
+                        EnvelopeSelectorChips(
+                            availableEnvelopes = availableEnvelopes,
+                            selectedEnvId = selectedEnvId,
+                            onSelectEnvelope = { selectedEnvId = it }
+                        )
+                    }
                 }
             }
         },

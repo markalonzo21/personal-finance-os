@@ -33,6 +33,9 @@ interface BudgetDao {
     @Update
     suspend fun updateCycle(cycle: BudgetCycleEntity)
 
+    @Query("DELETE FROM budget_cycles WHERE id = :cycleId")
+    suspend fun deleteCycleById(cycleId: Long)
+
     @Query("UPDATE budget_cycles SET totalBudgetCentavos = :totalBudgetCentavos WHERE id = :cycleId")
     suspend fun updateCycleTotalBudget(cycleId: Long, totalBudgetCentavos: Long)
 

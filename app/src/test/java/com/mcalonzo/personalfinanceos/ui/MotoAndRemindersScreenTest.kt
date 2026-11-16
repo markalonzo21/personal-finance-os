@@ -296,6 +296,68 @@ class MotoAndRemindersScreenTest {
     }
 
     @Test
+    fun `moto care adding new pms task with cost shows envelope chips and passes selected non-default envelopeId`() {
+        var savedTaskName: String? = null
+        var savedCost: Long? = null
+        var savedEnvId: Long? = null
+
+        val gasEnv = EnvelopeItemUi(
+            id = 42L,
+            name = "Motorcycle Gas",
+            iconEmoji = "⛽",
+            colorHex = "#F59E0B",
+            allocatedLimitCentavos = 350_000L,
+            spentCentavos = 0L,
+            isGasEnvelope = true
+        )
+        val maintenanceEnv = EnvelopeItemUi(
+            id = 99L,
+            name = "Maintenance Fund",
+            iconEmoji = "🔧",
+            colorHex = "#10B981",
+            allocatedLimitCentavos = 200_000L,
+            spentCentavos = 0L,
+            isGasEnvelope = false
+        )
+        val motoState = MotoUiState(
+            odometerKm = 8450,
+            pmsItems = emptyList()
+        )
+        rule.setContent {
+            PersonalFinanceTheme {
+                MotoCareScreen(
+                    state = motoState,
+                    availableEnvelopes = listOf(gasEnv, maintenanceEnv),
+                    onSavePmsWithEnvelope = { name, _, _, _, cost, envId ->
+                        savedTaskName = name
+                        savedCost = cost
+                        savedEnvId = envId
+                    }
+                )
+            }
+        }
+
+        rule.onNode(hasScrollToIndexAction()).performScrollToIndex(3)
+        rule.onNodeWithText("+ Log PMS").performClick()
+        rule.onNodeWithText("Add PMS Schedule").assertIsDisplayed()
+
+        rule.onNode(hasText("Task Name") and hasSetTextAction()).performTextReplacement("Brake Fluid Flush")
+
+        rule.onNodeWithText("Charge Expense To:").assertDoesNotExist()
+
+        rule.onNode(hasText("Optional Cost (₱)") and hasSetTextAction()).performTextReplacement("450.00")
+
+        rule.onNodeWithText("Charge Expense To:").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("🔧 Maintenance Fund").performScrollTo().performClick()
+
+        rule.onNodeWithText("Save").performClick()
+
+        assertThat(savedTaskName).isEqualTo("Brake Fluid Flush")
+        assertThat(savedCost).isEqualTo(45_000L)
+        assertThat(savedEnvId).isEqualTo(99L)
+    }
+
+    @Test
     fun `notification preview body contains exactly single peso sign without double symbol`() {
         val preview = com.mcalonzo.personalfinanceos.domain.calculator.BudgetCalculator.formatPeso(150_000L)
         assertThat(preview).isEqualTo("₱1,500.00")
