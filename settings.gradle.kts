@@ -20,5 +20,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "PersonalFinanceOS"
+rootProject.name = "Omni"
 include(":app")
