@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mcalonzo.personalfinanceos.data.local.entity.RoutineBillTemplateEntity
 import com.mcalonzo.personalfinanceos.data.local.entity.RoutineEnvelopeTemplateEntity
+import com.mcalonzo.personalfinanceos.domain.calculator.BudgetCalculator
 import com.mcalonzo.personalfinanceos.ui.theme.FinanceTypography
 import com.mcalonzo.personalfinanceos.ui.theme.NumericTextStyles
 import com.mcalonzo.personalfinanceos.ui.theme.OLEDColors
@@ -110,7 +111,7 @@ fun RoutineSheet(
     var autoRolloverEnabled by remember(routineState) {
         mutableStateOf(routineState.autoRolloverEnabled)
     }
-    var applyToCurrentMonth by remember { mutableStateOf(false) }
+    var applyToCurrentMonth by remember { mutableStateOf(true) }
     var validationError by remember { mutableStateOf<String?>(null) }
     var iconPickerTarget by remember { mutableStateOf<RoutineIconTarget?>(null) }
 
@@ -198,7 +199,7 @@ fun RoutineSheet(
                     totalBudgetText = CurrencyFormatters.sanitizeDecimalInput(raw)
                     validationError = null
                 },
-                label = { Text("Monthly Total Budget (PHP)") },
+                label = { Text("Current Routine Total Budget (PHP)") },
                 prefix = {
                     Text(
                         text = "₱",
@@ -212,6 +213,34 @@ fun RoutineSheet(
                 colors = routineFieldColors(),
                 modifier = Modifier.fillMaxWidth()
             )
+
+            val envelopesSumCentavos = envelopeDrafts.sumOf {
+                CurrencyFormatters.parsePesoToCentavos(it.limitText) ?: 0L
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Envelopes sum: ${BudgetCalculator.formatPeso(envelopesSumCentavos, showDecimal = false)}",
+                    style = FinanceTypography.bodyMedium,
+                    color = OLEDColors.textSecondary
+                )
+                TextButton(
+                    onClick = {
+                        totalBudgetText = CurrencyFormatters.formatCentavosForInput(envelopesSumCentavos)
+                        validationError = null
+                    },
+                    modifier = Modifier.defaultMinSize(minHeight = 48.dp)
+                ) {
+                    Text(
+                        text = "Use Envelopes Sum",
+                        style = FinanceTypography.labelLarge,
+                        color = OLEDColors.accentSky
+                    )
+                }
+            }
 
             Surface(
                 onClick = { autoRolloverEnabled = !autoRolloverEnabled },
@@ -548,7 +577,7 @@ fun RoutineSheet(
                             color = OLEDColors.textPrimary
                         )
                         Text(
-                            text = "Updates $currentMonthLabel limits & unpaid bills while preserving spend",
+                            text = "Updates $currentMonthLabel total budget, limits & unpaid bills while preserving spend",
                             style = FinanceTypography.bodyMedium,
                             color = OLEDColors.textSecondary
                         )

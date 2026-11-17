@@ -64,6 +64,7 @@ import com.mcalonzo.personalfinanceos.ui.viewmodel.BillItemUi
 import com.mcalonzo.personalfinanceos.ui.viewmodel.CycleOptionUi
 import com.mcalonzo.personalfinanceos.ui.viewmodel.EnvelopeItemUi
 import com.mcalonzo.personalfinanceos.ui.viewmodel.LoanItemUi
+import com.mcalonzo.personalfinanceos.ui.viewmodel.TransactionItemUi
 import java.time.YearMonth
 
 /**
@@ -1181,6 +1182,154 @@ fun MonthPickerSheet(
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EditTransactionSheet(
+    transaction: TransactionItemUi,
+    onSaveEdit: (transactionId: Long, title: String, amountCentavos: Long) -> Unit,
+    onDelete: (transactionId: Long) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var titleText by remember(transaction.id) { mutableStateOf(transaction.title) }
+    var amountText by remember(transaction.id) {
+        mutableStateOf(CurrencyFormatters.formatCentavosForInput(transaction.amountCentavos))
+    }
+    var validationError by remember { mutableStateOf<String?>(null) }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = OLEDColors.bgCard,
+        contentColor = OLEDColors.textPrimary
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp)
+                .navigationBarsPadding()
+                .imePadding(),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            SheetHeader(
+                title = "Edit Envelope Item",
+                onDismiss = onDismiss
+            )
+
+            Text(
+                text = "${transaction.categoryLabel} • ${transaction.timeLabel}",
+                style = FinanceTypography.bodyMedium,
+                color = OLEDColors.textSecondary
+            )
+
+            OutlinedTextField(
+                value = titleText,
+                onValueChange = {
+                    titleText = it
+                    validationError = null
+                },
+                label = { Text("Item / Note") },
+                singleLine = true,
+                colors = sheetFieldColors(),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = amountText,
+                onValueChange = { raw ->
+                    amountText = CurrencyFormatters.sanitizeDecimalInput(raw)
+                    validationError = null
+                },
+                label = { Text("Amount (PHP)") },
+                prefix = {
+                    Text(
+                        text = "₱",
+                        style = NumericTextStyles.cardAmount,
+                        color = OLEDColors.accentSky
+                    )
+                },
+                textStyle = NumericTextStyles.cardAmount.copy(color = OLEDColors.textPrimary),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                colors = sheetFieldColors(),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            if (validationError != null) {
+                Text(
+                    text = validationError!!,
+                    style = FinanceTypography.bodyMedium,
+                    color = OLEDColors.accentRose
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        onDelete(transaction.id)
+                        onDismiss()
+                    },
+                    border = BorderStroke(1.dp, OLEDColors.accentRose.copy(alpha = 0.5f)),
+                    shape = RoundedCornerShape(14.dp),
+                    contentPadding = PaddingValues(vertical = 14.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .defaultMinSize(minHeight = 48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.DeleteOutline,
+                        contentDescription = null,
+                        tint = OLEDColors.accentRose,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Delete",
+                        style = FinanceTypography.labelLarge,
+                        color = OLEDColors.accentRose
+                    )
+                }
+
+                Button(
+                    onClick = {
+                        val trimmed = titleText.trim()
+                        val amountCentavos = CurrencyFormatters.parsePesoToCentavos(amountText)
+                        if (trimmed.isEmpty()) {
+                            validationError = "Item title cannot be blank."
+                            return@Button
+                        }
+                        if (amountCentavos == null || amountCentavos <= 0L) {
+                            validationError = "Amount must be greater than ₱0."
+                            return@Button
+                        }
+                        onSaveEdit(transaction.id, trimmed, amountCentavos)
+                        onDismiss()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = OLEDColors.accentSky,
+                        contentColor = OLEDColors.bgBase
+                    ),
+                    shape = RoundedCornerShape(14.dp),
+                    contentPadding = PaddingValues(vertical = 14.dp),
+                    modifier = Modifier
+                        .weight(1.4f)
+                        .defaultMinSize(minHeight = 48.dp)
+                ) {
+                    Text(
+                        text = "Save Item",
+                        style = FinanceTypography.titleMedium
+                    )
                 }
             }
         }

@@ -101,6 +101,9 @@ interface BudgetDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertTransaction(transaction: TransactionEntity): Long
 
+    @Query("UPDATE transactions SET title = :title, amountCentavos = :amountCentavos WHERE id = :transactionId")
+    suspend fun updateTransaction(transactionId: Long, title: String, amountCentavos: Long)
+
     @Query("DELETE FROM transactions WHERE id = :transactionId")
     suspend fun deleteTransactionById(transactionId: Long)
 }

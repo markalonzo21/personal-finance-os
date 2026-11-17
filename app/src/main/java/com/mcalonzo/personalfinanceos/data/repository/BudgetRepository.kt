@@ -10,17 +10,21 @@ import com.mcalonzo.personalfinanceos.data.local.SoaStorageManager
 import com.mcalonzo.personalfinanceos.data.local.StoredSoaFile
 import com.mcalonzo.personalfinanceos.data.local.entity.BillEntity
 import com.mcalonzo.personalfinanceos.data.local.entity.BudgetCycleEntity
+import com.mcalonzo.personalfinanceos.data.local.entity.CardEntity
 import com.mcalonzo.personalfinanceos.data.local.entity.EnvelopeEntity
 import com.mcalonzo.personalfinanceos.data.local.entity.LoanEntity
 import com.mcalonzo.personalfinanceos.data.local.entity.RoutineBillTemplateEntity
 import com.mcalonzo.personalfinanceos.data.local.entity.RoutineEnvelopeTemplateEntity
 import com.mcalonzo.personalfinanceos.data.local.entity.RoutineTemplateEntity
+import com.mcalonzo.personalfinanceos.data.local.entity.ScanFormatProfileEntity
 import com.mcalonzo.personalfinanceos.data.local.entity.TransactionEntity
 import com.mcalonzo.personalfinanceos.domain.calculator.BudgetCalculator
 import com.mcalonzo.personalfinanceos.domain.calculator.DueDateCalculator
+import com.mcalonzo.personalfinanceos.domain.calculator.OcrExpenseParser
 import com.mcalonzo.personalfinanceos.domain.model.BillWithStatus
 import com.mcalonzo.personalfinanceos.domain.model.CycleOverview
 import com.mcalonzo.personalfinanceos.domain.model.LoanWithStatus
+import com.mcalonzo.personalfinanceos.domain.model.ScannedExpenseDraft
 import com.mcalonzo.personalfinanceos.domain.model.UndoAction
 import com.mcalonzo.personalfinanceos.domain.usecase.MonthRolloverUseCase
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -71,6 +75,7 @@ class BudgetRepository(
     private val routineDao = db.routineDao()
     private val budgetDao = db.budgetDao()
     private val obligationDao = db.obligationDao()
+    private val scanDao = db.scanDao()
 
     fun observeAllCycles(): Flow<List<BudgetCycleEntity>> = budgetDao.observeAllCycles()
 
@@ -85,6 +90,182 @@ class BudgetRepository(
     fun observeAllLoans(): Flow<List<LoanEntity>> = obligationDao.observeAllLoans()
 
     fun observeActiveLoans(): Flow<List<LoanEntity>> = obligationDao.observeActiveLoans()
+
+    fun observeCards(): Flow<List<CardEntity>> = scanDao.observeCards()
+
+    suspend fun upsertCard(
+        id: Long = 0L,
+        name: String,
+        cardType: String,
+        billingCycleDay: Int?
+    ): Long {
+        val trimmedName = name.trim()
+        require(trimmedName.isNotEmpty()) { "Card name must not be blank" }
+        if (billingCycleDay != null) {
+            require(billingCycleDay in 1..31) { "Billing cycle day must be between 1 and 31" }
+        }
+        val existing = if (id > 0L) scanDao.getCardById(id) else null
+        return scanDao.upsertCard(
+            CardEntity(
+                id = id,
+                name = trimmedName,
+                cardType = cardType.trim().ifEmpty { "Credit" },
+                billingCycleDay = billingCycleDay,
+                createdAtEpochMs = existing?.createdAtEpochMs ?: System.currentTimeMillis()
+            )
+        )
+    }
+
+    suspend fun deleteCard(cardId: Long) {
+        scanDao.deleteCardById(cardId)
+    }
+
+    suspend fun findMatchingFormatProfile(
+        storeCandidate: String,
+        cardName: String? = null
+    ): ScanFormatProfileEntity? {
+        val candidates = listOfNotNull(storeCandidate, cardName)
+            .map { OcrExpenseParser.normalizeStoreKey(it) }
+            .filter { it.isNotBlank() }
+            .distinct()
+        if (candidates.isEmpty()) return null
+
+        for (key in candidates) {
+            scanDao.getFormatProfileByKey(key)?.let { return it }
+        }
+
+        val allProfiles = scanDao.getAllFormatProfilesOnce()
+        for (key in candidates) {
+            allProfiles.firstOrNull { profile ->
+                profile.storeKey.isNotBlank() &&
+                    (key.contains(profile.storeKey) || profile.storeKey.contains(key))
+            }?.let { return it }
+        }
+        return null
+    }
+
+    suspend fun logScannedExpensesBatch(
+        items: List<ScannedExpenseDraft>,
+        storeName: String,
+        uncheckedKeywords: List<String>
+    ): Int {
+        val selected = items.filter { it.isSelected && it.amountCentavos > 0L }
+        if (selected.isEmpty()) return 0
+
+        return db.withTransaction {
+            val cycleIdByMonth = mutableMapOf<YearMonth, Long>()
+            val envelopesByCycle = mutableMapOf<Long, MutableList<EnvelopeEntity>>()
+
+            for (draft in selected) {
+                val cycleId = cycleIdByMonth.getOrPut(draft.targetYearMonth) {
+                    getOrCreateCycleId(draft.targetYearMonth)
+                }
+                val envelope = resolveEnvelopeForCycle(
+                    cycleId = cycleId,
+                    targetName = draft.envelopeName,
+                    envelopesByCycle = envelopesByCycle
+                )
+                val timestampEpochMs = draft.parsedDate
+                    ?.atTime(12, 0)
+                    ?.atZone(MANILA_ZONE)
+                    ?.toInstant()
+                    ?.toEpochMilli()
+                    ?: System.currentTimeMillis()
+                val txTitle = draft.title.trim().ifEmpty {
+                    envelope?.name ?: storeName.trim().ifEmpty { "Scanned Expense" }
+                }
+
+                budgetDao.insertTransaction(
+                    TransactionEntity(
+                        cycleId = cycleId,
+                        envelopeId = envelope?.id,
+                        billId = null,
+                        loanId = null,
+                        title = txTitle,
+                        categoryLabel = envelope?.name ?: "Uncategorized",
+                        amountCentavos = draft.amountCentavos,
+                        timestampEpochMs = timestampEpochMs
+                    )
+                )
+                if (envelope != null) {
+                    budgetDao.incrementEnvelopeSpent(envelope.id, draft.amountCentavos)
+                }
+            }
+
+            val trimmedStore = storeName.trim()
+            val storeKey = OcrExpenseParser.normalizeStoreKey(trimmedStore)
+            if (storeKey.isNotBlank()) {
+                val existing = scanDao.getFormatProfileByKey(storeKey)
+                val mostFrequentEnvelope = selected
+                    .mapNotNull { it.envelopeName?.trim()?.takeIf { name -> name.isNotEmpty() } }
+                    .groupingBy { it }
+                    .eachCount()
+                    .maxByOrNull { it.value }
+                    ?.key
+                    ?: existing?.defaultEnvelopeName
+
+                val mergedKeywords = buildSet {
+                    existing?.ignoredKeywordsPipe
+                        ?.split('|')
+                        ?.map { it.trim() }
+                        ?.filter { it.isNotEmpty() }
+                        ?.let { addAll(it) }
+                    uncheckedKeywords
+                        .map { it.trim() }
+                        .filter { it.isNotEmpty() }
+                        .let { addAll(it) }
+                }.joinToString("|")
+
+                scanDao.upsertFormatProfile(
+                    ScanFormatProfileEntity(
+                        id = existing?.id ?: 0L,
+                        storeKey = storeKey,
+                        displayName = trimmedStore,
+                        defaultEnvelopeName = mostFrequentEnvelope,
+                        ignoredKeywordsPipe = mergedKeywords,
+                        scanCount = (existing?.scanCount ?: 0) + 1,
+                        updatedAtEpochMs = System.currentTimeMillis()
+                    )
+                )
+            }
+
+            selected.size
+        }
+    }
+
+    private suspend fun resolveEnvelopeForCycle(
+        cycleId: Long,
+        targetName: String?,
+        envelopesByCycle: MutableMap<Long, MutableList<EnvelopeEntity>>
+    ): EnvelopeEntity? {
+        val cycleEnvelopes = envelopesByCycle.getOrPut(cycleId) {
+            budgetDao.getEnvelopesForCycleOnce(cycleId).toMutableList()
+        }
+        val cleanName = targetName?.trim()?.takeIf { it.isNotEmpty() }
+        if (cleanName != null) {
+            cycleEnvelopes.firstOrNull { it.name.equals(cleanName, ignoreCase = true) }
+                ?.let { return it }
+
+            val template = routineDao.getEnvelopeTemplatesOnce()
+                .firstOrNull { it.name.equals(cleanName, ignoreCase = true) }
+            if (template != null) {
+                val insertedId = budgetDao.insertEnvelope(
+                    EnvelopeEntity(
+                        cycleId = cycleId,
+                        name = template.name,
+                        iconEmoji = template.iconEmoji,
+                        colorHex = template.colorHex,
+                        allocatedLimitCentavos = template.allocatedLimitCentavos,
+                        spentCentavos = 0L,
+                        isGasEnvelope = template.isGasEnvelope,
+                        isCustom = true
+                    )
+                )
+                return budgetDao.getEnvelopeById(insertedId)?.also { cycleEnvelopes += it }
+            }
+        }
+        return cycleEnvelopes.firstOrNull()
+    }
 
     suspend fun getOrCreateCycleId(
         targetMonth: YearMonth = YearMonth.now(MANILA_ZONE)
@@ -410,6 +591,29 @@ class BudgetRepository(
                         )
                     }
                 }
+            }
+        }
+    }
+
+    suspend fun updateTransaction(
+        transactionId: Long,
+        title: String,
+        amountCentavos: Long
+    ) {
+        require(amountCentavos > 0L) { "Amount must be greater than zero" }
+        val trimmedTitle = title.trim()
+        require(trimmedTitle.isNotEmpty()) { "Item title cannot be blank" }
+
+        db.withTransaction {
+            val existing = budgetDao.getTransactionById(transactionId) ?: return@withTransaction
+            val deltaCentavos = amountCentavos - existing.amountCentavos
+            budgetDao.updateTransaction(
+                transactionId = existing.id,
+                title = trimmedTitle,
+                amountCentavos = amountCentavos
+            )
+            if (existing.envelopeId != null && deltaCentavos != 0L) {
+                budgetDao.incrementEnvelopeSpent(existing.envelopeId, deltaCentavos)
             }
         }
     }

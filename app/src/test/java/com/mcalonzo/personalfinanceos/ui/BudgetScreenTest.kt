@@ -290,7 +290,7 @@ class BudgetScreenTest {
     }
 
     @Test
-    fun `routine bottom nav button opens routine sheet with opt-in current month apply toggle`() {
+    fun `routine bottom nav button opens routine sheet with default current month apply and editable total budget`() {
         var routineTriggered = false
         var savedApplyFlag: Boolean? = null
         var savedTotalBudget: Long? = null
@@ -341,15 +341,15 @@ class BudgetScreenTest {
         assertThat(routineTriggered).isTrue()
         rule.onNodeWithText("Monthly Routine Template").assertIsDisplayed()
 
-        rule.onNodeWithText("Also apply to current month")
+        rule.onNode(hasText("Current Routine Total Budget (PHP)") and hasSetTextAction())
             .performScrollTo()
-            .performSemanticsAction(SemanticsActions.OnClick)
+            .performTextReplacement("60000")
         rule.onNodeWithText("Save Routine Template")
             .performScrollTo()
             .assertIsEnabled()
             .performSemanticsAction(SemanticsActions.OnClick)
 
-        assertThat(savedTotalBudget).isEqualTo(5_000_000L)
+        assertThat(savedTotalBudget).isEqualTo(6_000_000L)
         assertThat(savedApplyFlag).isTrue()
     }
 
@@ -470,5 +470,106 @@ class BudgetScreenTest {
             .performSemanticsAction(SemanticsActions.OnClick)
 
         assertThat(addedEnvelope).isEqualTo(Triple("Health", 450_000L, true))
+    }
+
+    @Test
+    fun `eye icon toggles hiding and showing monetary amounts on budget screen`() {
+        var hidden by mutableStateOf(false)
+
+        rule.setContent {
+            PersonalFinanceTheme {
+                MainScreen(
+                    state = MainUiState(
+                        budgetState = BudgetUiState(
+                            yearMonthLabel = "November 2026",
+                            safeToSpendFormatted = "₱18,650.00",
+                            dailyPaceFormatted = "₱1,097 / day",
+                            totalBudgetFormatted = "₱50,000.00",
+                            spentSoFarFormatted = "₱12,000.00",
+                            committedLoansFormatted = "₱8,500.00",
+                            envelopes = listOf(
+                                EnvelopeItemUi(1L, "Groceries", "🛒", "#38BDF8", 1_500_000L, 500_000L)
+                            ),
+                            isAmountsHidden = hidden
+                        )
+                    ),
+                    onToggleAmountsVisibility = { hidden = !hidden }
+                )
+            }
+        }
+
+        rule.onNodeWithText("₱18,650.00").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Hide amounts").performClick()
+        assertThat(hidden).isTrue()
+
+        rule.onNodeWithText("₱••••••").assertIsDisplayed()
+        rule.onNodeWithText("₱•••• / day").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Show amounts").performClick()
+        assertThat(hidden).isFalse()
+        rule.onNodeWithText("₱18,650.00").assertIsDisplayed()
+    }
+
+    @Test
+    fun `envelope card expands added items list and wires edit and delete per item`() {
+        var editedItem: Triple<Long, String, Long>? = null
+        var deletedItemId: Long? = null
+
+        val state = MainUiState(
+            budgetState = BudgetUiState(
+                yearMonthLabel = "November 2026",
+                envelopes = listOf(
+                    EnvelopeItemUi(1L, "Groceries", "🛒", "#38BDF8", 1_500_000L, 85_000L)
+                ),
+                transactions = listOf(
+                    TransactionItemUi(
+                        id = 101L,
+                        title = "SM Supermarket",
+                        categoryLabel = "Groceries",
+                        amountCentavos = 85_000L,
+                        timestampEpochMs = 1_763_100_000_000L,
+                        timeLabel = "Nov 14",
+                        envelopeId = 1L
+                    )
+                )
+            )
+        )
+
+        rule.setContent {
+            PersonalFinanceTheme {
+                MainScreen(
+                    state = state,
+                    onUpdateTransaction = { id, title, amount ->
+                        editedItem = Triple(id, title, amount)
+                    },
+                    onDeleteTransaction = { id ->
+                        deletedItemId = id
+                    }
+                )
+            }
+        }
+
+        rule.onNode(hasScrollToIndexAction()).performScrollToIndex(3)
+        rule.onNodeWithText("1 added item").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Toggle Groceries items").performClick()
+
+        rule.onNodeWithText("SM Supermarket").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Edit SM Supermarket").performClick()
+        rule.onNodeWithText("Edit Envelope Item").assertIsDisplayed()
+        rule.onNode(hasText("Item / Note") and hasSetTextAction())
+            .performScrollTo()
+            .performTextReplacement("Puregold")
+        rule.onNode(hasText("Amount (PHP)") and hasSetTextAction())
+            .performScrollTo()
+            .performTextReplacement("950")
+        rule.onNodeWithText("Save Item")
+            .performScrollTo()
+            .assertIsEnabled()
+            .performSemanticsAction(SemanticsActions.OnClick)
+
+        assertThat(editedItem).isEqualTo(Triple(101L, "Puregold", 95_000L))
+
+        rule.onNodeWithContentDescription("Delete SM Supermarket")
+            .performSemanticsAction(SemanticsActions.OnClick)
+        assertThat(deletedItemId).isEqualTo(101L)
     }
 }
