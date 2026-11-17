@@ -8,6 +8,7 @@ import com.mcalonzo.personalfinanceos.data.local.dao.BudgetDao
 import com.mcalonzo.personalfinanceos.data.local.dao.MotoDao
 import com.mcalonzo.personalfinanceos.data.local.dao.ObligationDao
 import com.mcalonzo.personalfinanceos.data.local.dao.RoutineDao
+import com.mcalonzo.personalfinanceos.data.local.dao.ScanDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -33,6 +34,7 @@ object AppModule {
             AppDatabase::class.java,
             "personal_finance_os.db"
         )
+            .addMigrations(AppDatabase.MIGRATION_1_2)
             .addCallback(SeedDatabaseCallback { databaseProvider.get() })
             .build()
     }
@@ -48,6 +50,9 @@ object AppModule {
 
     @Provides
     fun provideMotoDao(db: AppDatabase): MotoDao = db.motoDao()
+
+    @Provides
+    fun provideScanDao(db: AppDatabase): ScanDao = db.scanDao()
 
     @Provides
     @Singleton
