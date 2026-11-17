@@ -14,6 +14,8 @@ import com.mcalonzo.personalfinanceos.data.local.AppDatabase
 import com.mcalonzo.personalfinanceos.data.local.SeedDatabaseCallback
 import com.mcalonzo.personalfinanceos.data.repository.BudgetRepository
 import com.mcalonzo.personalfinanceos.data.repository.GasPriceRepository
+import com.mcalonzo.personalfinanceos.domain.model.OcrLineBox
+import com.mcalonzo.personalfinanceos.domain.model.ScanDocumentType
 import com.mcalonzo.personalfinanceos.domain.usecase.MonthRolloverUseCase
 import java.time.LocalDate
 import java.time.YearMonth
@@ -410,5 +412,67 @@ class MainViewModelTest {
         }
         val updatedEnvelope = afterUpdate.budgetState.envelopes.first { it.id == groceries.id }
         assertThat(updatedEnvelope.spentCentavos).isEqualTo(65_000L)
+    }
+
+    @Test
+    fun `upsertCard, processScannedLines, and confirmScannedExpenses log selected items and remember store default envelope across cycles`() = runTest(testDispatcher.scheduler) {
+        pumpUntil { !it.isLoading && it.budgetState.envelopes.isNotEmpty() }
+
+        viewModel.upsertCard(
+            name = "BPI Rewards",
+            cardType = "Credit",
+            billingCycleDay = 15
+        )
+        val withCard = pumpUntil { it.cards.any { card -> card.name == "BPI Rewards" } }
+        val bpiCard = withCard.cards.first { it.name == "BPI Rewards" }
+        assertThat(bpiCard.billingCycleDay).isEqualTo(15)
+
+        viewModel.processScannedLines(
+            lines = listOf(
+                OcrLineBox("BPI Rewards", 10, 10, 200, 30),
+                OcrLineBox("Nov 10 GrabFood 450.00", 10, 50, 300, 70),
+                OcrLineBox("Nov 20 Landers 1,200.00", 10, 90, 300, 110)
+            ),
+            documentType = ScanDocumentType.CARD,
+            card = bpiCard,
+            append = false
+        )
+        val scannedState = pumpUntil {
+            it.scanBatchState.isSheetVisible && it.scanBatchState.drafts.size == 2
+        }
+        assertThat(scannedState.scanBatchState.storeName).isEqualTo("BPI Rewards")
+
+        viewModel.applyBatchDefaultEnvelope("Groceries")
+        val assignedState = pumpUntil {
+            it.scanBatchState.defaultEnvelopeName == "Groceries" &&
+                it.scanBatchState.drafts.all { draft -> draft.envelopeName == "Groceries" }
+        }
+        assertThat(assignedState.scanBatchState.drafts.map { it.targetYearMonth })
+            .containsExactly(YearMonth.of(2026, 11), YearMonth.of(2026, 12))
+            .inOrder()
+
+        viewModel.confirmScannedExpenses()
+        val afterConfirm = pumpUntil {
+            !it.scanBatchState.isSheetVisible &&
+                it.budgetState.transactions.any { tx -> tx.title == "GrabFood" }
+        }
+        val novGroceries = afterConfirm.budgetState.envelopes.first { it.name == "Groceries" }
+        assertThat(novGroceries.spentCentavos).isEqualTo(45_000L)
+
+        // Second scan for the same card/store should remember Groceries as default envelope
+        viewModel.processScannedLines(
+            lines = listOf(
+                OcrLineBox("BPI Rewards", 10, 10, 200, 30),
+                OcrLineBox("Nov 12 Jollibee 250.00", 10, 50, 300, 70)
+            ),
+            documentType = ScanDocumentType.CARD,
+            card = bpiCard,
+            append = false
+        )
+        val secondScan = pumpUntil {
+            it.scanBatchState.isSheetVisible && it.scanBatchState.drafts.size == 1
+        }
+        assertThat(secondScan.scanBatchState.defaultEnvelopeName).isEqualTo("Groceries")
+        assertThat(secondScan.scanBatchState.drafts.first().envelopeName).isEqualTo("Groceries")
     }
 }

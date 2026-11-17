@@ -6,21 +6,28 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mcalonzo.personalfinanceos.data.local.dao.MotoDao
 import com.mcalonzo.personalfinanceos.data.local.entity.BudgetCycleEntity
+import com.mcalonzo.personalfinanceos.data.local.entity.CardEntity
 import com.mcalonzo.personalfinanceos.data.local.entity.GasPriceHistoryEntity
 import com.mcalonzo.personalfinanceos.data.local.entity.MotoProfileEntity
 import com.mcalonzo.personalfinanceos.data.local.entity.PmsIntervalEntity
 import com.mcalonzo.personalfinanceos.data.local.entity.RoutineBillTemplateEntity
 import com.mcalonzo.personalfinanceos.data.local.entity.RoutineEnvelopeTemplateEntity
 import com.mcalonzo.personalfinanceos.data.local.entity.RoutineTemplateEntity
+import com.mcalonzo.personalfinanceos.data.ocr.OcrImageScanner
 import com.mcalonzo.personalfinanceos.data.repository.BudgetRepository
 import com.mcalonzo.personalfinanceos.data.repository.GasPriceRepository
 import com.mcalonzo.personalfinanceos.domain.calculator.BudgetCalculator
 import com.mcalonzo.personalfinanceos.domain.calculator.MotoCalculator
+import com.mcalonzo.personalfinanceos.domain.calculator.OcrExpenseParser
 import com.mcalonzo.personalfinanceos.domain.model.CycleOverview
+import com.mcalonzo.personalfinanceos.domain.model.OcrLineBox
+import com.mcalonzo.personalfinanceos.domain.model.ScanDocumentType
+import com.mcalonzo.personalfinanceos.domain.model.ScannedExpenseDraft
 import com.mcalonzo.personalfinanceos.domain.model.UndoAction
 import com.mcalonzo.personalfinanceos.worker.NotificationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.File
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
@@ -236,6 +243,16 @@ data class RemindersUiState(
     val items: List<DueReminderItemUi> = emptyList()
 )
 
+data class ScanBatchUiState(
+    val isScanning: Boolean = false,
+    val isSheetVisible: Boolean = false,
+    val documentType: ScanDocumentType = ScanDocumentType.RECEIPT,
+    val selectedCard: CardEntity? = null,
+    val storeName: String = "",
+    val defaultEnvelopeName: String? = null,
+    val drafts: List<ScannedExpenseDraft> = emptyList()
+)
+
 data class MainUiState(
     val budgetState: BudgetUiState = BudgetUiState(),
     val selectedBottomTab: BottomTab = BottomTab.BUDGET,
@@ -245,7 +262,9 @@ data class MainUiState(
     val infoMessage: String? = null,
     val isLoading: Boolean = false,
     val motoState: MotoUiState = MotoUiState(),
-    val remindersState: RemindersUiState = RemindersUiState()
+    val remindersState: RemindersUiState = RemindersUiState(),
+    val cards: List<CardEntity> = emptyList(),
+    val scanBatchState: ScanBatchUiState = ScanBatchUiState()
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -256,7 +275,8 @@ class MainViewModel internal constructor(
     private val motoDao: MotoDao? = null,
     @ApplicationContext private val context: Context? = null,
     private val todayProvider: () -> LocalDate = { LocalDate.now(MANILA_ZONE) },
-    private val undoTimeoutMs: Long = DEFAULT_UNDO_TIMEOUT_MS
+    private val undoTimeoutMs: Long = DEFAULT_UNDO_TIMEOUT_MS,
+    private val ocrImageScanner: OcrImageScanner? = null
 ) : ViewModel() {
 
     @Inject
@@ -264,14 +284,16 @@ class MainViewModel internal constructor(
         budgetRepository: BudgetRepository,
         gasPriceRepository: GasPriceRepository,
         motoDao: MotoDao,
-        @ApplicationContext context: Context
+        @ApplicationContext context: Context,
+        ocrImageScanner: OcrImageScanner
     ) : this(
         budgetRepository = budgetRepository,
         gasPriceRepository = gasPriceRepository,
         motoDao = motoDao,
         context = context,
         todayProvider = { LocalDate.now(MANILA_ZONE) },
-        undoTimeoutMs = DEFAULT_UNDO_TIMEOUT_MS
+        undoTimeoutMs = DEFAULT_UNDO_TIMEOUT_MS,
+        ocrImageScanner = ocrImageScanner
     )
 
     internal constructor(
@@ -285,7 +307,8 @@ class MainViewModel internal constructor(
         motoDao = null,
         context = null,
         todayProvider = todayProvider,
-        undoTimeoutMs = undoTimeoutMs
+        undoTimeoutMs = undoTimeoutMs,
+        ocrImageScanner = null
     )
 
     private val selectedYearMonth = MutableStateFlow(YearMonth.from(todayProvider()))
@@ -296,6 +319,7 @@ class MainViewModel internal constructor(
     private val infoMessage = MutableStateFlow<String?>(null)
     private val isAmountsHidden = MutableStateFlow(false)
     private val isGasSyncing = MutableStateFlow(false)
+    private val scanBatchState = MutableStateFlow(ScanBatchUiState())
     private val globalPushEnabledFlow = MutableStateFlow(
         context?.let { NotificationHelper.isGlobalPushEnabled(it) } ?: true
     )
@@ -390,13 +414,22 @@ class MainViewModel internal constructor(
         Triple(overview, allCycles, routineState)
     }
 
+    private val scanAndCardsFlow: Flow<Pair<List<CardEntity>, ScanBatchUiState>> = combine(
+        budgetRepository.observeCards(),
+        scanBatchState
+    ) { cards, batch ->
+        cards to batch
+    }
+
     val uiState: StateFlow<MainUiState> = combine(
         budgetDataFlow,
         chromeControlsFlow,
         motoUiStateFlow,
-        remindersUiStateFlow
-    ) { budgetData, chrome, motoState, remindersState ->
+        remindersUiStateFlow,
+        scanAndCardsFlow
+    ) { budgetData, chrome, motoState, remindersState, scanAndCards ->
         val (overview, allCycles, routineState) = budgetData
+        val (cards, batchState) = scanAndCards
         val today = todayProvider()
         val budgetUi = if (overview != null) {
             mapOverviewToUi(
@@ -424,7 +457,9 @@ class MainViewModel internal constructor(
             infoMessage = chrome.info,
             isLoading = overview == null,
             motoState = motoState,
-            remindersState = remindersState
+            remindersState = remindersState,
+            cards = cards,
+            scanBatchState = batchState
         )
     }.stateIn(
         scope = viewModelScope,
@@ -457,6 +492,261 @@ class MainViewModel internal constructor(
 
     fun toggleAmountsVisibility() {
         isAmountsHidden.value = !isAmountsHidden.value
+    }
+
+    fun upsertCard(
+        id: Long = 0L,
+        name: String,
+        cardType: String,
+        billingCycleDay: Int?
+    ) {
+        viewModelScope.launch {
+            runMutation("Unable to save card") {
+                budgetRepository.upsertCard(
+                    id = id,
+                    name = name,
+                    cardType = cardType,
+                    billingCycleDay = billingCycleDay
+                )
+                infoMessage.value = "Saved ${name.trim()}"
+            }
+        }
+    }
+
+    fun deleteCard(cardId: Long) {
+        viewModelScope.launch {
+            runMutation("Unable to delete card") {
+                budgetRepository.deleteCard(cardId)
+                infoMessage.value = "Card removed"
+            }
+        }
+    }
+
+    fun processScannedLines(
+        lines: List<OcrLineBox>,
+        documentType: ScanDocumentType,
+        card: CardEntity?,
+        append: Boolean
+    ) {
+        viewModelScope.launch {
+            runMutation("Unable to parse scanned lines") {
+                applyScannedLines(
+                    lines = lines,
+                    documentType = documentType,
+                    card = card,
+                    append = append
+                )
+            }
+        }
+    }
+
+    fun scanImageUri(
+        uri: Uri,
+        documentType: ScanDocumentType,
+        card: CardEntity?,
+        append: Boolean = false
+    ) {
+        viewModelScope.launch {
+            scanBatchState.value = scanBatchState.value.copy(isScanning = true)
+            try {
+                runMutation("Unable to scan image") {
+                    val appContext = context
+                        ?: throw IllegalStateException("Application context is required to scan image")
+                    val scanner = ocrImageScanner ?: OcrImageScanner()
+                    val lines = scanner.scanImageUri(appContext, uri)
+                    applyScannedLines(
+                        lines = lines,
+                        documentType = documentType,
+                        card = card,
+                        append = append
+                    )
+                }
+            } finally {
+                scanBatchState.value = scanBatchState.value.copy(isScanning = false)
+            }
+        }
+    }
+
+    fun scanPdfUri(
+        uri: Uri,
+        documentType: ScanDocumentType,
+        card: CardEntity?,
+        append: Boolean = false
+    ) {
+        viewModelScope.launch {
+            scanBatchState.value = scanBatchState.value.copy(isScanning = true)
+            try {
+                runMutation("Unable to scan PDF") {
+                    val appContext = context
+                        ?: throw IllegalStateException("Application context is required to scan PDF")
+                    val scanner = ocrImageScanner ?: OcrImageScanner()
+                    val lines = scanner.scanPdfUri(appContext, uri)
+                    applyScannedLines(
+                        lines = lines,
+                        documentType = documentType,
+                        card = card,
+                        append = append
+                    )
+                }
+            } finally {
+                scanBatchState.value = scanBatchState.value.copy(isScanning = false)
+            }
+        }
+    }
+
+    fun scanCameraFile(
+        file: File,
+        documentType: ScanDocumentType,
+        card: CardEntity?,
+        append: Boolean = false
+    ) {
+        viewModelScope.launch {
+            scanBatchState.value = scanBatchState.value.copy(isScanning = true)
+            val scanner = ocrImageScanner ?: OcrImageScanner()
+            try {
+                runMutation("Unable to scan captured photo") {
+                    val appContext = context
+                        ?: throw IllegalStateException("Application context is required to scan photo")
+                    val uri = scanner.getTempCameraUri(appContext, file)
+                    val lines = scanner.scanImageUri(appContext, uri)
+                    applyScannedLines(
+                        lines = lines,
+                        documentType = documentType,
+                        card = card,
+                        append = append
+                    )
+                }
+            } finally {
+                scanner.deleteTempFileQuietly(file)
+                scanBatchState.value = scanBatchState.value.copy(isScanning = false)
+            }
+        }
+    }
+
+    fun updateScanBatchStoreName(name: String) {
+        scanBatchState.value = scanBatchState.value.copy(storeName = name)
+    }
+
+    fun applyBatchDefaultEnvelope(envelopeName: String) {
+        val current = scanBatchState.value
+        scanBatchState.value = current.copy(
+            defaultEnvelopeName = envelopeName,
+            drafts = current.drafts.map { it.copy(envelopeName = envelopeName) }
+        )
+    }
+
+    fun updateScanDraft(
+        localId: String,
+        title: String,
+        amountCentavos: Long,
+        envelopeName: String?
+    ) {
+        val current = scanBatchState.value
+        scanBatchState.value = current.copy(
+            drafts = current.drafts.map { draft ->
+                if (draft.localId == localId) {
+                    draft.copy(
+                        title = title,
+                        amountCentavos = amountCentavos.coerceAtLeast(0L),
+                        envelopeName = envelopeName
+                    )
+                } else {
+                    draft
+                }
+            }
+        )
+    }
+
+    fun toggleScanDraft(localId: String) {
+        val current = scanBatchState.value
+        scanBatchState.value = current.copy(
+            drafts = current.drafts.map { draft ->
+                if (draft.localId == localId) {
+                    draft.copy(isSelected = !draft.isSelected)
+                } else {
+                    draft
+                }
+            }
+        )
+    }
+
+    fun clearScanBatch() {
+        scanBatchState.value = ScanBatchUiState()
+    }
+
+    fun confirmScannedExpenses() {
+        val current = scanBatchState.value
+        if (current.drafts.none { it.isSelected && it.amountCentavos > 0L }) {
+            clearScanBatch()
+            return
+        }
+        viewModelScope.launch {
+            runMutation("Unable to log scanned expenses") {
+                val uncheckedKeywords = current.drafts
+                    .filter { !it.isSelected && !it.isSummaryNoise && !it.isCredit }
+                    .map { it.title }
+                val loggedCount = budgetRepository.logScannedExpensesBatch(
+                    items = current.drafts,
+                    storeName = current.storeName,
+                    uncheckedKeywords = uncheckedKeywords
+                )
+                clearScanBatch()
+                if (loggedCount > 0) {
+                    infoMessage.value = "Logged $loggedCount scanned expense${if (loggedCount == 1) "" else "s"}"
+                }
+            }
+        }
+    }
+
+    private suspend fun applyScannedLines(
+        lines: List<OcrLineBox>,
+        documentType: ScanDocumentType,
+        card: CardEntity?,
+        append: Boolean
+    ) {
+        val storeCandidate = OcrExpenseParser.detectStoreCandidate(lines)
+        val matchedProfile = budgetRepository.findMatchingFormatProfile(
+            storeCandidate = storeCandidate,
+            cardName = card?.name
+        )
+        val activeMonth = selectedYearMonth.value
+        val parsed = OcrExpenseParser.parse(
+            lines = lines,
+            documentType = documentType,
+            billingCycleDay = card?.billingCycleDay,
+            activeMonth = activeMonth,
+            matchedProfile = matchedProfile,
+            cardDisplayName = card?.name,
+            referenceYear = todayProvider().year
+        )
+
+        if (append) {
+            val current = scanBatchState.value
+            val idOffset = current.drafts.size
+            val reindexed = parsed.drafts.mapIndexed { idx, draft ->
+                draft.copy(localId = "draft-${idOffset + idx}")
+            }
+            val flagged = OcrExpenseParser.flagDuplicates(current.drafts, reindexed)
+            scanBatchState.value = current.copy(
+                isScanning = false,
+                isSheetVisible = true,
+                documentType = documentType,
+                selectedCard = card ?: current.selectedCard,
+                storeName = current.storeName.ifBlank { parsed.detectedStoreName },
+                defaultEnvelopeName = current.defaultEnvelopeName ?: matchedProfile?.defaultEnvelopeName,
+                drafts = current.drafts + flagged
+            )
+        } else {
+            scanBatchState.value = ScanBatchUiState(
+                isScanning = false,
+                isSheetVisible = true,
+                documentType = documentType,
+                selectedCard = card,
+                storeName = parsed.detectedStoreName,
+                defaultEnvelopeName = matchedProfile?.defaultEnvelopeName,
+                drafts = parsed.drafts
+            )
+        }
     }
 
     fun logExpense(envelopeId: Long, amountCentavos: Long, title: String = "") {

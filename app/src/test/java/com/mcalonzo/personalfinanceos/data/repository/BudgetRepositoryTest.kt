@@ -13,6 +13,7 @@ import com.mcalonzo.personalfinanceos.data.local.SeedDatabaseCallback
 import com.mcalonzo.personalfinanceos.data.local.entity.LoanEntity
 import com.mcalonzo.personalfinanceos.data.local.entity.RoutineBillTemplateEntity
 import com.mcalonzo.personalfinanceos.data.local.entity.RoutineEnvelopeTemplateEntity
+import com.mcalonzo.personalfinanceos.domain.model.ScannedExpenseDraft
 import com.mcalonzo.personalfinanceos.domain.usecase.MonthRolloverUseCase
 import com.mcalonzo.personalfinanceos.worker.MonthRolloverWorker
 import java.time.LocalDate
@@ -721,5 +722,104 @@ class BudgetRepositoryTest {
         assertThat(updatedTx.title).isEqualTo("Updated Market")
         assertThat(updatedTx.amountCentavos).isEqualTo(75_000L)
         assertThat(db.budgetDao().getEnvelopeById(groceries.id)!!.spentCentavos).isEqualTo(75_000L)
+    }
+
+    @Test
+    fun `logScannedExpensesBatch inserts multi-cycle transactions, updates envelope spent, and auto-upserts ScanFormatProfileEntity`() = runTest {
+        val novCycleId = rolloverUseCase(YearMonth.of(2026, 11))
+
+        val drafts = listOf(
+            ScannedExpenseDraft(
+                localId = "d-1",
+                title = "SM Supermarket",
+                amountCentavos = 120_000L,
+                parsedDate = LocalDate.of(2026, 11, 10),
+                dateLabel = "Nov 10",
+                targetYearMonth = YearMonth.of(2026, 11),
+                isCredit = false,
+                isSummaryNoise = false,
+                isDuplicate = false,
+                isSelected = true,
+                envelopeName = "Groceries"
+            ),
+            ScannedExpenseDraft(
+                localId = "d-2",
+                title = "Puregold",
+                amountCentavos = 85_000L,
+                parsedDate = LocalDate.of(2026, 12, 5),
+                dateLabel = "Dec 5",
+                targetYearMonth = YearMonth.of(2026, 12),
+                isCredit = false,
+                isSummaryNoise = false,
+                isDuplicate = false,
+                isSelected = true,
+                envelopeName = "Groceries"
+            ),
+            ScannedExpenseDraft(
+                localId = "d-3",
+                title = "Total Due",
+                amountCentavos = 205_000L,
+                parsedDate = null,
+                dateLabel = "",
+                targetYearMonth = YearMonth.of(2026, 11),
+                isCredit = false,
+                isSummaryNoise = true,
+                isDuplicate = false,
+                isSelected = false,
+                envelopeName = "Groceries"
+            )
+        )
+
+        val loggedCount = repo.logScannedExpensesBatch(
+            items = drafts,
+            storeName = "BPI Credit Card",
+            uncheckedKeywords = listOf("Total Due")
+        )
+        assertThat(loggedCount).isEqualTo(2)
+
+        val novTransactions = db.budgetDao().getTransactionsForCycleOnce(novCycleId)
+        assertThat(novTransactions.map { it.title }).containsExactly("SM Supermarket")
+        val novGroceries = db.budgetDao().getEnvelopesForCycleOnce(novCycleId).first { it.name == "Groceries" }
+        assertThat(novGroceries.spentCentavos).isEqualTo(120_000L)
+
+        val decCycle = repo.getCycleByYearMonth(YearMonth.of(2026, 12))
+        assertThat(decCycle).isNotNull()
+        val decTransactions = db.budgetDao().getTransactionsForCycleOnce(decCycle!!.id)
+        assertThat(decTransactions.map { it.title }).containsExactly("Puregold")
+        val decGroceries = db.budgetDao().getEnvelopesForCycleOnce(decCycle.id).first { it.name == "Groceries" }
+        assertThat(decGroceries.spentCentavos).isEqualTo(85_000L)
+
+        val profile = repo.findMatchingFormatProfile("BPI Credit Card")
+        assertThat(profile).isNotNull()
+        assertThat(profile!!.defaultEnvelopeName).isEqualTo("Groceries")
+        assertThat(profile.ignoredKeywordsPipe).contains("Total Due")
+        assertThat(profile.scanCount).isEqualTo(1)
+
+        // Second scan merges ignored keywords and increments scanCount
+        repo.logScannedExpensesBatch(
+            items = listOf(drafts.first().copy(localId = "d-4", title = "SM Hypermarket", amountCentavos = 30_000L)),
+            storeName = "BPI Credit Card",
+            uncheckedKeywords = listOf("Minimum Payment")
+        )
+        val updatedProfile = repo.findMatchingFormatProfile("BPI Credit Card")!!
+        assertThat(updatedProfile.scanCount).isEqualTo(2)
+        assertThat(updatedProfile.ignoredKeywordsPipe).contains("Total Due")
+        assertThat(updatedProfile.ignoredKeywordsPipe).contains("Minimum Payment")
+    }
+
+    @Test
+    fun `upsertCard, observeCards, and deleteCard manage saved cards`() = runTest {
+        val cardId = repo.upsertCard(
+            name = "BPI Rewards",
+            cardType = "Credit",
+            billingCycleDay = 15
+        )
+        val cards = repo.observeCards().first()
+        assertThat(cards).hasSize(1)
+        assertThat(cards.first().id).isEqualTo(cardId)
+        assertThat(cards.first().billingCycleDay).isEqualTo(15)
+
+        repo.deleteCard(cardId)
+        assertThat(repo.observeCards().first()).isEmpty()
     }
 }
