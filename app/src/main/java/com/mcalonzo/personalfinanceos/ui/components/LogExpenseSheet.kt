@@ -13,18 +13,21 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.DocumentScanner
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -65,6 +68,7 @@ fun LogExpenseSheet(
     envelopes: List<EnvelopeItemUi>,
     initialEnvelopeId: Long? = null,
     onConfirmExpense: (envelopeId: Long, amountCentavos: Long, title: String) -> Unit,
+    onScanReceiptClick: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -116,6 +120,32 @@ fun LogExpenseSheet(
                         tint = OLEDColors.textSecondary
                     )
                 }
+            }
+
+            OutlinedButton(
+                onClick = {
+                    onDismiss()
+                    onScanReceiptClick()
+                },
+                border = BorderStroke(1.dp, OLEDColors.accentSky.copy(alpha = 0.5f)),
+                shape = RoundedCornerShape(14.dp),
+                contentPadding = PaddingValues(vertical = 12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .defaultMinSize(minHeight = 48.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.DocumentScanner,
+                    contentDescription = null,
+                    tint = OLEDColors.accentSky,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.size(8.dp))
+                Text(
+                    text = "Scan Receipt / Screenshot",
+                    style = FinanceTypography.labelLarge,
+                    color = OLEDColors.accentSky
+                )
             }
 
             Surface(

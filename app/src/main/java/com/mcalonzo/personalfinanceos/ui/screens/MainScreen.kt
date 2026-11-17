@@ -55,9 +55,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mcalonzo.personalfinanceos.data.local.entity.CardEntity
 import com.mcalonzo.personalfinanceos.data.local.entity.RoutineBillTemplateEntity
 import com.mcalonzo.personalfinanceos.data.local.entity.RoutineEnvelopeTemplateEntity
+import com.mcalonzo.personalfinanceos.domain.model.ScanDocumentType
 import com.mcalonzo.personalfinanceos.ui.components.AddEditBillSheet
+import com.mcalonzo.personalfinanceos.ui.components.AddEditCardSheet
 import com.mcalonzo.personalfinanceos.ui.components.AddEditEnvelopeSheet
 import com.mcalonzo.personalfinanceos.ui.components.AddEditLoanSheet
 import com.mcalonzo.personalfinanceos.ui.components.AdvanceLoanPaymentDialog
@@ -68,6 +71,8 @@ import com.mcalonzo.personalfinanceos.ui.components.LogExpenseSheet
 import com.mcalonzo.personalfinanceos.ui.components.MonthPickerSheet
 import com.mcalonzo.personalfinanceos.ui.components.PdfViewerSheet
 import com.mcalonzo.personalfinanceos.ui.components.RoutineSheet
+import com.mcalonzo.personalfinanceos.ui.components.ScanReviewSheet
+import com.mcalonzo.personalfinanceos.ui.components.ScanSourceSheet
 import com.mcalonzo.personalfinanceos.ui.theme.FinanceTypography
 import com.mcalonzo.personalfinanceos.ui.theme.NumericTextStyles
 import com.mcalonzo.personalfinanceos.ui.theme.OLEDColors
@@ -157,6 +162,17 @@ fun MainScreen(
     onLogPmsService: (id: Long, serviceKm: Int, costCentavos: Long, envelopeId: Long?) -> Unit = { _, _, _, _ -> },
     onUpdatePms: (id: Long, taskName: String, iconEmoji: String, intervalKm: Int, lastServiceKm: Int) -> Unit = { _, _, _, _, _ -> },
     onDeletePms: (id: Long) -> Unit = {},
+    onScanUploadImage: (ScanDocumentType, CardEntity?, Boolean) -> Unit = { _, _, _ -> },
+    onScanUploadPdf: (ScanDocumentType, CardEntity?, Boolean) -> Unit = { _, _, _ -> },
+    onScanTakePhoto: (ScanDocumentType, CardEntity?, Boolean) -> Unit = { _, _, _ -> },
+    onUpsertCard: (id: Long, name: String, cardType: String, billingCycleDay: Int?) -> Unit = { _, _, _, _ -> },
+    onDeleteCard: (Long) -> Unit = {},
+    onUpdateScanBatchStoreName: (String) -> Unit = {},
+    onApplyBatchDefaultEnvelope: (String) -> Unit = {},
+    onUpdateScanDraft: (localId: String, title: String, amountCentavos: Long, envelopeName: String?) -> Unit = { _, _, _, _ -> },
+    onToggleScanDraft: (String) -> Unit = {},
+    onClearScanBatch: () -> Unit = {},
+    onConfirmScannedExpenses: () -> Unit = {},
     motoContent: (@Composable () -> Unit)? = null,
     remindersContent: (@Composable () -> Unit)? = null
 ) {
@@ -178,6 +194,10 @@ fun MainScreen(
     var editingLoan by remember { mutableStateOf<LoanItemUi?>(null) }
     var advancingLoan by remember { mutableStateOf<LoanItemUi?>(null) }
     var editingTransaction by remember { mutableStateOf<TransactionItemUi?>(null) }
+    var showScanSourceSheet by remember { mutableStateOf(false) }
+    var scanAppendMode by remember { mutableStateOf(false) }
+    var showAddEditCardSheet by remember { mutableStateOf(false) }
+    var editingCard by remember { mutableStateOf<CardEntity?>(null) }
 
     LaunchedEffect(state.activeUndo) {
         val undo = state.activeUndo
@@ -384,6 +404,10 @@ fun MainScreen(
             envelopes = state.budgetState.envelopes,
             initialEnvelopeId = expenseSheetInitialEnvelopeId,
             onConfirmExpense = onLogExpense,
+            onScanReceiptClick = {
+                scanAppendMode = false
+                showScanSourceSheet = true
+            },
             onDismiss = { showExpenseSheet = false }
         )
     }
@@ -487,6 +511,72 @@ fun MainScreen(
             onSaveEdit = onUpdateTransaction,
             onDelete = onDeleteTransaction,
             onDismiss = { editingTransaction = null }
+        )
+    }
+
+    if (showScanSourceSheet) {
+        ScanSourceSheet(
+            cards = state.cards,
+            initialDocumentType = if (scanAppendMode) {
+                state.scanBatchState.documentType
+            } else {
+                ScanDocumentType.RECEIPT
+            },
+            initialSelectedCard = if (scanAppendMode) {
+                state.scanBatchState.selectedCard
+            } else {
+                null
+            },
+            onUploadImage = { docType, card ->
+                showScanSourceSheet = false
+                onScanUploadImage(docType, card, scanAppendMode)
+            },
+            onUploadPdf = { docType, card ->
+                showScanSourceSheet = false
+                onScanUploadPdf(docType, card, scanAppendMode)
+            },
+            onTakePhoto = { docType, card ->
+                showScanSourceSheet = false
+                onScanTakePhoto(docType, card, scanAppendMode)
+            },
+            onAddCardClick = {
+                editingCard = null
+                showAddEditCardSheet = true
+            },
+            onEditCardClick = { card ->
+                editingCard = card
+                showAddEditCardSheet = true
+            },
+            onDismiss = { showScanSourceSheet = false }
+        )
+    }
+
+    if (showAddEditCardSheet) {
+        AddEditCardSheet(
+            editingCard = editingCard,
+            onSave = onUpsertCard,
+            onDelete = onDeleteCard,
+            onDismiss = {
+                showAddEditCardSheet = false
+                editingCard = null
+            }
+        )
+    }
+
+    if (state.scanBatchState.isSheetVisible || state.scanBatchState.isScanning) {
+        ScanReviewSheet(
+            scanBatchState = state.scanBatchState,
+            envelopes = state.budgetState.envelopes,
+            onUpdateStoreName = onUpdateScanBatchStoreName,
+            onApplyDefaultEnvelope = onApplyBatchDefaultEnvelope,
+            onUpdateDraft = onUpdateScanDraft,
+            onToggleDraft = onToggleScanDraft,
+            onScanAnotherPart = {
+                scanAppendMode = true
+                showScanSourceSheet = true
+            },
+            onConfirm = onConfirmScannedExpenses,
+            onDismiss = onClearScanBatch
         )
     }
 }

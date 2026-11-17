@@ -9,15 +9,28 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.mcalonzo.personalfinanceos.data.local.entity.CardEntity
+import com.mcalonzo.personalfinanceos.data.ocr.OcrImageScanner
+import com.mcalonzo.personalfinanceos.domain.model.ScanDocumentType
 import com.mcalonzo.personalfinanceos.ui.screens.MainScreen
 import com.mcalonzo.personalfinanceos.ui.theme.PersonalFinanceTheme
 import com.mcalonzo.personalfinanceos.ui.viewmodel.MainViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import java.io.File
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var ocrImageScanner: OcrImageScanner
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(
@@ -26,13 +39,63 @@ class MainActivity : ComponentActivity() {
         )
         setContent {
             PersonalFinanceTheme {
+                val context = LocalContext.current
                 val viewModel: MainViewModel = hiltViewModel()
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+                var pendingScanDocType by remember { mutableStateOf(ScanDocumentType.RECEIPT) }
+                var pendingScanCard by remember { mutableStateOf<CardEntity?>(null) }
+                var pendingScanAppend by remember { mutableStateOf(false) }
+                var pendingCameraFile by remember { mutableStateOf<File?>(null) }
+
                 val soaPdfPicker = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.OpenDocument()
                 ) { uri ->
                     if (uri != null) {
                         viewModel.attachSoaPdf(uri)
+                    }
+                }
+
+                val scanImagePicker = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.OpenDocument()
+                ) { uri ->
+                    if (uri != null) {
+                        viewModel.scanImageUri(
+                            uri = uri,
+                            documentType = pendingScanDocType,
+                            card = pendingScanCard,
+                            append = pendingScanAppend
+                        )
+                    }
+                }
+
+                val scanPdfPicker = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.OpenDocument()
+                ) { uri ->
+                    if (uri != null) {
+                        viewModel.scanPdfUri(
+                            uri = uri,
+                            documentType = pendingScanDocType,
+                            card = pendingScanCard,
+                            append = pendingScanAppend
+                        )
+                    }
+                }
+
+                val takePhotoLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.TakePicture()
+                ) { success ->
+                    val file = pendingCameraFile
+                    pendingCameraFile = null
+                    if (success && file != null) {
+                        viewModel.scanCameraFile(
+                            file = file,
+                            documentType = pendingScanDocType,
+                            card = pendingScanCard,
+                            append = pendingScanAppend
+                        )
+                    } else {
+                        ocrImageScanner.deleteTempFileQuietly(file)
                     }
                 }
 
@@ -72,7 +135,36 @@ class MainActivity : ComponentActivity() {
                     onSavePms = viewModel::addPmsInterval,
                     onLogPmsService = viewModel::logPmsService,
                     onUpdatePms = viewModel::updatePmsInterval,
-                    onDeletePms = viewModel::deletePmsInterval
+                    onDeletePms = viewModel::deletePmsInterval,
+                    onScanUploadImage = { docType, card, append ->
+                        pendingScanDocType = docType
+                        pendingScanCard = card
+                        pendingScanAppend = append
+                        scanImagePicker.launch(arrayOf("image/*"))
+                    },
+                    onScanUploadPdf = { docType, card, append ->
+                        pendingScanDocType = docType
+                        pendingScanCard = card
+                        pendingScanAppend = append
+                        scanPdfPicker.launch(arrayOf("application/pdf"))
+                    },
+                    onScanTakePhoto = { docType, card, append ->
+                        pendingScanDocType = docType
+                        pendingScanCard = card
+                        pendingScanAppend = append
+                        val tempFile = ocrImageScanner.createTempCameraFile(context)
+                        pendingCameraFile = tempFile
+                        val uri = ocrImageScanner.getTempCameraUri(context, tempFile)
+                        takePhotoLauncher.launch(uri)
+                    },
+                    onUpsertCard = viewModel::upsertCard,
+                    onDeleteCard = viewModel::deleteCard,
+                    onUpdateScanBatchStoreName = viewModel::updateScanBatchStoreName,
+                    onApplyBatchDefaultEnvelope = viewModel::applyBatchDefaultEnvelope,
+                    onUpdateScanDraft = viewModel::updateScanDraft,
+                    onToggleScanDraft = viewModel::toggleScanDraft,
+                    onClearScanBatch = viewModel::clearScanBatch,
+                    onConfirmScannedExpenses = viewModel::confirmScannedExpenses
                 )
             }
         }
