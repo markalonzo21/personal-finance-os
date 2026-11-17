@@ -389,4 +389,26 @@ class MainViewModelTest {
         val afterPreview = pumpUntil { it.infoMessage != null }
         assertThat(afterPreview.infoMessage).isNotEmpty()
     }
+
+    @Test
+    fun `toggleAmountsVisibility and updateTransaction update uiState and envelope spent`() = runTest(testDispatcher.scheduler) {
+        val initial = pumpUntil { !it.isLoading && it.budgetState.envelopes.isNotEmpty() }
+        assertThat(initial.budgetState.isAmountsHidden).isFalse()
+
+        viewModel.toggleAmountsVisibility()
+        val hiddenState = pumpUntil { it.budgetState.isAmountsHidden }
+        assertThat(hiddenState.budgetState.isAmountsHidden).isTrue()
+
+        val groceries = hiddenState.budgetState.envelopes.first { it.name == "Groceries" }
+        viewModel.logExpense(envelopeId = groceries.id, amountCentavos = 40_000L, title = "Market")
+        val afterLog = pumpUntil { it.budgetState.transactions.any { tx -> tx.title == "Market" } }
+        val tx = afterLog.budgetState.transactions.first { it.title == "Market" }
+
+        viewModel.updateTransaction(transactionId = tx.id, title = "Supermarket", amountCentavos = 65_000L)
+        val afterUpdate = pumpUntil {
+            it.budgetState.transactions.any { item -> item.id == tx.id && item.title == "Supermarket" }
+        }
+        val updatedEnvelope = afterUpdate.budgetState.envelopes.first { it.id == groceries.id }
+        assertThat(updatedEnvelope.spentCentavos).isEqualTo(65_000L)
+    }
 }

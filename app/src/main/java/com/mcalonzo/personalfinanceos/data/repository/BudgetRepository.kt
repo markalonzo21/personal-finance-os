@@ -414,6 +414,29 @@ class BudgetRepository(
         }
     }
 
+    suspend fun updateTransaction(
+        transactionId: Long,
+        title: String,
+        amountCentavos: Long
+    ) {
+        require(amountCentavos > 0L) { "Amount must be greater than zero" }
+        val trimmedTitle = title.trim()
+        require(trimmedTitle.isNotEmpty()) { "Item title cannot be blank" }
+
+        db.withTransaction {
+            val existing = budgetDao.getTransactionById(transactionId) ?: return@withTransaction
+            val deltaCentavos = amountCentavos - existing.amountCentavos
+            budgetDao.updateTransaction(
+                transactionId = existing.id,
+                title = trimmedTitle,
+                amountCentavos = amountCentavos
+            )
+            if (existing.envelopeId != null && deltaCentavos != 0L) {
+                budgetDao.incrementEnvelopeSpent(existing.envelopeId, deltaCentavos)
+            }
+        }
+    }
+
     suspend fun deleteTransactionAndRevert(transactionId: Long) {
         db.withTransaction {
             val tx = budgetDao.getTransactionById(transactionId) ?: return@withTransaction

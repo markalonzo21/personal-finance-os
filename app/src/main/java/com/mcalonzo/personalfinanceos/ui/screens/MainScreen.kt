@@ -62,6 +62,7 @@ import com.mcalonzo.personalfinanceos.ui.components.AddEditEnvelopeSheet
 import com.mcalonzo.personalfinanceos.ui.components.AddEditLoanSheet
 import com.mcalonzo.personalfinanceos.ui.components.AdvanceLoanPaymentDialog
 import com.mcalonzo.personalfinanceos.ui.components.BillPaymentConfirmSheet
+import com.mcalonzo.personalfinanceos.ui.components.EditTransactionSheet
 import com.mcalonzo.personalfinanceos.ui.components.IconPickerSheet
 import com.mcalonzo.personalfinanceos.ui.components.LogExpenseSheet
 import com.mcalonzo.personalfinanceos.ui.components.MonthPickerSheet
@@ -76,6 +77,7 @@ import com.mcalonzo.personalfinanceos.ui.viewmodel.BudgetSubTab
 import com.mcalonzo.personalfinanceos.ui.viewmodel.EnvelopeItemUi
 import com.mcalonzo.personalfinanceos.ui.viewmodel.LoanItemUi
 import com.mcalonzo.personalfinanceos.ui.viewmodel.MainUiState
+import com.mcalonzo.personalfinanceos.ui.viewmodel.TransactionItemUi
 import java.time.YearMonth
 
 /**
@@ -124,6 +126,8 @@ fun MainScreen(
         nextDueYearMonth: YearMonth
     ) -> Unit = { _, _, _, _, _, _, _, _ -> },
     onDeleteLoan: (loanId: Long) -> Unit = {},
+    onToggleAmountsVisibility: () -> Unit = {},
+    onUpdateTransaction: (transactionId: Long, title: String, amountCentavos: Long) -> Unit = { _, _, _ -> },
     onDeleteTransaction: (transactionId: Long) -> Unit = {},
     onSaveRoutine: (
         totalMonthlyBudgetCentavos: Long,
@@ -173,6 +177,7 @@ fun MainScreen(
     var showAddEditLoanSheet by remember { mutableStateOf(false) }
     var editingLoan by remember { mutableStateOf<LoanItemUi?>(null) }
     var advancingLoan by remember { mutableStateOf<LoanItemUi?>(null) }
+    var editingTransaction by remember { mutableStateOf<TransactionItemUi?>(null) }
 
     LaunchedEffect(state.activeUndo) {
         val undo = state.activeUndo
@@ -328,6 +333,8 @@ fun MainScreen(
                             editingLoan = loan
                             showAddEditLoanSheet = true
                         },
+                        onToggleAmountsVisibility = onToggleAmountsVisibility,
+                        onEditTransactionClick = { tx -> editingTransaction = tx },
                         onDeleteTransactionClick = { tx -> onDeleteTransaction(tx.id) }
                     )
                 }
@@ -471,6 +478,15 @@ fun MainScreen(
             loan = loan,
             onConfirmAdvance = { onSettleLoan(loan.id, true) },
             onDismiss = { advancingLoan = null }
+        )
+    }
+
+    editingTransaction?.let { tx ->
+        EditTransactionSheet(
+            transaction = tx,
+            onSaveEdit = onUpdateTransaction,
+            onDelete = onDeleteTransaction,
+            onDismiss = { editingTransaction = null }
         )
     }
 }

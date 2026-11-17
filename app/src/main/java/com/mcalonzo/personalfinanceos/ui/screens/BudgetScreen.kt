@@ -26,7 +26,10 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.PictureAsPdf
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -37,6 +40,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -83,6 +90,8 @@ fun BudgetScreen(
     onSettleLoanClick: (LoanItemUi) -> Unit = {},
     onAdvanceLoanClick: (LoanItemUi) -> Unit = {},
     onEditLoanClick: (LoanItemUi) -> Unit = {},
+    onToggleAmountsVisibility: () -> Unit = {},
+    onEditTransactionClick: (TransactionItemUi) -> Unit = {},
     onDeleteTransactionClick: (TransactionItemUi) -> Unit = {}
 ) {
     Column(
@@ -105,7 +114,10 @@ fun BudgetScreen(
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             item(key = "hero_card") {
-                SafeToSpendHeroCard(state = state)
+                SafeToSpendHeroCard(
+                    state = state,
+                    onToggleAmountsVisibility = onToggleAmountsVisibility
+                )
             }
 
             item(key = "sub_tabs") {
@@ -133,11 +145,18 @@ fun BudgetScreen(
                         }
                     } else {
                         items(state.envelopes, key = { "env_${it.id}" }) { envelope ->
+                            val envelopeItems = remember(state.transactions, envelope.id) {
+                                state.transactions.filter { it.envelopeId == envelope.id }
+                            }
                             EnvelopeCard(
                                 envelope = envelope,
+                                items = envelopeItems,
+                                isAmountsHidden = state.isAmountsHidden,
                                 onTapIcon = { onTapEnvelopeIcon(envelope) },
                                 onQuickLog = { onQuickLogEnvelope(envelope) },
-                                onEdit = { onEditEnvelopeClick(envelope) }
+                                onEdit = { onEditEnvelopeClick(envelope) },
+                                onEditItem = onEditTransactionClick,
+                                onDeleteItem = onDeleteTransactionClick
                             )
                         }
                     }
@@ -163,6 +182,7 @@ fun BudgetScreen(
                             BillCard(
                                 bill = bill,
                                 cycleLabel = state.yearMonthLabel,
+                                isAmountsHidden = state.isAmountsHidden,
                                 onPayNow = { onPayBillClick(bill) },
                                 onEdit = { onEditBillClick(bill) }
                             )
@@ -180,7 +200,10 @@ fun BudgetScreen(
                     }
                     item(key = "loans_summary") {
                         LoansSummaryBanner(
-                            committedLoansFormatted = state.committedLoansFormatted,
+                            committedLoansFormatted = maskAmount(
+                                state.committedLoansFormatted,
+                                state.isAmountsHidden
+                            ),
                             activeLoansCount = state.activeLoansCount
                         )
                     }
@@ -195,6 +218,7 @@ fun BudgetScreen(
                         items(state.loans, key = { "loan_${it.id}" }) { loan ->
                             LoanCard(
                                 loan = loan,
+                                isAmountsHidden = state.isAmountsHidden,
                                 onMarkPaid = { onSettleLoanClick(loan) },
                                 onPayAdvance = { onAdvanceLoanClick(loan) },
                                 onEdit = { onEditLoanClick(loan) }
@@ -222,6 +246,12 @@ fun BudgetScreen(
                         items(state.transactions, key = { "tx_${it.id}" }) { tx ->
                             TransactionRowCard(
                                 transaction = tx,
+                                isAmountsHidden = state.isAmountsHidden,
+                                onEdit = if (tx.envelopeId != null) {
+                                    { onEditTransactionClick(tx) }
+                                } else {
+                                    null
+                                },
                                 onDelete = { onDeleteTransactionClick(tx) }
                             )
                         }
@@ -303,8 +333,17 @@ private fun BudgetTopBar(
     }
 }
 
+private fun maskAmount(
+    formatted: String,
+    isHidden: Boolean,
+    mask: String = "₱••••"
+): String = if (isHidden) mask else formatted
+
 @Composable
-private fun SafeToSpendHeroCard(state: BudgetUiState) {
+private fun SafeToSpendHeroCard(
+    state: BudgetUiState,
+    onToggleAmountsVisibility: () -> Unit
+) {
     val heroBrush = Brush.verticalGradient(
         colors = listOf(
             Color(0xFF152238),
@@ -355,7 +394,7 @@ private fun SafeToSpendHeroCard(state: BudgetUiState) {
                         border = BorderStroke(1.dp, paceColor.copy(alpha = 0.3f))
                     ) {
                         Text(
-                            text = state.dailyPaceFormatted,
+                            text = maskAmount(state.dailyPaceFormatted, state.isAmountsHidden, "₱•••• / day"),
                             style = NumericTextStyles.captionAmount.copy(fontWeight = FontWeight.Bold),
                             color = paceColor,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
@@ -366,16 +405,41 @@ private fun SafeToSpendHeroCard(state: BudgetUiState) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Bottom
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = state.safeToSpendFormatted,
-                        style = NumericTextStyles.heroBalance.copy(fontSize = 26.sp, lineHeight = 30.sp),
-                        color = if (state.isSafeToSpendNegative) OLEDColors.accentRose else OLEDColors.textPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = maskAmount(state.safeToSpendFormatted, state.isAmountsHidden, "₱••••••"),
+                            style = NumericTextStyles.heroBalance.copy(fontSize = 26.sp, lineHeight = 30.sp),
+                            color = if (state.isSafeToSpendNegative) OLEDColors.accentRose else OLEDColors.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        IconButton(
+                            onClick = onToggleAmountsVisibility,
+                            modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (state.isAmountsHidden) {
+                                    Icons.Rounded.VisibilityOff
+                                } else {
+                                    Icons.Rounded.Visibility
+                                },
+                                contentDescription = if (state.isAmountsHidden) {
+                                    "Show amounts"
+                                } else {
+                                    "Hide amounts"
+                                },
+                                tint = OLEDColors.textSecondary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.width(8.dp))
                     val daysStatus = when {
                         state.isPastCycle -> "Past cycle"
@@ -432,19 +496,19 @@ private fun SafeToSpendHeroCard(state: BudgetUiState) {
                 ) {
                     HeroMetricColumn(
                         label = "TOTAL BUDGET",
-                        value = state.totalBudgetFormatted,
+                        value = maskAmount(state.totalBudgetFormatted, state.isAmountsHidden),
                         valueColor = OLEDColors.textPrimary,
                         modifier = Modifier.weight(1f)
                     )
                     HeroMetricColumn(
                         label = "SPENT (${state.spentPercent}%)",
-                        value = state.spentSoFarFormatted,
+                        value = maskAmount(state.spentSoFarFormatted, state.isAmountsHidden),
                         valueColor = OLEDColors.accentSky,
                         modifier = Modifier.weight(1f)
                     )
                     HeroMetricColumn(
                         label = "FIXED / LOANS",
-                        value = state.committedLoansFormatted,
+                        value = maskAmount(state.committedLoansFormatted, state.isAmountsHidden),
                         valueColor = OLEDColors.accentAmber,
                         modifier = Modifier.weight(1f)
                     )
@@ -649,10 +713,15 @@ private fun SectionHeaderRow(
 @Composable
 private fun EnvelopeCard(
     envelope: EnvelopeItemUi,
+    items: List<TransactionItemUi>,
+    isAmountsHidden: Boolean,
     onTapIcon: () -> Unit,
     onQuickLog: () -> Unit,
-    onEdit: () -> Unit
+    onEdit: () -> Unit,
+    onEditItem: (TransactionItemUi) -> Unit,
+    onDeleteItem: (TransactionItemUi) -> Unit
 ) {
+    var isItemsExpanded by remember(envelope.id) { mutableStateOf(false) }
     val accentColor = CurrencyFormatters.parseColorHex(envelope.colorHex, OLEDColors.accentSky)
     val ratio = envelope.progressRatio
     val pct = (ratio * 100f).toInt().coerceAtLeast(0)
@@ -705,7 +774,9 @@ private fun EnvelopeCard(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        val subtitle = if (envelope.overBudgetCentavos > 0L) {
+                        val subtitle = if (isAmountsHidden) {
+                            "₱•••• left of ₱••••"
+                        } else if (envelope.overBudgetCentavos > 0L) {
                             "Over by ${BudgetCalculator.formatPeso(envelope.overBudgetCentavos, showDecimal = false)} of ${BudgetCalculator.formatPeso(envelope.allocatedLimitCentavos, showDecimal = false)}"
                         } else {
                             "${BudgetCalculator.formatPeso(envelope.remainingCentavos, showDecimal = false)} left of ${BudgetCalculator.formatPeso(envelope.allocatedLimitCentavos, showDecimal = false)}"
@@ -728,7 +799,10 @@ private fun EnvelopeCard(
 
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = BudgetCalculator.formatPeso(envelope.spentCentavos, showDecimal = false),
+                        text = maskAmount(
+                            BudgetCalculator.formatPeso(envelope.spentCentavos, showDecimal = false),
+                            isAmountsHidden
+                        ),
                         style = NumericTextStyles.cardAmount,
                         color = OLEDColors.textPrimary
                     )
@@ -780,6 +854,128 @@ private fun EnvelopeCard(
                     }
                 }
             }
+
+            Surface(
+                onClick = { isItemsExpanded = !isItemsExpanded },
+                color = OLEDColors.bgCardSubtle,
+                shape = RoundedCornerShape(10.dp),
+                border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .defaultMinSize(minHeight = 48.dp)
+                    .semantics { contentDescription = "Toggle ${envelope.name} items" }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val itemCountLabel = when (items.size) {
+                        0 -> "No added items"
+                        1 -> "1 added item"
+                        else -> "${items.size} added items"
+                    }
+                    Text(
+                        text = itemCountLabel,
+                        style = FinanceTypography.labelLarge,
+                        color = OLEDColors.textSecondary
+                    )
+                    Icon(
+                        imageVector = if (isItemsExpanded) {
+                            Icons.Rounded.KeyboardArrowUp
+                        } else {
+                            Icons.Rounded.KeyboardArrowDown
+                        },
+                        contentDescription = null,
+                        tint = OLEDColors.textSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            if (isItemsExpanded) {
+                if (items.isEmpty()) {
+                    Text(
+                        text = "Tap + to log an item under ${envelope.name}.",
+                        style = FinanceTypography.bodyMedium,
+                        color = OLEDColors.textSecondary,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                    )
+                } else {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        items.forEach { item ->
+                            Surface(
+                                color = OLEDColors.bgCardElevated,
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = item.title,
+                                            style = FinanceTypography.bodyLarge,
+                                            color = OLEDColors.textPrimary,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = item.timeLabel,
+                                            style = FinanceTypography.labelSmall,
+                                            color = OLEDColors.textSecondary
+                                        )
+                                    }
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = maskAmount(
+                                                "-${BudgetCalculator.formatPeso(item.amountCentavos)}",
+                                                isAmountsHidden,
+                                                "-₱••••"
+                                            ),
+                                            style = NumericTextStyles.captionAmount,
+                                            color = OLEDColors.accentSky
+                                        )
+                                        IconButton(
+                                            onClick = { onEditItem(item) },
+                                            modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Edit,
+                                                contentDescription = "Edit ${item.title}",
+                                                tint = OLEDColors.textSecondary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                        IconButton(
+                                            onClick = { onDeleteItem(item) },
+                                            modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.DeleteOutline,
+                                                contentDescription = "Delete ${item.title}",
+                                                tint = OLEDColors.accentRose,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -788,6 +984,7 @@ private fun EnvelopeCard(
 private fun BillCard(
     bill: BillItemUi,
     cycleLabel: String,
+    isAmountsHidden: Boolean,
     onPayNow: () -> Unit,
     onEdit: () -> Unit
 ) {
@@ -845,7 +1042,7 @@ private fun BillCard(
 
                 Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        text = BudgetCalculator.formatPeso(bill.amountCentavos),
+                        text = maskAmount(BudgetCalculator.formatPeso(bill.amountCentavos), isAmountsHidden),
                         style = NumericTextStyles.cardAmount,
                         color = OLEDColors.textPrimary
                     )
@@ -968,6 +1165,7 @@ private fun LoansSummaryBanner(
 @Composable
 private fun LoanCard(
     loan: LoanItemUi,
+    isAmountsHidden: Boolean,
     onMarkPaid: () -> Unit,
     onPayAdvance: () -> Unit,
     onEdit: () -> Unit
@@ -1031,7 +1229,10 @@ private fun LoanCard(
                 }
 
                 Text(
-                    text = BudgetCalculator.formatPeso(loan.monthlyAmortizationCentavos),
+                    text = maskAmount(
+                        BudgetCalculator.formatPeso(loan.monthlyAmortizationCentavos),
+                        isAmountsHidden
+                    ),
                     style = NumericTextStyles.cardAmount,
                     color = OLEDColors.textPrimary
                 )
@@ -1140,6 +1341,8 @@ private fun LoanCard(
 @Composable
 private fun TransactionRowCard(
     transaction: TransactionItemUi,
+    isAmountsHidden: Boolean,
+    onEdit: (() -> Unit)?,
     onDelete: () -> Unit
 ) {
     Surface(
@@ -1174,13 +1377,30 @@ private fun TransactionRowCard(
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Text(
-                    text = "-${BudgetCalculator.formatPeso(transaction.amountCentavos)}",
+                    text = maskAmount(
+                        "-${BudgetCalculator.formatPeso(transaction.amountCentavos)}",
+                        isAmountsHidden,
+                        "-₱••••"
+                    ),
                     style = NumericTextStyles.cardAmount,
                     color = OLEDColors.accentSky
                 )
+                if (onEdit != null) {
+                    IconButton(
+                        onClick = onEdit,
+                        modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Edit,
+                            contentDescription = "Edit ${transaction.title}",
+                            tint = OLEDColors.textSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
                 IconButton(
                     onClick = onDelete,
                     modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)

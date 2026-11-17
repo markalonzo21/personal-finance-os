@@ -56,6 +56,8 @@ class MainActivity : ComponentActivity() {
                     onAddLoan = viewModel::addLoan,
                     onUpdateLoan = viewModel::updateLoan,
                     onDeleteLoan = viewModel::deleteLoan,
+                    onToggleAmountsVisibility = viewModel::toggleAmountsVisibility,
+                    onUpdateTransaction = viewModel::updateTransaction,
                     onDeleteTransaction = viewModel::deleteTransaction,
                     onSaveRoutine = viewModel::saveRoutine,
                     onPickSoaPdf = { soaPdfPicker.launch(arrayOf("application/pdf")) },

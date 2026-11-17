@@ -173,7 +173,8 @@ data class BudgetUiState(
     val isPastCycle: Boolean = false,
     val soaPdfLocalUri: String? = null,
     val soaFileName: String? = null,
-    val availableCycles: List<CycleOptionUi> = emptyList()
+    val availableCycles: List<CycleOptionUi> = emptyList(),
+    val isAmountsHidden: Boolean = false
 )
 
 data class PmsItemUi(
@@ -293,6 +294,7 @@ class MainViewModel internal constructor(
     private val activeUndo = MutableStateFlow<UndoAction?>(null)
     private val errorMessage = MutableStateFlow<String?>(null)
     private val infoMessage = MutableStateFlow<String?>(null)
+    private val isAmountsHidden = MutableStateFlow(false)
     private val isGasSyncing = MutableStateFlow(false)
     private val globalPushEnabledFlow = MutableStateFlow(
         context?.let { NotificationHelper.isGlobalPushEnabled(it) } ?: true
@@ -327,7 +329,8 @@ class MainViewModel internal constructor(
         val subTab: BudgetSubTab,
         val undo: UndoAction?,
         val error: String?,
-        val info: String?
+        val info: String?,
+        val isAmountsHidden: Boolean
     )
 
     private val chromeControlsFlow: Flow<ChromeControlsState> = combine(
@@ -335,7 +338,9 @@ class MainViewModel internal constructor(
         selectedBottomTab,
         selectedSubTab,
         activeUndo,
-        combine(errorMessage, infoMessage) { err, info -> err to info }
+        combine(errorMessage, infoMessage, isAmountsHidden) { err, info, hidden ->
+            Triple(err, info, hidden)
+        }
     ) { month, bottomTab, subTab, undo, messages ->
         ChromeControlsState(
             selectedMonth = month,
@@ -343,7 +348,8 @@ class MainViewModel internal constructor(
             subTab = subTab,
             undo = undo,
             error = messages.first,
-            info = messages.second
+            info = messages.second,
+            isAmountsHidden = messages.third
         )
     }
 
@@ -398,13 +404,14 @@ class MainViewModel internal constructor(
                 allCycles = allCycles,
                 selectedSubTab = chrome.subTab,
                 today = today
-            )
+            ).copy(isAmountsHidden = chrome.isAmountsHidden)
         } else {
             BudgetUiState(
                 yearMonthLabel = formatYearMonthLabel(chrome.selectedMonth),
                 selectedYearMonth = chrome.selectedMonth.toString(),
                 selectedSubTab = chrome.subTab,
-                availableCycles = buildCycleOptions(allCycles, chrome.selectedMonth, today)
+                availableCycles = buildCycleOptions(allCycles, chrome.selectedMonth, today),
+                isAmountsHidden = chrome.isAmountsHidden
             )
         }
 
@@ -446,6 +453,10 @@ class MainViewModel internal constructor(
 
     fun switchBudgetSubTab(subTab: BudgetSubTab) {
         selectedSubTab.value = subTab
+    }
+
+    fun toggleAmountsVisibility() {
+        isAmountsHidden.value = !isAmountsHidden.value
     }
 
     fun logExpense(envelopeId: Long, amountCentavos: Long, title: String = "") {
@@ -679,6 +690,22 @@ class MainViewModel internal constructor(
             runMutation("Unable to delete loan") {
                 budgetRepository.deleteLoan(loanId)
                 infoMessage.value = "Loan removed"
+            }
+        }
+    }
+
+    fun updateTransaction(transactionId: Long, title: String, amountCentavos: Long) {
+        viewModelScope.launch {
+            runMutation("Unable to update item") {
+                if (activeUndo.value?.transactionId == transactionId) {
+                    dismissUndo()
+                }
+                budgetRepository.updateTransaction(
+                    transactionId = transactionId,
+                    title = title,
+                    amountCentavos = amountCentavos
+                )
+                infoMessage.value = "Updated ${title.trim()}"
             }
         }
     }

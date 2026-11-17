@@ -697,4 +697,29 @@ class BudgetRepositoryTest {
         // Zero-spend routine envelope removed from template must be pruned!
         assertThat(envelopesAfter.none { it.name == removedRoutineName }).isTrue()
     }
+
+    @Test
+    fun `updateTransaction updates title and adjusts linked envelope spentCentavos atomically`() = runTest {
+        val cycleId = rolloverUseCase(YearMonth.of(2026, 11))
+        val groceries = db.budgetDao().getEnvelopesForCycleOnce(cycleId).first { it.name == "Groceries" }
+
+        val undo = repo.logExpense(
+            cycleId = cycleId,
+            envelopeId = groceries.id,
+            amountCentavos = 50_000L,
+            title = "Initial Store"
+        )
+        assertThat(db.budgetDao().getEnvelopeById(groceries.id)!!.spentCentavos).isEqualTo(50_000L)
+
+        repo.updateTransaction(
+            transactionId = undo.transactionId,
+            title = "Updated Market",
+            amountCentavos = 75_000L
+        )
+
+        val updatedTx = db.budgetDao().getTransactionById(undo.transactionId)!!
+        assertThat(updatedTx.title).isEqualTo("Updated Market")
+        assertThat(updatedTx.amountCentavos).isEqualTo(75_000L)
+        assertThat(db.budgetDao().getEnvelopeById(groceries.id)!!.spentCentavos).isEqualTo(75_000L)
+    }
 }
