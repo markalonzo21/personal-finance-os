@@ -3,9 +3,12 @@ package com.mcalonzo.personalfinanceos.data.ocr
 import android.app.Application
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
 import java.io.File
+import java.io.FileOutputStream
 import org.junit.After
 import org.junit.Assume.assumeTrue
 import org.junit.Before
@@ -90,5 +93,22 @@ class OcrImageScannerTest {
         assertThat(file.exists()).isFalse()
 
         scanner.deleteTempFileQuietly(null)
+    }
+
+    @Test
+    fun decodeSampledBitmap_decodesValidImageUriWithoutReturningNull() {
+        val imageFile = File(context.cacheDir, "sample_receipt.png")
+        createdFiles.add(imageFile)
+        val sourceBitmap = Bitmap.createBitmap(120, 80, Bitmap.Config.ARGB_8888)
+        FileOutputStream(imageFile).use { out ->
+            sourceBitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+        }
+        sourceBitmap.recycle()
+
+        val decoded = scanner.decodeSampledBitmap(context, Uri.fromFile(imageFile))
+        assertThat(decoded).isNotNull()
+        assertThat(decoded!!.width).isEqualTo(120)
+        assertThat(decoded.height).isEqualTo(80)
+        decoded.recycle()
     }
 }

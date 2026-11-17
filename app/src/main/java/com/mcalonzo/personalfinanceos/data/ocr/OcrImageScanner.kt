@@ -4,8 +4,10 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.graphics.ImageDecoder
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
+import android.os.Build
 import androidx.core.content.FileProvider
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
@@ -129,13 +131,38 @@ class OcrImageScanner @Inject constructor() {
         collectedLines
     }
 
-    private fun decodeSampledBitmap(context: Context, uri: Uri): Bitmap? {
+    internal fun decodeSampledBitmap(context: Context, uri: Uri): Bitmap? {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val decodedWithImageDecoder = runCatching {
+                val source = ImageDecoder.createSource(context.contentResolver, uri)
+                ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+                    val size = info.size
+                    val sampleSize = calculateInSampleSize(
+                        width = size.width,
+                        height = size.height,
+                        maxDimension = MAX_DIMENSION_PX
+                    )
+                    if (sampleSize > 1) {
+                        decoder.setTargetSampleSize(sampleSize)
+                    }
+                    decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                }
+            }.getOrNull()
+            if (decodedWithImageDecoder != null) {
+                return decodedWithImageDecoder
+            }
+        }
+
         val boundsOptions = BitmapFactory.Options().apply {
             inJustDecodeBounds = true
         }
-        context.contentResolver.openInputStream(uri)?.use { stream ->
+        val openedBoundsStream = context.contentResolver.openInputStream(uri)?.use { stream ->
             BitmapFactory.decodeStream(stream, null, boundsOptions)
-        } ?: return null
+            true
+        } ?: false
+        if (!openedBoundsStream) {
+            return null
+        }
 
         val sampleSize = calculateInSampleSize(
             width = boundsOptions.outWidth,
@@ -149,6 +176,8 @@ class OcrImageScanner @Inject constructor() {
         }
         return context.contentResolver.openInputStream(uri)?.use { stream ->
             BitmapFactory.decodeStream(stream, null, decodeOptions)
+        } ?: context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
+            BitmapFactory.decodeFileDescriptor(pfd.fileDescriptor, null, decodeOptions)
         }
     }
 
