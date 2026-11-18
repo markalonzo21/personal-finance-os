@@ -64,7 +64,7 @@ import com.mcalonzo.personalfinanceos.domain.model.ScanDocumentType
 import com.mcalonzo.personalfinanceos.domain.model.ScannedExpenseDraft
 import com.mcalonzo.personalfinanceos.ui.theme.FinanceTypography
 import com.mcalonzo.personalfinanceos.ui.theme.NumericTextStyles
-import com.mcalonzo.personalfinanceos.ui.theme.OLEDColors
+import com.mcalonzo.personalfinanceos.ui.theme.FinanceTheme
 import com.mcalonzo.personalfinanceos.ui.viewmodel.EnvelopeItemUi
 import com.mcalonzo.personalfinanceos.ui.viewmodel.ScanBatchUiState
 
@@ -105,8 +105,8 @@ fun ScanSourceSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = OLEDColors.bgCard,
-        contentColor = OLEDColors.textPrimary
+        containerColor = FinanceTheme.colors.bgCard,
+        contentColor = FinanceTheme.colors.textPrimary
     ) {
         Column(
             modifier = Modifier
@@ -126,7 +126,7 @@ fun ScanSourceSheet(
             Text(
                 text = "DOCUMENT TYPE",
                 style = FinanceTypography.labelMedium,
-                color = OLEDColors.textSecondary
+                color = FinanceTheme.colors.textSecondary
             )
 
             Row(
@@ -158,7 +158,7 @@ fun ScanSourceSheet(
                 Text(
                     text = "SELECT CARD",
                     style = FinanceTypography.labelMedium,
-                    color = OLEDColors.textSecondary
+                    color = FinanceTheme.colors.textSecondary
                 )
                 Row(
                     modifier = Modifier
@@ -172,14 +172,14 @@ fun ScanSourceSheet(
                         Surface(
                             onClick = { selectedCardId = card.id },
                             color = if (isSelected) {
-                                OLEDColors.accentSky.copy(alpha = 0.16f)
+                                FinanceTheme.colors.accentSky.copy(alpha = 0.16f)
                             } else {
-                                OLEDColors.bgCardElevated
+                                FinanceTheme.colors.bgCardElevated
                             },
                             shape = RoundedCornerShape(12.dp),
                             border = BorderStroke(
                                 width = if (isSelected) 1.5.dp else 1.dp,
-                                color = if (isSelected) OLEDColors.accentSky else OLEDColors.borderSubtle
+                                color = if (isSelected) FinanceTheme.colors.accentSky else FinanceTheme.colors.borderSubtle
                             ),
                             modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                         ) {
@@ -191,7 +191,7 @@ fun ScanSourceSheet(
                                 Text(
                                     text = card.name,
                                     style = FinanceTypography.labelLarge,
-                                    color = if (isSelected) OLEDColors.accentSky else OLEDColors.textPrimary,
+                                    color = if (isSelected) FinanceTheme.colors.accentSky else FinanceTheme.colors.textPrimary,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -199,7 +199,7 @@ fun ScanSourceSheet(
                                     Text(
                                         text = "D${card.billingCycleDay}",
                                         style = NumericTextStyles.captionAmount,
-                                        color = OLEDColors.textSecondary
+                                        color = FinanceTheme.colors.textSecondary
                                     )
                                 }
                             }
@@ -208,9 +208,9 @@ fun ScanSourceSheet(
 
                     Surface(
                         onClick = onAddCardClick,
-                        color = OLEDColors.bgCardSubtle,
+                        color = FinanceTheme.colors.bgCardSubtle,
                         shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, OLEDColors.accentSky.copy(alpha = 0.5f)),
+                        border = BorderStroke(1.dp, FinanceTheme.colors.accentSky.copy(alpha = 0.5f)),
                         modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                     ) {
                         Row(
@@ -220,7 +220,7 @@ fun ScanSourceSheet(
                             Text(
                                 text = "+ Add Card",
                                 style = FinanceTypography.labelLarge,
-                                color = OLEDColors.accentSky
+                                color = FinanceTheme.colors.accentSky
                             )
                         }
                     }
@@ -233,7 +233,7 @@ fun ScanSourceSheet(
                         Text(
                             text = "Edit ${selectedCard.name}",
                             style = FinanceTypography.labelMedium,
-                            color = OLEDColors.textSecondary
+                            color = FinanceTheme.colors.textSecondary
                         )
                     }
                 }
@@ -242,25 +242,25 @@ fun ScanSourceSheet(
             Text(
                 text = "SOURCE",
                 style = FinanceTypography.labelMedium,
-                color = OLEDColors.textSecondary
+                color = FinanceTheme.colors.textSecondary
             )
 
             SourceActionButton(
                 label = "Upload Image / Screenshot",
                 icon = Icons.Rounded.Image,
-                accentColor = OLEDColors.accentSky,
+                accentColor = FinanceTheme.colors.accentSky,
                 onClick = { onUploadImage(documentType, effectiveCard) }
             )
             SourceActionButton(
                 label = "Upload PDF",
                 icon = Icons.Rounded.PictureAsPdf,
-                accentColor = OLEDColors.accentEmerald,
+                accentColor = FinanceTheme.colors.accentEmerald,
                 onClick = { onUploadPdf(documentType, effectiveCard) }
             )
             SourceActionButton(
                 label = "Take Photo",
                 icon = Icons.Rounded.CameraAlt,
-                accentColor = OLEDColors.accentAmber,
+                accentColor = FinanceTheme.colors.accentAmber,
                 onClick = { onTakePhoto(documentType, effectiveCard) }
             )
         }
@@ -289,8 +289,8 @@ fun AddEditCardSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = OLEDColors.bgCard,
-        contentColor = OLEDColors.textPrimary
+        containerColor = FinanceTheme.colors.bgCard,
+        contentColor = FinanceTheme.colors.textPrimary
     ) {
         Column(
             modifier = Modifier
@@ -324,7 +324,7 @@ fun AddEditCardSheet(
             Text(
                 text = "CARD TYPE",
                 style = FinanceTypography.labelMedium,
-                color = OLEDColors.textSecondary
+                color = FinanceTheme.colors.textSecondary
             )
 
             Row(
@@ -336,14 +336,14 @@ fun AddEditCardSheet(
                     Surface(
                         onClick = { selectedType = typeKey },
                         color = if (isSelected) {
-                            OLEDColors.accentSky.copy(alpha = 0.16f)
+                            FinanceTheme.colors.accentSky.copy(alpha = 0.16f)
                         } else {
-                            OLEDColors.bgCardElevated
+                            FinanceTheme.colors.bgCardElevated
                         },
                         shape = RoundedCornerShape(12.dp),
                         border = BorderStroke(
                             width = if (isSelected) 1.5.dp else 1.dp,
-                            color = if (isSelected) OLEDColors.accentSky else OLEDColors.borderSubtle
+                            color = if (isSelected) FinanceTheme.colors.accentSky else FinanceTheme.colors.borderSubtle
                         ),
                         modifier = Modifier
                             .weight(1f)
@@ -357,7 +357,7 @@ fun AddEditCardSheet(
                             Text(
                                 text = typeLabel,
                                 style = FinanceTypography.labelLarge,
-                                color = if (isSelected) OLEDColors.accentSky else OLEDColors.textPrimary
+                                color = if (isSelected) FinanceTheme.colors.accentSky else FinanceTheme.colors.textPrimary
                             )
                         }
                     }
@@ -382,7 +382,7 @@ fun AddEditCardSheet(
                 Text(
                     text = validationError!!,
                     style = FinanceTypography.bodyMedium,
-                    color = OLEDColors.accentRose
+                    color = FinanceTheme.colors.accentRose
                 )
             }
 
@@ -403,8 +403,8 @@ fun AddEditCardSheet(
                     }
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = OLEDColors.accentSky,
-                    contentColor = OLEDColors.bgBase
+                    containerColor = FinanceTheme.colors.accentSky,
+                    contentColor = FinanceTheme.colors.bgBase
                 ),
                 shape = RoundedCornerShape(14.dp),
                 contentPadding = PaddingValues(vertical = 14.dp),
@@ -431,13 +431,13 @@ fun AddEditCardSheet(
                     Icon(
                         imageVector = Icons.Rounded.DeleteOutline,
                         contentDescription = null,
-                        tint = OLEDColors.accentRose
+                        tint = FinanceTheme.colors.accentRose
                     )
                     Spacer(modifier = Modifier.size(6.dp))
                     Text(
                         text = "Delete Card",
                         style = FinanceTypography.labelLarge,
-                        color = OLEDColors.accentRose
+                        color = FinanceTheme.colors.accentRose
                     )
                 }
             }
@@ -472,8 +472,8 @@ fun ScanReviewSheet(
         onDismissRequest = { showDiscardConfirm = true },
         sheetState = sheetState,
         properties = ModalBottomSheetProperties(shouldDismissOnBackPress = false),
-        containerColor = OLEDColors.bgCard,
-        contentColor = OLEDColors.textPrimary
+        containerColor = FinanceTheme.colors.bgCard,
+        contentColor = FinanceTheme.colors.textPrimary
     ) {
         Column(
             modifier = Modifier
@@ -500,14 +500,14 @@ fun ScanReviewSheet(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     CircularProgressIndicator(
-                        color = OLEDColors.accentSky,
+                        color = FinanceTheme.colors.accentSky,
                         modifier = Modifier.size(20.dp),
                         strokeWidth = 2.dp
                     )
                     Text(
                         text = "Scanning document...",
                         style = FinanceTypography.bodyMedium,
-                        color = OLEDColors.textSecondary
+                        color = FinanceTheme.colors.textSecondary
                     )
                 }
             }
@@ -525,7 +525,7 @@ fun ScanReviewSheet(
                 Text(
                     text = "APPLY ENVELOPE TO ALL",
                     style = FinanceTypography.labelMedium,
-                    color = OLEDColors.textSecondary
+                    color = FinanceTheme.colors.textSecondary
                 )
                 Row(
                     modifier = Modifier
@@ -538,14 +538,14 @@ fun ScanReviewSheet(
                         Surface(
                             onClick = { onApplyDefaultEnvelope(env.name) },
                             color = if (isDefault) {
-                                OLEDColors.accentSky.copy(alpha = 0.16f)
+                                FinanceTheme.colors.accentSky.copy(alpha = 0.16f)
                             } else {
-                                OLEDColors.bgCardElevated
+                                FinanceTheme.colors.bgCardElevated
                             },
                             shape = RoundedCornerShape(12.dp),
                             border = BorderStroke(
                                 width = if (isDefault) 1.5.dp else 1.dp,
-                                color = if (isDefault) OLEDColors.accentSky else OLEDColors.borderSubtle
+                                color = if (isDefault) FinanceTheme.colors.accentSky else FinanceTheme.colors.borderSubtle
                             ),
                             modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                         ) {
@@ -558,7 +558,7 @@ fun ScanReviewSheet(
                                 Text(
                                     text = env.name,
                                     style = FinanceTypography.labelLarge,
-                                    color = if (isDefault) OLEDColors.accentSky else OLEDColors.textPrimary
+                                    color = if (isDefault) FinanceTheme.colors.accentSky else FinanceTheme.colors.textPrimary
                                 )
                             }
                         }
@@ -570,7 +570,7 @@ fun ScanReviewSheet(
                 Text(
                     text = "No expense items detected. Try scanning another part or clearer photo.",
                     style = FinanceTypography.bodyMedium,
-                    color = OLEDColors.accentAmber
+                    color = FinanceTheme.colors.accentAmber
                 )
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -589,7 +589,7 @@ fun ScanReviewSheet(
 
             OutlinedButton(
                 onClick = onScanAnotherPart,
-                border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+                border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
                 shape = RoundedCornerShape(14.dp),
                 contentPadding = PaddingValues(vertical = 12.dp),
                 modifier = Modifier
@@ -599,13 +599,13 @@ fun ScanReviewSheet(
                 Icon(
                     imageVector = Icons.Rounded.Add,
                     contentDescription = null,
-                    tint = OLEDColors.accentSky
+                    tint = FinanceTheme.colors.accentSky
                 )
                 Spacer(modifier = Modifier.size(6.dp))
                 Text(
                     text = "+ Scan Another Part",
                     style = FinanceTypography.labelLarge,
-                    color = OLEDColors.accentSky
+                    color = FinanceTheme.colors.accentSky
                 )
             }
 
@@ -613,8 +613,8 @@ fun ScanReviewSheet(
                 onClick = onConfirm,
                 enabled = selectedCount > 0 && !scanBatchState.isScanning,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = OLEDColors.accentSky,
-                    contentColor = OLEDColors.bgBase
+                    containerColor = FinanceTheme.colors.accentSky,
+                    contentColor = FinanceTheme.colors.bgBase
                 ),
                 shape = RoundedCornerShape(14.dp),
                 contentPadding = PaddingValues(vertical = 14.dp),
@@ -633,9 +633,9 @@ fun ScanReviewSheet(
     if (showDiscardConfirm) {
         AlertDialog(
             onDismissRequest = { showDiscardConfirm = false },
-            containerColor = OLEDColors.bgCard,
-            titleContentColor = OLEDColors.textPrimary,
-            textContentColor = OLEDColors.textSecondary,
+            containerColor = FinanceTheme.colors.bgCard,
+            titleContentColor = FinanceTheme.colors.textPrimary,
+            textContentColor = FinanceTheme.colors.textSecondary,
             title = {
                 Text(
                     text = "Discard Scanned Items?",
@@ -659,7 +659,7 @@ fun ScanReviewSheet(
                     Text(
                         text = "Discard",
                         style = FinanceTypography.labelLarge,
-                        color = OLEDColors.accentRose
+                        color = FinanceTheme.colors.accentRose
                     )
                 }
             },
@@ -671,7 +671,7 @@ fun ScanReviewSheet(
                     Text(
                         text = "Keep Editing",
                         style = FinanceTypography.labelLarge,
-                        color = OLEDColors.accentSky
+                        color = FinanceTheme.colors.accentSky
                     )
                 }
             }
@@ -691,11 +691,11 @@ private fun ScanDraftCard(
     }
 
     Surface(
-        color = OLEDColors.bgCardSubtle,
+        color = FinanceTheme.colors.bgCardSubtle,
         shape = RoundedCornerShape(14.dp),
         border = BorderStroke(
             width = 1.dp,
-            color = if (draft.isSelected) OLEDColors.borderSubtle else OLEDColors.borderSubtle.copy(alpha = 0.5f)
+            color = if (draft.isSelected) FinanceTheme.colors.borderSubtle else FinanceTheme.colors.borderSubtle.copy(alpha = 0.5f)
         ),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -712,9 +712,9 @@ private fun ScanDraftCard(
                     checked = draft.isSelected,
                     onCheckedChange = { onToggle() },
                     colors = CheckboxDefaults.colors(
-                        checkedColor = OLEDColors.accentSky,
-                        uncheckedColor = OLEDColors.textSecondary,
-                        checkmarkColor = OLEDColors.bgBase
+                        checkedColor = FinanceTheme.colors.accentSky,
+                        uncheckedColor = FinanceTheme.colors.textSecondary,
+                        checkmarkColor = FinanceTheme.colors.bgBase
                     ),
                     modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                 )
@@ -746,10 +746,10 @@ private fun ScanDraftCard(
                             Text(
                                 text = "₱",
                                 style = NumericTextStyles.bodyAmount,
-                                color = OLEDColors.accentSky
+                                color = FinanceTheme.colors.accentSky
                             )
                         },
-                        textStyle = NumericTextStyles.bodyAmount.copy(color = OLEDColors.accentSky),
+                        textStyle = NumericTextStyles.bodyAmount.copy(color = FinanceTheme.colors.accentSky),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         colors = scanTextFieldColors(),
@@ -767,13 +767,13 @@ private fun ScanDraftCard(
             ) {
                 DraftBadge(
                     text = "${draft.dateLabel.ifBlank { "Today" }} • ${draft.targetYearMonth}",
-                    color = OLEDColors.textSecondary
+                    color = FinanceTheme.colors.textSecondary
                 )
                 if (draft.isDuplicate) {
-                    DraftBadge(text = "Duplicate", color = OLEDColors.accentAmber)
+                    DraftBadge(text = "Duplicate", color = FinanceTheme.colors.accentAmber)
                 }
                 if (draft.isCredit) {
-                    DraftBadge(text = "Credit", color = OLEDColors.accentEmerald)
+                    DraftBadge(text = "Credit", color = FinanceTheme.colors.accentEmerald)
                 }
                 if (envelopes.isNotEmpty()) {
                     val currentIndex = envelopes.indexOfFirst { it.name == draft.envelopeName }
@@ -782,9 +782,9 @@ private fun ScanDraftCard(
                             val nextEnv = envelopes[(currentIndex + 1) % envelopes.size]
                             onUpdate(draft.title, draft.amountCentavos, nextEnv.name)
                         },
-                        color = OLEDColors.bgCardElevated,
+                        color = FinanceTheme.colors.bgCardElevated,
                         shape = RoundedCornerShape(10.dp),
-                        border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+                        border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
                         modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                     ) {
                         Row(
@@ -794,7 +794,7 @@ private fun ScanDraftCard(
                             Text(
                                 text = draft.envelopeName ?: "Assign Envelope",
                                 style = FinanceTypography.labelMedium,
-                                color = OLEDColors.accentSky
+                                color = FinanceTheme.colors.accentSky
                             )
                         }
                     }
@@ -834,7 +834,7 @@ private fun ScanSheetHeader(
         Text(
             text = title,
             style = FinanceTypography.titleLarge,
-            color = OLEDColors.textPrimary
+            color = FinanceTheme.colors.textPrimary
         )
         IconButton(
             onClick = onDismiss,
@@ -843,7 +843,7 @@ private fun ScanSheetHeader(
             Icon(
                 imageVector = Icons.Rounded.Close,
                 contentDescription = closeDescription,
-                tint = OLEDColors.textSecondary
+                tint = FinanceTheme.colors.textSecondary
             )
         }
     }
@@ -859,11 +859,11 @@ private fun SelectableModeChip(
 ) {
     Surface(
         onClick = onClick,
-        color = if (selected) OLEDColors.accentSky.copy(alpha = 0.16f) else OLEDColors.bgCardElevated,
+        color = if (selected) FinanceTheme.colors.accentSky.copy(alpha = 0.16f) else FinanceTheme.colors.bgCardElevated,
         shape = RoundedCornerShape(14.dp),
         border = BorderStroke(
             width = if (selected) 1.5.dp else 1.dp,
-            color = if (selected) OLEDColors.accentSky else OLEDColors.borderSubtle
+            color = if (selected) FinanceTheme.colors.accentSky else FinanceTheme.colors.borderSubtle
         ),
         modifier = modifier.defaultMinSize(minHeight = 48.dp)
     ) {
@@ -875,14 +875,14 @@ private fun SelectableModeChip(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (selected) OLEDColors.accentSky else OLEDColors.textSecondary,
+                tint = if (selected) FinanceTheme.colors.accentSky else FinanceTheme.colors.textSecondary,
                 modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.size(8.dp))
             Text(
                 text = label,
                 style = FinanceTypography.labelLarge,
-                color = if (selected) OLEDColors.accentSky else OLEDColors.textPrimary,
+                color = if (selected) FinanceTheme.colors.accentSky else FinanceTheme.colors.textPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -899,9 +899,9 @@ private fun SourceActionButton(
 ) {
     Surface(
         onClick = onClick,
-        color = OLEDColors.bgCardElevated,
+        color = FinanceTheme.colors.bgCardElevated,
         shape = RoundedCornerShape(14.dp),
-        border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+        border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
         modifier = Modifier
             .fillMaxWidth()
             .defaultMinSize(minHeight = 48.dp)
@@ -920,7 +920,7 @@ private fun SourceActionButton(
             Text(
                 text = label,
                 style = FinanceTypography.titleSmall,
-                color = OLEDColors.textPrimary
+                color = FinanceTheme.colors.textPrimary
             )
         }
     }
@@ -928,10 +928,10 @@ private fun SourceActionButton(
 
 @Composable
 private fun scanTextFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = OLEDColors.accentSky,
-    unfocusedBorderColor = OLEDColors.borderSubtle,
-    focusedTextColor = OLEDColors.textPrimary,
-    unfocusedTextColor = OLEDColors.textPrimary,
-    focusedLabelColor = OLEDColors.accentSky,
-    unfocusedLabelColor = OLEDColors.textSecondary
+    focusedBorderColor = FinanceTheme.colors.accentSky,
+    unfocusedBorderColor = FinanceTheme.colors.borderSubtle,
+    focusedTextColor = FinanceTheme.colors.textPrimary,
+    unfocusedTextColor = FinanceTheme.colors.textPrimary,
+    focusedLabelColor = FinanceTheme.colors.accentSky,
+    unfocusedLabelColor = FinanceTheme.colors.textSecondary
 )

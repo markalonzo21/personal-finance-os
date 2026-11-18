@@ -72,25 +72,3 @@ val LightWarmPaperColors = FinanceColors(
     textSecondary = Color(0xFF57534E),
     textTertiary = Color(0xFF78716C)
 )
-
-/**
- * Legacy Dark OLED color object; removed once UI migration completes.
- */
-object OLEDColors {
-    val bgBase = DarkOLEDColors.bgBase
-    val bgCard = DarkOLEDColors.bgCard
-    val bgCardSubtle = DarkOLEDColors.bgCardSubtle
-    val bgCardElevated = DarkOLEDColors.bgCardElevated
-    val borderSubtle = DarkOLEDColors.borderSubtle
-
-    val accentSky = DarkOLEDColors.accentSky
-    val accentSkyDeep = DarkOLEDColors.accentSkyDeep
-    val accentEmerald = DarkOLEDColors.accentEmerald
-    val accentAmber = DarkOLEDColors.accentAmber
-    val accentRose = DarkOLEDColors.accentRose
-    val accentPurple = DarkOLEDColors.accentPurple
-
-    val textPrimary = DarkOLEDColors.textPrimary
-    val textSecondary = DarkOLEDColors.textSecondary
-    val textTertiary = DarkOLEDColors.textTertiary
-}

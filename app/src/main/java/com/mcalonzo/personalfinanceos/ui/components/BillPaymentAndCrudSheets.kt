@@ -60,7 +60,7 @@ import androidx.compose.ui.unit.sp
 import com.mcalonzo.personalfinanceos.domain.calculator.BudgetCalculator
 import com.mcalonzo.personalfinanceos.ui.theme.FinanceTypography
 import com.mcalonzo.personalfinanceos.ui.theme.NumericTextStyles
-import com.mcalonzo.personalfinanceos.ui.theme.OLEDColors
+import com.mcalonzo.personalfinanceos.ui.theme.FinanceTheme
 import com.mcalonzo.personalfinanceos.ui.viewmodel.BillItemUi
 import com.mcalonzo.personalfinanceos.ui.viewmodel.CycleOptionUi
 import com.mcalonzo.personalfinanceos.ui.viewmodel.EnvelopeItemUi
@@ -87,8 +87,8 @@ fun BillPaymentConfirmSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = OLEDColors.bgCard,
-        contentColor = OLEDColors.textPrimary
+        containerColor = FinanceTheme.colors.bgCard,
+        contentColor = FinanceTheme.colors.textPrimary
     ) {
         Column(
             modifier = Modifier
@@ -106,11 +106,11 @@ fun BillPaymentConfirmSheet(
             )
 
             Surface(
-                color = OLEDColors.bgCardSubtle,
+                color = FinanceTheme.colors.bgCardSubtle,
                 shape = RoundedCornerShape(14.dp),
                 border = BorderStroke(
                     1.dp,
-                    if (bill.isOverdue) OLEDColors.accentRose.copy(alpha = 0.45f) else OLEDColors.borderSubtle
+                    if (bill.isOverdue) FinanceTheme.colors.accentRose.copy(alpha = 0.45f) else FinanceTheme.colors.borderSubtle
                 ),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -124,7 +124,7 @@ fun BillPaymentConfirmSheet(
                         Text(
                             text = bill.name,
                             style = FinanceTypography.titleMedium,
-                            color = OLEDColors.textPrimary
+                            color = FinanceTheme.colors.textPrimary
                         )
                         val statusText = if (bill.isOverdue) {
                             val unit = if (bill.overdueDays == 1) "day" else "days"
@@ -135,7 +135,7 @@ fun BillPaymentConfirmSheet(
                         Text(
                             text = statusText,
                             style = FinanceTypography.bodyMedium,
-                            color = if (bill.isOverdue) OLEDColors.accentRose else OLEDColors.textSecondary
+                            color = if (bill.isOverdue) FinanceTheme.colors.accentRose else FinanceTheme.colors.textSecondary
                         )
                     }
                 }
@@ -152,10 +152,10 @@ fun BillPaymentConfirmSheet(
                     Text(
                         text = "₱",
                         style = NumericTextStyles.sectionAmount,
-                        color = OLEDColors.accentSky
+                        color = FinanceTheme.colors.accentSky
                     )
                 },
-                textStyle = NumericTextStyles.sectionAmount.copy(color = OLEDColors.textPrimary),
+                textStyle = NumericTextStyles.sectionAmount.copy(color = FinanceTheme.colors.textPrimary),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 colors = sheetFieldColors(),
@@ -166,7 +166,7 @@ fun BillPaymentConfirmSheet(
                 Text(
                     text = validationError!!,
                     style = FinanceTypography.bodyMedium,
-                    color = OLEDColors.accentRose
+                    color = FinanceTheme.colors.accentRose
                 )
             }
 
@@ -182,8 +182,8 @@ fun BillPaymentConfirmSheet(
                     }
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = OLEDColors.accentEmerald,
-                    contentColor = OLEDColors.bgBase
+                    containerColor = FinanceTheme.colors.accentEmerald,
+                    contentColor = FinanceTheme.colors.bgBase
                 ),
                 shape = RoundedCornerShape(14.dp),
                 contentPadding = PaddingValues(vertical = 14.dp),
@@ -234,8 +234,8 @@ fun AddEditEnvelopeSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = OLEDColors.bgCard,
-        contentColor = OLEDColors.textPrimary
+        containerColor = FinanceTheme.colors.bgCard,
+        contentColor = FinanceTheme.colors.textPrimary
     ) {
         Column(
             modifier = Modifier
@@ -259,9 +259,9 @@ fun AddEditEnvelopeSheet(
             ) {
                 Surface(
                     onClick = { showIconPicker = true },
-                    color = OLEDColors.bgCardElevated,
+                    color = FinanceTheme.colors.bgCardElevated,
                     shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+                    border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
                     modifier = Modifier.size(56.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -272,13 +272,13 @@ fun AddEditEnvelopeSheet(
                 OutlinedButton(
                     onClick = { showIconPicker = true },
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+                    border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
                     modifier = Modifier.defaultMinSize(minHeight = 48.dp)
                 ) {
                     Text(
                         text = "Change Icon",
                         style = FinanceTypography.labelLarge,
-                        color = OLEDColors.accentSky
+                        color = FinanceTheme.colors.accentSky
                     )
                 }
             }
@@ -308,10 +308,10 @@ fun AddEditEnvelopeSheet(
                     Text(
                         text = "₱",
                         style = NumericTextStyles.cardAmount,
-                        color = OLEDColors.accentSky
+                        color = FinanceTheme.colors.accentSky
                     )
                 },
-                textStyle = NumericTextStyles.cardAmount.copy(color = OLEDColors.textPrimary),
+                textStyle = NumericTextStyles.cardAmount.copy(color = FinanceTheme.colors.textPrimary),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 colors = sheetFieldColors(),
@@ -321,7 +321,7 @@ fun AddEditEnvelopeSheet(
             Text(
                 text = "ACCENT COLOR",
                 style = FinanceTypography.labelMedium,
-                color = OLEDColors.textSecondary
+                color = FinanceTheme.colors.textSecondary
             )
 
             Row(
@@ -338,7 +338,7 @@ fun AddEditEnvelopeSheet(
                             .background(swatchColor.copy(alpha = 0.22f))
                             .border(
                                 width = if (selected) 2.5.dp else 1.dp,
-                                color = if (selected) swatchColor else OLEDColors.borderSubtle,
+                                color = if (selected) swatchColor else FinanceTheme.colors.borderSubtle,
                                 shape = CircleShape
                             )
                             .clickable { colorHex = hex },
@@ -366,9 +366,9 @@ fun AddEditEnvelopeSheet(
             if (!isEditing) {
                 Surface(
                     onClick = { addToRoutine = !addToRoutine },
-                    color = OLEDColors.bgCardSubtle,
+                    color = FinanceTheme.colors.bgCardSubtle,
                     shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+                    border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
                     modifier = Modifier
                         .fillMaxWidth()
                         .defaultMinSize(minHeight = 48.dp)
@@ -383,14 +383,14 @@ fun AddEditEnvelopeSheet(
                             checked = addToRoutine,
                             onCheckedChange = { addToRoutine = it },
                             colors = CheckboxDefaults.colors(
-                                checkedColor = OLEDColors.accentSky,
-                                checkmarkColor = OLEDColors.bgBase
+                                checkedColor = FinanceTheme.colors.accentSky,
+                                checkmarkColor = FinanceTheme.colors.bgBase
                             )
                         )
                         Text(
                             text = "Also save to Monthly Routine template",
                             style = FinanceTypography.bodyMedium,
-                            color = OLEDColors.textPrimary
+                            color = FinanceTheme.colors.textPrimary
                         )
                     }
                 }
@@ -400,7 +400,7 @@ fun AddEditEnvelopeSheet(
                 Text(
                     text = validationError!!,
                     style = FinanceTypography.bodyMedium,
-                    color = OLEDColors.accentRose
+                    color = FinanceTheme.colors.accentRose
                 )
             }
 
@@ -423,8 +423,8 @@ fun AddEditEnvelopeSheet(
                     }
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = OLEDColors.accentSky,
-                    contentColor = OLEDColors.bgBase
+                    containerColor = FinanceTheme.colors.accentSky,
+                    contentColor = FinanceTheme.colors.bgBase
                 ),
                 shape = RoundedCornerShape(14.dp),
                 contentPadding = PaddingValues(vertical = 14.dp),
@@ -444,7 +444,7 @@ fun AddEditEnvelopeSheet(
                         onDelete(editingEnvelope.id)
                         onDismiss()
                     },
-                    border = BorderStroke(1.dp, OLEDColors.accentRose.copy(alpha = 0.5f)),
+                    border = BorderStroke(1.dp, FinanceTheme.colors.accentRose.copy(alpha = 0.5f)),
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -453,14 +453,14 @@ fun AddEditEnvelopeSheet(
                     Icon(
                         imageVector = Icons.Rounded.DeleteOutline,
                         contentDescription = null,
-                        tint = OLEDColors.accentRose,
+                        tint = FinanceTheme.colors.accentRose,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "Delete Envelope",
                         style = FinanceTypography.labelLarge,
-                        color = OLEDColors.accentRose
+                        color = FinanceTheme.colors.accentRose
                     )
                 }
             }
@@ -509,8 +509,8 @@ fun AddEditBillSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = OLEDColors.bgCard,
-        contentColor = OLEDColors.textPrimary
+        containerColor = FinanceTheme.colors.bgCard,
+        contentColor = FinanceTheme.colors.textPrimary
     ) {
         Column(
             modifier = Modifier
@@ -534,9 +534,9 @@ fun AddEditBillSheet(
             ) {
                 Surface(
                     onClick = { showIconPicker = true },
-                    color = OLEDColors.bgCardElevated,
+                    color = FinanceTheme.colors.bgCardElevated,
                     shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+                    border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
                     modifier = Modifier.size(56.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -546,13 +546,13 @@ fun AddEditBillSheet(
                 OutlinedButton(
                     onClick = { showIconPicker = true },
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+                    border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
                     modifier = Modifier.defaultMinSize(minHeight = 48.dp)
                 ) {
                     Text(
                         text = "Change Icon",
                         style = FinanceTypography.labelLarge,
-                        color = OLEDColors.accentSky
+                        color = FinanceTheme.colors.accentSky
                     )
                 }
             }
@@ -581,8 +581,8 @@ fun AddEditBillSheet(
                         validationError = null
                     },
                     label = { Text("Amount (PHP)") },
-                    prefix = { Text("₱", style = NumericTextStyles.cardAmount, color = OLEDColors.accentSky) },
-                    textStyle = NumericTextStyles.cardAmount.copy(color = OLEDColors.textPrimary),
+                    prefix = { Text("₱", style = NumericTextStyles.cardAmount, color = FinanceTheme.colors.accentSky) },
+                    textStyle = NumericTextStyles.cardAmount.copy(color = FinanceTheme.colors.textPrimary),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     colors = sheetFieldColors(),
@@ -596,7 +596,7 @@ fun AddEditBillSheet(
                         validationError = null
                     },
                     label = { Text("Due Day (1-31)") },
-                    textStyle = NumericTextStyles.cardAmount.copy(color = OLEDColors.textPrimary),
+                    textStyle = NumericTextStyles.cardAmount.copy(color = FinanceTheme.colors.textPrimary),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     colors = sheetFieldColors(),
@@ -607,9 +607,9 @@ fun AddEditBillSheet(
             if (!isEditing) {
                 Surface(
                     onClick = { addToRoutine = !addToRoutine },
-                    color = OLEDColors.bgCardSubtle,
+                    color = FinanceTheme.colors.bgCardSubtle,
                     shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+                    border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
                     modifier = Modifier
                         .fillMaxWidth()
                         .defaultMinSize(minHeight = 48.dp)
@@ -624,14 +624,14 @@ fun AddEditBillSheet(
                             checked = addToRoutine,
                             onCheckedChange = { addToRoutine = it },
                             colors = CheckboxDefaults.colors(
-                                checkedColor = OLEDColors.accentSky,
-                                checkmarkColor = OLEDColors.bgBase
+                                checkedColor = FinanceTheme.colors.accentSky,
+                                checkmarkColor = FinanceTheme.colors.bgBase
                             )
                         )
                         Text(
                             text = "Repeat monthly in Baseline Routine",
                             style = FinanceTypography.bodyMedium,
-                            color = OLEDColors.textPrimary
+                            color = FinanceTheme.colors.textPrimary
                         )
                     }
                 }
@@ -641,7 +641,7 @@ fun AddEditBillSheet(
                 Text(
                     text = validationError!!,
                     style = FinanceTypography.bodyMedium,
-                    color = OLEDColors.accentRose
+                    color = FinanceTheme.colors.accentRose
                 )
             }
 
@@ -667,8 +667,8 @@ fun AddEditBillSheet(
                     }
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = OLEDColors.accentSky,
-                    contentColor = OLEDColors.bgBase
+                    containerColor = FinanceTheme.colors.accentSky,
+                    contentColor = FinanceTheme.colors.bgBase
                 ),
                 shape = RoundedCornerShape(14.dp),
                 contentPadding = PaddingValues(vertical = 14.dp),
@@ -688,7 +688,7 @@ fun AddEditBillSheet(
                         onDelete(editingBill.id)
                         onDismiss()
                     },
-                    border = BorderStroke(1.dp, OLEDColors.accentRose.copy(alpha = 0.5f)),
+                    border = BorderStroke(1.dp, FinanceTheme.colors.accentRose.copy(alpha = 0.5f)),
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -697,14 +697,14 @@ fun AddEditBillSheet(
                     Icon(
                         imageVector = Icons.Rounded.DeleteOutline,
                         contentDescription = null,
-                        tint = OLEDColors.accentRose,
+                        tint = FinanceTheme.colors.accentRose,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "Delete Bill",
                         style = FinanceTypography.labelLarge,
-                        color = OLEDColors.accentRose
+                        color = FinanceTheme.colors.accentRose
                     )
                 }
             }
@@ -780,8 +780,8 @@ fun AddEditLoanSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = OLEDColors.bgCard,
-        contentColor = OLEDColors.textPrimary
+        containerColor = FinanceTheme.colors.bgCard,
+        contentColor = FinanceTheme.colors.textPrimary
     ) {
         Column(
             modifier = Modifier
@@ -805,9 +805,9 @@ fun AddEditLoanSheet(
             ) {
                 Surface(
                     onClick = { showIconPicker = true },
-                    color = OLEDColors.bgCardElevated,
+                    color = FinanceTheme.colors.bgCardElevated,
                     shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+                    border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
                     modifier = Modifier.size(56.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -817,13 +817,13 @@ fun AddEditLoanSheet(
                 OutlinedButton(
                     onClick = { showIconPicker = true },
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+                    border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
                     modifier = Modifier.defaultMinSize(minHeight = 48.dp)
                 ) {
                     Text(
                         text = "Change Icon",
                         style = FinanceTypography.labelLarge,
-                        color = OLEDColors.accentSky
+                        color = FinanceTheme.colors.accentSky
                     )
                 }
             }
@@ -848,8 +848,8 @@ fun AddEditLoanSheet(
                     validationError = null
                 },
                 label = { Text("Monthly Amortization (PHP)") },
-                prefix = { Text("₱", style = NumericTextStyles.cardAmount, color = OLEDColors.accentSky) },
-                textStyle = NumericTextStyles.cardAmount.copy(color = OLEDColors.textPrimary),
+                prefix = { Text("₱", style = NumericTextStyles.cardAmount, color = FinanceTheme.colors.accentSky) },
+                textStyle = NumericTextStyles.cardAmount.copy(color = FinanceTheme.colors.textPrimary),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 colors = sheetFieldColors(),
@@ -867,7 +867,7 @@ fun AddEditLoanSheet(
                         validationError = null
                     },
                     label = { Text("Paid Count") },
-                    textStyle = NumericTextStyles.bodyAmount.copy(color = OLEDColors.textPrimary),
+                    textStyle = NumericTextStyles.bodyAmount.copy(color = FinanceTheme.colors.textPrimary),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     colors = sheetFieldColors(),
@@ -880,7 +880,7 @@ fun AddEditLoanSheet(
                         validationError = null
                     },
                     label = { Text("Total Months") },
-                    textStyle = NumericTextStyles.bodyAmount.copy(color = OLEDColors.textPrimary),
+                    textStyle = NumericTextStyles.bodyAmount.copy(color = FinanceTheme.colors.textPrimary),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     colors = sheetFieldColors(),
@@ -899,7 +899,7 @@ fun AddEditLoanSheet(
                         validationError = null
                     },
                     label = { Text("Due Day (1-31)") },
-                    textStyle = NumericTextStyles.bodyAmount.copy(color = OLEDColors.textPrimary),
+                    textStyle = NumericTextStyles.bodyAmount.copy(color = FinanceTheme.colors.textPrimary),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     colors = sheetFieldColors(),
@@ -914,7 +914,7 @@ fun AddEditLoanSheet(
                     },
                     label = { Text("Next Due (YYYY-MM)") },
                     placeholder = { Text("2026-11") },
-                    textStyle = NumericTextStyles.bodyAmount.copy(color = OLEDColors.textPrimary),
+                    textStyle = NumericTextStyles.bodyAmount.copy(color = FinanceTheme.colors.textPrimary),
                     singleLine = true,
                     colors = sheetFieldColors(),
                     modifier = Modifier.weight(1.3f)
@@ -925,7 +925,7 @@ fun AddEditLoanSheet(
                 Text(
                     text = validationError!!,
                     style = FinanceTypography.bodyMedium,
-                    color = OLEDColors.accentRose
+                    color = FinanceTheme.colors.accentRose
                 )
             }
 
@@ -978,8 +978,8 @@ fun AddEditLoanSheet(
                     }
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = OLEDColors.accentSky,
-                    contentColor = OLEDColors.bgBase
+                    containerColor = FinanceTheme.colors.accentSky,
+                    contentColor = FinanceTheme.colors.bgBase
                 ),
                 shape = RoundedCornerShape(14.dp),
                 contentPadding = PaddingValues(vertical = 14.dp),
@@ -999,7 +999,7 @@ fun AddEditLoanSheet(
                         onDelete(editingLoan.id)
                         onDismiss()
                     },
-                    border = BorderStroke(1.dp, OLEDColors.accentRose.copy(alpha = 0.5f)),
+                    border = BorderStroke(1.dp, FinanceTheme.colors.accentRose.copy(alpha = 0.5f)),
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1008,14 +1008,14 @@ fun AddEditLoanSheet(
                     Icon(
                         imageVector = Icons.Rounded.DeleteOutline,
                         contentDescription = null,
-                        tint = OLEDColors.accentRose,
+                        tint = FinanceTheme.colors.accentRose,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "Delete Loan",
                         style = FinanceTypography.labelLarge,
-                        color = OLEDColors.accentRose
+                        color = FinanceTheme.colors.accentRose
                     )
                 }
             }
@@ -1043,9 +1043,9 @@ fun AdvanceLoanPaymentDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = OLEDColors.bgCard,
-        titleContentColor = OLEDColors.textPrimary,
-        textContentColor = OLEDColors.textSecondary,
+        containerColor = FinanceTheme.colors.bgCard,
+        titleContentColor = FinanceTheme.colors.textPrimary,
+        textContentColor = FinanceTheme.colors.textSecondary,
         title = {
             Text(
                 text = "Confirm Advance Payment",
@@ -1065,8 +1065,8 @@ fun AdvanceLoanPaymentDialog(
                     onDismiss()
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = OLEDColors.accentAmber,
-                    contentColor = OLEDColors.bgBase
+                    containerColor = FinanceTheme.colors.accentAmber,
+                    contentColor = FinanceTheme.colors.bgBase
                 ),
                 modifier = Modifier.defaultMinSize(minHeight = 48.dp)
             ) {
@@ -1078,7 +1078,7 @@ fun AdvanceLoanPaymentDialog(
                 onClick = onDismiss,
                 modifier = Modifier.defaultMinSize(minHeight = 48.dp)
             ) {
-                Text("Cancel", color = OLEDColors.textSecondary, style = FinanceTypography.labelLarge)
+                Text("Cancel", color = FinanceTheme.colors.textSecondary, style = FinanceTypography.labelLarge)
             }
         }
     )
@@ -1100,8 +1100,8 @@ fun MonthPickerSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = OLEDColors.bgCard,
-        contentColor = OLEDColors.textPrimary
+        containerColor = FinanceTheme.colors.bgCard,
+        contentColor = FinanceTheme.colors.textPrimary
     ) {
         Column(
             modifier = Modifier
@@ -1125,14 +1125,14 @@ fun MonthPickerSheet(
                         onDismiss()
                     },
                     color = if (isSelected) {
-                        OLEDColors.accentSky.copy(alpha = 0.14f)
+                        FinanceTheme.colors.accentSky.copy(alpha = 0.14f)
                     } else {
-                        OLEDColors.bgCardSubtle
+                        FinanceTheme.colors.bgCardSubtle
                     },
                     shape = RoundedCornerShape(14.dp),
                     border = BorderStroke(
                         width = if (isSelected) 1.5.dp else 1.dp,
-                        color = if (isSelected) OLEDColors.accentSky else OLEDColors.borderSubtle
+                        color = if (isSelected) FinanceTheme.colors.accentSky else FinanceTheme.colors.borderSubtle
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1152,13 +1152,13 @@ fun MonthPickerSheet(
                             Icon(
                                 imageVector = Icons.Rounded.CalendarMonth,
                                 contentDescription = null,
-                                tint = if (isSelected) OLEDColors.accentSky else OLEDColors.textSecondary,
+                                tint = if (isSelected) FinanceTheme.colors.accentSky else FinanceTheme.colors.textSecondary,
                                 modifier = Modifier.size(20.dp)
                             )
                             Text(
                                 text = option.label,
                                 style = FinanceTypography.titleMedium,
-                                color = OLEDColors.textPrimary
+                                color = FinanceTheme.colors.textPrimary
                             )
                         }
                         Row(
@@ -1169,7 +1169,7 @@ fun MonthPickerSheet(
                                 Icon(
                                     imageVector = Icons.Rounded.PictureAsPdf,
                                     contentDescription = "SOA attached",
-                                    tint = OLEDColors.accentSky,
+                                    tint = FinanceTheme.colors.accentSky,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -1177,7 +1177,7 @@ fun MonthPickerSheet(
                                 Icon(
                                     imageVector = Icons.Rounded.Check,
                                     contentDescription = "Current cycle",
-                                    tint = OLEDColors.accentSky,
+                                    tint = FinanceTheme.colors.accentSky,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -1209,8 +1209,8 @@ fun EditTransactionSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = OLEDColors.bgCard,
-        contentColor = OLEDColors.textPrimary
+        containerColor = FinanceTheme.colors.bgCard,
+        contentColor = FinanceTheme.colors.textPrimary
     ) {
         Column(
             modifier = Modifier
@@ -1230,7 +1230,7 @@ fun EditTransactionSheet(
             Text(
                 text = "${transaction.categoryLabel} • ${transaction.timeLabel}",
                 style = FinanceTypography.bodyMedium,
-                color = OLEDColors.textSecondary
+                color = FinanceTheme.colors.textSecondary
             )
 
             OutlinedTextField(
@@ -1256,10 +1256,10 @@ fun EditTransactionSheet(
                     Text(
                         text = "₱",
                         style = NumericTextStyles.cardAmount,
-                        color = OLEDColors.accentSky
+                        color = FinanceTheme.colors.accentSky
                     )
                 },
-                textStyle = NumericTextStyles.cardAmount.copy(color = OLEDColors.textPrimary),
+                textStyle = NumericTextStyles.cardAmount.copy(color = FinanceTheme.colors.textPrimary),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 colors = sheetFieldColors(),
@@ -1270,7 +1270,7 @@ fun EditTransactionSheet(
                 Text(
                     text = "MOVE TO ENVELOPE",
                     style = FinanceTypography.labelMedium,
-                    color = OLEDColors.textSecondary
+                    color = FinanceTheme.colors.textSecondary
                 )
                 Row(
                     modifier = Modifier
@@ -1283,14 +1283,14 @@ fun EditTransactionSheet(
                         Surface(
                             onClick = { selectedEnvelopeId = envelope.id },
                             color = if (isSelected) {
-                                OLEDColors.accentSky.copy(alpha = 0.16f)
+                                FinanceTheme.colors.accentSky.copy(alpha = 0.16f)
                             } else {
-                                OLEDColors.bgCardElevated
+                                FinanceTheme.colors.bgCardElevated
                             },
                             shape = RoundedCornerShape(12.dp),
                             border = BorderStroke(
                                 width = if (isSelected) 1.5.dp else 1.dp,
-                                color = if (isSelected) OLEDColors.accentSky else OLEDColors.borderSubtle
+                                color = if (isSelected) FinanceTheme.colors.accentSky else FinanceTheme.colors.borderSubtle
                             ),
                             modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                         ) {
@@ -1303,7 +1303,7 @@ fun EditTransactionSheet(
                                 Text(
                                     text = envelope.name,
                                     style = FinanceTypography.labelLarge,
-                                    color = if (isSelected) OLEDColors.accentSky else OLEDColors.textPrimary
+                                    color = if (isSelected) FinanceTheme.colors.accentSky else FinanceTheme.colors.textPrimary
                                 )
                             }
                         }
@@ -1315,7 +1315,7 @@ fun EditTransactionSheet(
                 Text(
                     text = validationError!!,
                     style = FinanceTypography.bodyMedium,
-                    color = OLEDColors.accentRose
+                    color = FinanceTheme.colors.accentRose
                 )
             }
 
@@ -1328,7 +1328,7 @@ fun EditTransactionSheet(
                         onDelete(transaction.id)
                         onDismiss()
                     },
-                    border = BorderStroke(1.dp, OLEDColors.accentRose.copy(alpha = 0.5f)),
+                    border = BorderStroke(1.dp, FinanceTheme.colors.accentRose.copy(alpha = 0.5f)),
                     shape = RoundedCornerShape(14.dp),
                     contentPadding = PaddingValues(vertical = 14.dp),
                     modifier = Modifier
@@ -1338,14 +1338,14 @@ fun EditTransactionSheet(
                     Icon(
                         imageVector = Icons.Rounded.DeleteOutline,
                         contentDescription = null,
-                        tint = OLEDColors.accentRose,
+                        tint = FinanceTheme.colors.accentRose,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "Delete",
                         style = FinanceTypography.labelLarge,
-                        color = OLEDColors.accentRose
+                        color = FinanceTheme.colors.accentRose
                     )
                 }
 
@@ -1365,8 +1365,8 @@ fun EditTransactionSheet(
                         onDismiss()
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = OLEDColors.accentSky,
-                        contentColor = OLEDColors.bgBase
+                        containerColor = FinanceTheme.colors.accentSky,
+                        contentColor = FinanceTheme.colors.bgBase
                     ),
                     shape = RoundedCornerShape(14.dp),
                     contentPadding = PaddingValues(vertical = 14.dp),
@@ -1397,7 +1397,7 @@ private fun SheetHeader(
         Text(
             text = title,
             style = FinanceTypography.titleLarge,
-            color = OLEDColors.textPrimary
+            color = FinanceTheme.colors.textPrimary
         )
         IconButton(
             onClick = onDismiss,
@@ -1406,7 +1406,7 @@ private fun SheetHeader(
             Icon(
                 imageVector = Icons.Rounded.Close,
                 contentDescription = "Close sheet",
-                tint = OLEDColors.textSecondary
+                tint = FinanceTheme.colors.textSecondary
             )
         }
     }
@@ -1414,10 +1414,10 @@ private fun SheetHeader(
 
 @Composable
 private fun sheetFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = OLEDColors.accentSky,
-    unfocusedBorderColor = OLEDColors.borderSubtle,
-    focusedTextColor = OLEDColors.textPrimary,
-    unfocusedTextColor = OLEDColors.textPrimary,
-    focusedLabelColor = OLEDColors.accentSky,
-    unfocusedLabelColor = OLEDColors.textSecondary
+    focusedBorderColor = FinanceTheme.colors.accentSky,
+    unfocusedBorderColor = FinanceTheme.colors.borderSubtle,
+    focusedTextColor = FinanceTheme.colors.textPrimary,
+    unfocusedTextColor = FinanceTheme.colors.textPrimary,
+    focusedLabelColor = FinanceTheme.colors.accentSky,
+    unfocusedLabelColor = FinanceTheme.colors.textSecondary
 )

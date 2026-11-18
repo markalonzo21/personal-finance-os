@@ -75,7 +75,7 @@ import com.mcalonzo.personalfinanceos.ui.components.ScanReviewSheet
 import com.mcalonzo.personalfinanceos.ui.components.ScanSourceSheet
 import com.mcalonzo.personalfinanceos.ui.theme.FinanceTypography
 import com.mcalonzo.personalfinanceos.ui.theme.NumericTextStyles
-import com.mcalonzo.personalfinanceos.ui.theme.OLEDColors
+import com.mcalonzo.personalfinanceos.ui.theme.FinanceTheme
 import com.mcalonzo.personalfinanceos.ui.viewmodel.BillItemUi
 import com.mcalonzo.personalfinanceos.ui.viewmodel.BottomTab
 import com.mcalonzo.personalfinanceos.ui.viewmodel.BudgetSubTab
@@ -237,16 +237,16 @@ fun MainScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = OLEDColors.bgBase,
-        contentColor = OLEDColors.textPrimary,
+        containerColor = FinanceTheme.colors.bgBase,
+        contentColor = FinanceTheme.colors.textPrimary,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         snackbarHost = {
             SnackbarHost(hostState = snackbarHostState) { data ->
                 val isError = state.errorMessage != null && state.activeUndo == null
                 Snackbar(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    containerColor = OLEDColors.bgCardElevated,
-                    contentColor = OLEDColors.textPrimary,
+                    containerColor = FinanceTheme.colors.bgCardElevated,
+                    contentColor = FinanceTheme.colors.textPrimary,
                     shape = RoundedCornerShape(14.dp),
                     action = {
                         data.visuals.actionLabel?.let { label ->
@@ -257,7 +257,7 @@ fun MainScreen(
                                 Text(
                                     text = label,
                                     style = FinanceTypography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                                    color = OLEDColors.accentSky
+                                    color = FinanceTheme.colors.accentSky
                                 )
                             }
                         }
@@ -266,7 +266,7 @@ fun MainScreen(
                     Text(
                         text = data.visuals.message,
                         style = FinanceTypography.bodyMedium,
-                        color = if (isError) OLEDColors.accentRose else OLEDColors.textPrimary
+                        color = if (isError) FinanceTheme.colors.accentRose else FinanceTheme.colors.textPrimary
                     )
                 }
             }
@@ -281,7 +281,7 @@ fun MainScreen(
                         .clip(CircleShape)
                         .background(
                             Brush.linearGradient(
-                                listOf(OLEDColors.accentSky, Color(0xFF0EA5E9))
+                                listOf(FinanceTheme.colors.accentSky, FinanceTheme.colors.fabGradientEnd)
                             )
                         )
                         .clickable(
@@ -297,7 +297,7 @@ fun MainScreen(
                     Icon(
                         imageVector = Icons.Rounded.Add,
                         contentDescription = "Log Expense",
-                        tint = OLEDColors.bgBase,
+                        tint = FinanceTheme.colors.bgBase,
                         modifier = Modifier.size(28.dp)
                     )
                 }
@@ -318,7 +318,7 @@ fun MainScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(OLEDColors.bgBase)
+                .background(FinanceTheme.colors.bgBase)
                 .padding(innerPadding)
                 .statusBarsPadding()
         ) {
@@ -601,11 +601,11 @@ private fun BottomNavigationBar(
     onOpenRoutineSheet: () -> Unit
 ) {
     Surface(
-        color = OLEDColors.bgCard,
+        color = FinanceTheme.colors.bgCard,
         tonalElevation = 0.dp
     ) {
         Column(modifier = Modifier.navigationBarsPadding()) {
-            HorizontalDivider(thickness = 1.dp, color = OLEDColors.borderSubtle)
+            HorizontalDivider(thickness = 1.dp, color = FinanceTheme.colors.borderSubtle)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -657,7 +657,7 @@ private fun BottomGlyphNavItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val contentColor = if (selected) OLEDColors.accentSky else OLEDColors.textSecondary
+    val contentColor = if (selected) FinanceTheme.colors.accentSky else FinanceTheme.colors.textSecondary
     Column(
         modifier = modifier
             .defaultMinSize(minHeight = 48.dp)
@@ -695,7 +695,7 @@ private fun BottomIconNavItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val contentColor = if (selected) OLEDColors.accentSky else OLEDColors.textSecondary
+    val contentColor = if (selected) FinanceTheme.colors.accentSky else FinanceTheme.colors.textSecondary
     Column(
         modifier = modifier
             .defaultMinSize(minHeight = 48.dp)
@@ -718,7 +718,7 @@ private fun BottomIconNavItem(
                         .size(7.dp)
                         .align(Alignment.TopEnd)
                         .clip(CircleShape)
-                        .background(OLEDColors.accentRose)
+                        .background(FinanceTheme.colors.accentRose)
                 )
             }
         }
@@ -749,9 +749,9 @@ private fun TabPlaceholderScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Surface(
-            color = OLEDColors.bgCard,
+            color = FinanceTheme.colors.bgCard,
             shape = RoundedCornerShape(20.dp),
-            border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+            border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
@@ -762,25 +762,25 @@ private fun TabPlaceholderScreen(
                 Text(
                     text = badge,
                     style = FinanceTypography.labelSmall,
-                    color = OLEDColors.accentSky
+                    color = FinanceTheme.colors.accentSky
                 )
                 Text(
                     text = title,
                     style = FinanceTypography.headlineMedium,
-                    color = OLEDColors.textPrimary,
+                    color = FinanceTheme.colors.textPrimary,
                     textAlign = TextAlign.Center
                 )
                 Text(
                     text = subtitle,
                     style = FinanceTypography.bodyMedium,
-                    color = OLEDColors.textSecondary,
+                    color = FinanceTheme.colors.textSecondary,
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Surface(
-                    color = OLEDColors.bgCardSubtle,
+                    color = FinanceTheme.colors.bgCardSubtle,
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, OLEDColors.borderSubtle)
+                    border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle)
                 ) {
                     Column(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
@@ -789,12 +789,12 @@ private fun TabPlaceholderScreen(
                         Text(
                             text = metricLabel,
                             style = FinanceTypography.labelSmall,
-                            color = OLEDColors.textSecondary
+                            color = FinanceTheme.colors.textSecondary
                         )
                         Text(
                             text = metricValue,
                             style = NumericTextStyles.cardAmount,
-                            color = OLEDColors.textPrimary
+                            color = FinanceTheme.colors.textPrimary
                         )
                     }
                 }

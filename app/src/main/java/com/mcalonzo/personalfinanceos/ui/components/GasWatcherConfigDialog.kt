@@ -47,7 +47,7 @@ import com.mcalonzo.personalfinanceos.data.remote.GasFuelType
 import com.mcalonzo.personalfinanceos.data.remote.GasWatchLocations
 import com.mcalonzo.personalfinanceos.domain.calculator.BudgetCalculator
 import com.mcalonzo.personalfinanceos.ui.theme.FinanceTypography
-import com.mcalonzo.personalfinanceos.ui.theme.OLEDColors
+import com.mcalonzo.personalfinanceos.ui.theme.FinanceTheme
 import com.mcalonzo.personalfinanceos.ui.viewmodel.GasWatcherPickerUiState
 import com.mcalonzo.personalfinanceos.ui.viewmodel.MotoUiState
 
@@ -122,12 +122,12 @@ fun GasWatcherConfigDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = OLEDColors.bgCard,
+        containerColor = FinanceTheme.colors.bgCard,
         title = {
             Text(
                 "Gas Watcher Settings",
                 style = FinanceTypography.headlineSmall,
-                color = OLEDColors.textPrimary
+                color = FinanceTheme.colors.textPrimary
             )
         },
         text = {
@@ -140,7 +140,7 @@ fun GasWatcherConfigDialog(
                 Text(
                     "LOCATION",
                     style = FinanceTypography.labelSmall,
-                    color = OLEDColors.textTertiary,
+                    color = FinanceTheme.colors.textTertiary,
                     letterSpacing = 0.8.sp
                 )
                 LazyRow(
@@ -163,10 +163,10 @@ fun GasWatcherConfigDialog(
                             },
                             label = { Text(loc.displayName, style = FinanceTypography.labelSmall) },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = OLEDColors.accentSky.copy(alpha = 0.2f),
-                                selectedLabelColor = OLEDColors.accentSky,
-                                containerColor = OLEDColors.bgCardSubtle,
-                                labelColor = OLEDColors.textSecondary
+                                selectedContainerColor = FinanceTheme.colors.accentSky.copy(alpha = 0.2f),
+                                selectedLabelColor = FinanceTheme.colors.accentSky,
+                                containerColor = FinanceTheme.colors.bgCardSubtle,
+                                labelColor = FinanceTheme.colors.textSecondary
                             )
                         )
                     }
@@ -175,7 +175,7 @@ fun GasWatcherConfigDialog(
                 Text(
                     "BRANCH",
                     style = FinanceTypography.labelSmall,
-                    color = OLEDColors.textTertiary,
+                    color = FinanceTheme.colors.textTertiary,
                     letterSpacing = 0.8.sp
                 )
                 OutlinedTextField(
@@ -185,12 +185,12 @@ fun GasWatcherConfigDialog(
                     label = { Text("Search branch or brand") },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = OLEDColors.accentSky,
-                        unfocusedBorderColor = OLEDColors.borderSubtle,
-                        focusedTextColor = OLEDColors.textPrimary,
-                        unfocusedTextColor = OLEDColors.textPrimary,
-                        focusedLabelColor = OLEDColors.accentSky,
-                        unfocusedLabelColor = OLEDColors.textSecondary
+                        focusedBorderColor = FinanceTheme.colors.accentSky,
+                        unfocusedBorderColor = FinanceTheme.colors.borderSubtle,
+                        focusedTextColor = FinanceTheme.colors.textPrimary,
+                        unfocusedTextColor = FinanceTheme.colors.textPrimary,
+                        focusedLabelColor = FinanceTheme.colors.accentSky,
+                        unfocusedLabelColor = FinanceTheme.colors.textSecondary
                     )
                 )
 
@@ -205,14 +205,14 @@ fun GasWatcherConfigDialog(
                         ) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(18.dp),
-                                color = OLEDColors.accentSky,
+                                color = FinanceTheme.colors.accentSky,
                                 strokeWidth = 2.dp
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 "Loading $selectedLocationName stations...",
                                 style = FinanceTypography.bodySmall,
-                                color = OLEDColors.textSecondary
+                                color = FinanceTheme.colors.textSecondary
                             )
                         }
                     }
@@ -222,16 +222,16 @@ fun GasWatcherConfigDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(OLEDColors.bgCardSubtle)
+                                .background(FinanceTheme.colors.bgCardSubtle)
                                 .padding(10.dp)
                         ) {
                             Text(
                                 text = pickerState.errorMessage,
                                 style = FinanceTypography.bodySmall,
-                                color = OLEDColors.accentRose
+                                color = FinanceTheme.colors.accentRose
                             )
                             TextButton(onClick = { onLocationSelected(selectedLocationSlug) }) {
-                                Text("Retry", color = OLEDColors.accentSky)
+                                Text("Retry", color = FinanceTheme.colors.accentSky)
                             }
                         }
                     }
@@ -240,7 +240,7 @@ fun GasWatcherConfigDialog(
                         Text(
                             "No matching branches found.",
                             style = FinanceTypography.bodySmall,
-                            color = OLEDColors.textSecondary
+                            color = FinanceTheme.colors.textSecondary
                         )
                     }
 
@@ -260,12 +260,12 @@ fun GasWatcherConfigDialog(
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(10.dp))
                                         .background(
-                                            if (isSelected) OLEDColors.accentSky.copy(alpha = 0.16f)
-                                            else OLEDColors.bgCardSubtle
+                                            if (isSelected) FinanceTheme.colors.accentSky.copy(alpha = 0.16f)
+                                            else FinanceTheme.colors.bgCardSubtle
                                         )
                                         .border(
                                             width = 1.dp,
-                                            color = if (isSelected) OLEDColors.accentSky else OLEDColors.borderSubtle,
+                                            color = if (isSelected) FinanceTheme.colors.accentSky else FinanceTheme.colors.borderSubtle,
                                             shape = RoundedCornerShape(10.dp)
                                         )
                                         .clickable {
@@ -286,13 +286,13 @@ fun GasWatcherConfigDialog(
                                             style = FinanceTypography.bodySmall.copy(
                                                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
                                             ),
-                                            color = OLEDColors.textPrimary
+                                            color = FinanceTheme.colors.textPrimary
                                         )
                                         if (station.brand.isNotBlank()) {
                                             Text(
                                                 text = station.brand.uppercase(),
                                                 style = FinanceTypography.labelSmall,
-                                                color = OLEDColors.textTertiary
+                                                color = FinanceTheme.colors.textTertiary
                                             )
                                         }
                                     }
@@ -300,7 +300,7 @@ fun GasWatcherConfigDialog(
                                         Text(
                                             text = BudgetCalculator.formatPeso(previewPrice),
                                             style = FinanceTypography.labelMedium,
-                                            color = if (isSelected) OLEDColors.accentSky else OLEDColors.textSecondary
+                                            color = if (isSelected) FinanceTheme.colors.accentSky else FinanceTheme.colors.textSecondary
                                         )
                                     }
                                 }
@@ -316,19 +316,19 @@ fun GasWatcherConfigDialog(
                     label = { Text("Card Display Name") },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = OLEDColors.accentSky,
-                        unfocusedBorderColor = OLEDColors.borderSubtle,
-                        focusedTextColor = OLEDColors.textPrimary,
-                        unfocusedTextColor = OLEDColors.textPrimary,
-                        focusedLabelColor = OLEDColors.accentSky,
-                        unfocusedLabelColor = OLEDColors.textSecondary
+                        focusedBorderColor = FinanceTheme.colors.accentSky,
+                        unfocusedBorderColor = FinanceTheme.colors.borderSubtle,
+                        focusedTextColor = FinanceTheme.colors.textPrimary,
+                        unfocusedTextColor = FinanceTheme.colors.textPrimary,
+                        focusedLabelColor = FinanceTheme.colors.accentSky,
+                        unfocusedLabelColor = FinanceTheme.colors.textSecondary
                     )
                 )
 
                 Text(
                     "GAS TYPE",
                     style = FinanceTypography.labelSmall,
-                    color = OLEDColors.textTertiary,
+                    color = FinanceTheme.colors.textTertiary,
                     letterSpacing = 0.8.sp
                 )
                 FlowRow(
@@ -349,10 +349,10 @@ fun GasWatcherConfigDialog(
                             onClick = { selectedFuelType = fuel },
                             label = { Text(labelText, style = FinanceTypography.labelSmall) },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = OLEDColors.accentSky.copy(alpha = 0.2f),
-                                selectedLabelColor = OLEDColors.accentSky,
-                                containerColor = OLEDColors.bgCardSubtle,
-                                labelColor = OLEDColors.textSecondary
+                                selectedContainerColor = FinanceTheme.colors.accentSky.copy(alpha = 0.2f),
+                                selectedLabelColor = FinanceTheme.colors.accentSky,
+                                containerColor = FinanceTheme.colors.bgCardSubtle,
+                                labelColor = FinanceTheme.colors.textSecondary
                             )
                         )
                     }
@@ -375,8 +375,8 @@ fun GasWatcherConfigDialog(
                 enabled = canSave,
                 modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = OLEDColors.accentSky,
-                    contentColor = OLEDColors.bgBase
+                    containerColor = FinanceTheme.colors.accentSky,
+                    contentColor = FinanceTheme.colors.bgBase
                 )
             ) {
                 Text("Save", style = FinanceTypography.labelLarge)
@@ -387,7 +387,7 @@ fun GasWatcherConfigDialog(
                 onClick = onDismiss,
                 modifier = Modifier.defaultMinSize(minHeight = 48.dp)
             ) {
-                Text("Cancel", color = OLEDColors.textSecondary)
+                Text("Cancel", color = FinanceTheme.colors.textSecondary)
             }
         }
     )

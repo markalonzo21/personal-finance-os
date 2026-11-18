@@ -62,7 +62,7 @@ import com.mcalonzo.personalfinanceos.ui.components.CurrencyFormatters
 import com.mcalonzo.personalfinanceos.ui.components.GasWatcherConfigDialog
 import com.mcalonzo.personalfinanceos.ui.theme.FinanceTypography
 import com.mcalonzo.personalfinanceos.ui.theme.NumericTextStyles
-import com.mcalonzo.personalfinanceos.ui.theme.OLEDColors
+import com.mcalonzo.personalfinanceos.ui.theme.FinanceTheme
 import com.mcalonzo.personalfinanceos.ui.viewmodel.EnvelopeItemUi
 import com.mcalonzo.personalfinanceos.ui.viewmodel.MotoUiState
 import com.mcalonzo.personalfinanceos.ui.viewmodel.PmsItemUi
@@ -108,7 +108,7 @@ fun MotoCareScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(OLEDColors.bgBase)
+            .background(FinanceTheme.colors.bgBase)
     ) {
         PullToRefreshBox(
             isRefreshing = state.isSyncingGas,
@@ -125,19 +125,19 @@ fun MotoCareScreen(
                         Text(
                             text = "FLEET & MAINTENANCE",
                             style = FinanceTypography.labelSmall,
-                            color = OLEDColors.accentSky,
+                            color = FinanceTheme.colors.accentSky,
                             letterSpacing = 1.2.sp
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "Moto Care",
                             style = FinanceTypography.headlineMedium,
-                            color = OLEDColors.textPrimary
+                            color = FinanceTheme.colors.textPrimary
                         )
                         Text(
                             text = "Preventive Maintenance Schedule & Fuel Price Watcher",
                             style = FinanceTypography.bodyMedium,
-                            color = OLEDColors.textSecondary
+                            color = FinanceTheme.colors.textSecondary
                         )
                     }
                 }
@@ -175,13 +175,13 @@ fun MotoCareScreen(
                             Text(
                                 text = "PREVENTIVE MAINTENANCE (PMS)",
                                 style = FinanceTypography.labelSmall,
-                                color = OLEDColors.textSecondary,
+                                color = FinanceTheme.colors.textSecondary,
                                 letterSpacing = 1.1.sp
                             )
                             Text(
                                 text = "Service Intervals",
                                 style = FinanceTypography.titleMedium,
-                                color = OLEDColors.textPrimary
+                                color = FinanceTheme.colors.textPrimary
                             )
                         }
                         Button(
@@ -193,8 +193,8 @@ fun MotoCareScreen(
                             modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                             shape = RoundedCornerShape(10.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = OLEDColors.bgCardElevated,
-                                contentColor = OLEDColors.accentSky
+                                containerColor = FinanceTheme.colors.bgCardElevated,
+                                contentColor = FinanceTheme.colors.accentSky
                             )
                         ) {
                             Icon(
@@ -212,7 +212,7 @@ fun MotoCareScreen(
                     item(key = "empty_pms") {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = OLEDColors.bgCardSubtle),
+                            colors = CardDefaults.cardColors(containerColor = FinanceTheme.colors.bgCardSubtle),
                             shape = RoundedCornerShape(14.dp)
                         ) {
                             Box(
@@ -224,7 +224,7 @@ fun MotoCareScreen(
                                 Text(
                                     text = "No PMS schedules configured",
                                     style = FinanceTypography.bodyMedium,
-                                    color = OLEDColors.textSecondary
+                                    color = FinanceTheme.colors.textSecondary
                                 )
                             }
                         }
@@ -339,9 +339,9 @@ private fun MotoHeroCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = OLEDColors.bgCard),
+        colors = CardDefaults.cardColors(containerColor = FinanceTheme.colors.bgCard),
         shape = RoundedCornerShape(18.dp),
-        border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(OLEDColors.borderSubtle))
+        border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(FinanceTheme.colors.borderSubtle))
     ) {
         Column(
             modifier = Modifier
@@ -356,13 +356,13 @@ private fun MotoHeroCard(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
-                        .background(OLEDColors.accentSky.copy(alpha = 0.15f)),
+                        .background(FinanceTheme.colors.accentSky.copy(alpha = 0.15f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.TwoWheeler,
                         contentDescription = null,
-                        tint = OLEDColors.accentSky,
+                        tint = FinanceTheme.colors.accentSky,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -371,12 +371,12 @@ private fun MotoHeroCard(
                     Text(
                         text = modelName,
                         style = FinanceTypography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        color = OLEDColors.textPrimary
+                        color = FinanceTheme.colors.textPrimary
                     )
                     Text(
                         text = "${tankCapacityLiters}L Fuel Tank • Daily Driver",
                         style = FinanceTypography.labelSmall,
-                        color = OLEDColors.textSecondary
+                        color = FinanceTheme.colors.textSecondary
                     )
                 }
 
@@ -384,7 +384,7 @@ private fun MotoHeroCard(
                     modifier = Modifier
                         .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(OLEDColors.bgCardElevated)
+                        .background(FinanceTheme.colors.bgCardElevated)
                         .clickable(
                             role = Role.Button,
                             onClick = onEditOdometerClick
@@ -396,14 +396,14 @@ private fun MotoHeroCard(
                         Icon(
                             imageVector = Icons.Rounded.Speed,
                             contentDescription = "Edit Odometer",
-                            tint = OLEDColors.accentSky,
+                            tint = FinanceTheme.colors.accentSky,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = String.format("%,d km", odometerKm),
                             style = NumericTextStyles.cardAmount,
-                            color = OLEDColors.textPrimary
+                            color = FinanceTheme.colors.textPrimary
                         )
                     }
                 }
@@ -422,22 +422,22 @@ private fun GasPriceWatcherCard(
     modifier: Modifier = Modifier
 ) {
     val trendColor = when {
-        state.isPriceUp -> OLEDColors.accentRose
-        state.isPriceDown -> OLEDColors.accentEmerald
-        else -> OLEDColors.textSecondary
+        state.isPriceUp -> FinanceTheme.colors.accentRose
+        state.isPriceDown -> FinanceTheme.colors.accentEmerald
+        else -> FinanceTheme.colors.textSecondary
     }
 
     val trendBg = when {
-        state.isPriceUp -> OLEDColors.accentRose.copy(alpha = 0.15f)
-        state.isPriceDown -> OLEDColors.accentEmerald.copy(alpha = 0.15f)
-        else -> OLEDColors.bgCardSubtle
+        state.isPriceUp -> FinanceTheme.colors.accentRose.copy(alpha = 0.15f)
+        state.isPriceDown -> FinanceTheme.colors.accentEmerald.copy(alpha = 0.15f)
+        else -> FinanceTheme.colors.bgCardSubtle
     }
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = OLEDColors.bgCard),
+        colors = CardDefaults.cardColors(containerColor = FinanceTheme.colors.bgCard),
         shape = RoundedCornerShape(18.dp),
-        border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(OLEDColors.borderSubtle))
+        border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(FinanceTheme.colors.borderSubtle))
     ) {
         Column(
             modifier = Modifier
@@ -452,13 +452,13 @@ private fun GasPriceWatcherCard(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(OLEDColors.accentAmber.copy(alpha = 0.15f)),
+                        .background(FinanceTheme.colors.accentAmber.copy(alpha = 0.15f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.LocalGasStation,
                         contentDescription = null,
-                        tint = OLEDColors.accentAmber,
+                        tint = FinanceTheme.colors.accentAmber,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -472,20 +472,20 @@ private fun GasPriceWatcherCard(
                         Text(
                             text = state.stationDisplayName,
                             style = FinanceTypography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                            color = OLEDColors.textPrimary
+                            color = FinanceTheme.colors.textPrimary
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Icon(
                             imageVector = Icons.Rounded.Edit,
                             contentDescription = "Configure Gas Watcher",
-                            tint = OLEDColors.accentSky,
+                            tint = FinanceTheme.colors.accentSky,
                             modifier = Modifier.size(14.dp)
                         )
                     }
                     Text(
                         text = state.fuelType,
                         style = FinanceTypography.labelSmall,
-                        color = OLEDColors.textSecondary
+                        color = FinanceTheme.colors.textSecondary
                     )
                 }
 
@@ -508,7 +508,7 @@ private fun GasPriceWatcherCard(
                     modifier = Modifier
                         .size(48.dp)
                         .clip(CircleShape)
-                        .background(OLEDColors.bgCardElevated)
+                        .background(FinanceTheme.colors.bgCardElevated)
                         .clickable(
                             role = Role.Button,
                             onClick = onRefreshGas
@@ -518,7 +518,7 @@ private fun GasPriceWatcherCard(
                     Icon(
                         imageVector = Icons.Rounded.Refresh,
                         contentDescription = "Sync Gas Price",
-                        tint = OLEDColors.textSecondary,
+                        tint = FinanceTheme.colors.textSecondary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -538,19 +538,19 @@ private fun GasPriceWatcherCard(
                     Text(
                         text = "PUMP PRICE (TAP TO EDIT)",
                         style = FinanceTypography.labelSmall,
-                        color = OLEDColors.textTertiary,
+                        color = FinanceTheme.colors.textTertiary,
                         letterSpacing = 0.8.sp
                     )
                     Text(
                         text = state.pricePerLiterFormatted,
                         style = NumericTextStyles.heroBalance.copy(fontSize = 32.sp),
-                        color = OLEDColors.accentSky
+                        color = FinanceTheme.colors.accentSky
                     )
                     if (state.prevPriceFormatted.isNotEmpty()) {
                         Text(
                             text = state.prevPriceFormatted,
                             style = FinanceTypography.labelSmall,
-                            color = OLEDColors.textSecondary
+                            color = FinanceTheme.colors.textSecondary
                         )
                     }
                 }
@@ -559,13 +559,13 @@ private fun GasPriceWatcherCard(
                     Text(
                         text = "FULL TANK (5.5L)",
                         style = FinanceTypography.labelSmall,
-                        color = OLEDColors.textTertiary,
+                        color = FinanceTheme.colors.textTertiary,
                         letterSpacing = 0.8.sp
                     )
                     Text(
                         text = state.fullTankCostFormatted,
                         style = NumericTextStyles.cardAmount.copy(fontSize = 20.sp),
-                        color = OLEDColors.textPrimary
+                        color = FinanceTheme.colors.textPrimary
                     )
                 }
             }
@@ -579,8 +579,8 @@ private fun GasPriceWatcherCard(
                     .defaultMinSize(minHeight = 48.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = OLEDColors.accentSky,
-                    contentColor = OLEDColors.bgBase
+                    containerColor = FinanceTheme.colors.accentSky,
+                    contentColor = FinanceTheme.colors.bgBase
                 )
             ) {
                 Icon(
@@ -605,14 +605,14 @@ private fun PmsCard(
     onLogServiceClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val statusColor = if (item.isOverdue) OLEDColors.accentRose else OLEDColors.accentEmerald
-    val statusBg = if (item.isOverdue) OLEDColors.accentRose.copy(alpha = 0.15f) else OLEDColors.accentEmerald.copy(alpha = 0.15f)
+    val statusColor = if (item.isOverdue) FinanceTheme.colors.accentRose else FinanceTheme.colors.accentEmerald
+    val statusBg = if (item.isOverdue) FinanceTheme.colors.accentRose.copy(alpha = 0.15f) else FinanceTheme.colors.accentEmerald.copy(alpha = 0.15f)
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = OLEDColors.bgCard),
+        colors = CardDefaults.cardColors(containerColor = FinanceTheme.colors.bgCard),
         shape = RoundedCornerShape(14.dp),
-        border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(OLEDColors.borderSubtle))
+        border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(FinanceTheme.colors.borderSubtle))
     ) {
         Column(
             modifier = Modifier
@@ -627,7 +627,7 @@ private fun PmsCard(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(OLEDColors.bgCardSubtle),
+                        .background(FinanceTheme.colors.bgCardSubtle),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(text = item.iconEmoji, fontSize = 20.sp)
@@ -637,12 +637,12 @@ private fun PmsCard(
                     Text(
                         text = item.taskName,
                         style = FinanceTypography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                        color = OLEDColors.textPrimary
+                        color = FinanceTheme.colors.textPrimary
                     )
                     Text(
                         text = "Every ${String.format("%,d", item.intervalKm)} km • Last: ${String.format("%,d", item.lastServiceOdometerKm)} km",
                         style = FinanceTypography.labelSmall,
-                        color = OLEDColors.textSecondary
+                        color = FinanceTheme.colors.textSecondary
                     )
                 }
                 Box(
@@ -671,7 +671,7 @@ private fun PmsCard(
                     modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = OLEDColors.textSecondary
+                        contentColor = FinanceTheme.colors.textSecondary
                     )
                 ) {
                     Icon(
@@ -690,8 +690,8 @@ private fun PmsCard(
                         .defaultMinSize(minHeight = 48.dp),
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = OLEDColors.bgCardElevated,
-                        contentColor = OLEDColors.accentSky
+                        containerColor = FinanceTheme.colors.bgCardElevated,
+                        contentColor = FinanceTheme.colors.accentSky
                     )
                 ) {
                     Text(
@@ -714,12 +714,12 @@ private fun EditOdometerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = OLEDColors.bgCard,
+        containerColor = FinanceTheme.colors.bgCard,
         title = {
             Text(
                 "Update Odometer",
                 style = FinanceTypography.headlineSmall,
-                color = OLEDColors.textPrimary
+                color = FinanceTheme.colors.textPrimary
             )
         },
         text = {
@@ -727,7 +727,7 @@ private fun EditOdometerDialog(
                 Text(
                     "Enter the latest odometer reading for Honda Click 160 in kilometers.",
                     style = FinanceTypography.bodyMedium,
-                    color = OLEDColors.textSecondary
+                    color = FinanceTheme.colors.textSecondary
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 OutlinedTextField(
@@ -738,10 +738,10 @@ private fun EditOdometerDialog(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = OLEDColors.accentSky,
-                        unfocusedBorderColor = OLEDColors.borderSubtle,
-                        focusedTextColor = OLEDColors.textPrimary,
-                        unfocusedTextColor = OLEDColors.textPrimary
+                        focusedBorderColor = FinanceTheme.colors.accentSky,
+                        unfocusedBorderColor = FinanceTheme.colors.borderSubtle,
+                        focusedTextColor = FinanceTheme.colors.textPrimary,
+                        unfocusedTextColor = FinanceTheme.colors.textPrimary
                     )
                 )
             }
@@ -756,8 +756,8 @@ private fun EditOdometerDialog(
                 },
                 modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = OLEDColors.accentSky,
-                    contentColor = OLEDColors.bgBase
+                    containerColor = FinanceTheme.colors.accentSky,
+                    contentColor = FinanceTheme.colors.bgBase
                 )
             ) {
                 Text("Save", style = FinanceTypography.labelLarge)
@@ -768,7 +768,7 @@ private fun EditOdometerDialog(
                 onClick = onDismiss,
                 modifier = Modifier.defaultMinSize(minHeight = 48.dp)
             ) {
-                Text("Cancel", color = OLEDColors.textSecondary)
+                Text("Cancel", color = FinanceTheme.colors.textSecondary)
             }
         }
     )
@@ -788,12 +788,12 @@ private fun OverrideGasPriceDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = OLEDColors.bgCard,
+        containerColor = FinanceTheme.colors.bgCard,
         title = {
             Text(
                 "Override Fuel Price",
                 style = FinanceTypography.headlineSmall,
-                color = OLEDColors.textPrimary
+                color = FinanceTheme.colors.textPrimary
             )
         },
         text = {
@@ -801,7 +801,7 @@ private fun OverrideGasPriceDialog(
                 Text(
                     "Set manual price per liter for $stationDisplayName ($fuelType).",
                     style = FinanceTypography.bodyMedium,
-                    color = OLEDColors.textSecondary
+                    color = FinanceTheme.colors.textSecondary
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 OutlinedTextField(
@@ -812,10 +812,10 @@ private fun OverrideGasPriceDialog(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = OLEDColors.accentSky,
-                        unfocusedBorderColor = OLEDColors.borderSubtle,
-                        focusedTextColor = OLEDColors.textPrimary,
-                        unfocusedTextColor = OLEDColors.textPrimary
+                        focusedBorderColor = FinanceTheme.colors.accentSky,
+                        unfocusedBorderColor = FinanceTheme.colors.borderSubtle,
+                        focusedTextColor = FinanceTheme.colors.textPrimary,
+                        unfocusedTextColor = FinanceTheme.colors.textPrimary
                     )
                 )
             }
@@ -830,8 +830,8 @@ private fun OverrideGasPriceDialog(
                 },
                 modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = OLEDColors.accentSky,
-                    contentColor = OLEDColors.bgBase
+                    containerColor = FinanceTheme.colors.accentSky,
+                    contentColor = FinanceTheme.colors.bgBase
                 )
             ) {
                 Text("Save", style = FinanceTypography.labelLarge)
@@ -842,7 +842,7 @@ private fun OverrideGasPriceDialog(
                 onClick = onDismiss,
                 modifier = Modifier.defaultMinSize(minHeight = 48.dp)
             ) {
-                Text("Cancel", color = OLEDColors.textSecondary)
+                Text("Cancel", color = FinanceTheme.colors.textSecondary)
             }
         }
     )
@@ -864,7 +864,7 @@ private fun EnvelopeSelectorChips(
         Text(
             text = "Charge Expense To:",
             style = FinanceTypography.labelMedium,
-            color = OLEDColors.accentSky
+            color = FinanceTheme.colors.accentSky
         )
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -875,10 +875,10 @@ private fun EnvelopeSelectorChips(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(if (isSelected) OLEDColors.accentSky.copy(alpha = 0.2f) else OLEDColors.bgCardSubtle)
+                        .background(if (isSelected) FinanceTheme.colors.accentSky.copy(alpha = 0.2f) else FinanceTheme.colors.bgCardSubtle)
                         .border(
                             1.dp,
-                            if (isSelected) OLEDColors.accentSky else OLEDColors.borderSubtle,
+                            if (isSelected) FinanceTheme.colors.accentSky else FinanceTheme.colors.borderSubtle,
                             RoundedCornerShape(8.dp)
                         )
                         .semantics(mergeDescendants = true) {}
@@ -890,7 +890,7 @@ private fun EnvelopeSelectorChips(
                         style = FinanceTypography.labelSmall.copy(
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                         ),
-                        color = if (isSelected) OLEDColors.accentSky else OLEDColors.textSecondary
+                        color = if (isSelected) FinanceTheme.colors.accentSky else FinanceTheme.colors.textSecondary
                     )
                 }
             }
@@ -917,12 +917,12 @@ private fun LogPmsServiceDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = OLEDColors.bgCard,
+        containerColor = FinanceTheme.colors.bgCard,
         title = {
             Text(
                 "Log PMS Service",
                 style = FinanceTypography.headlineSmall,
-                color = OLEDColors.textPrimary
+                color = FinanceTheme.colors.textPrimary
             )
         },
         text = {
@@ -930,12 +930,12 @@ private fun LogPmsServiceDialog(
                 Text(
                     text = "${item.iconEmoji} ${item.taskName}",
                     style = FinanceTypography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                    color = OLEDColors.textPrimary
+                    color = FinanceTheme.colors.textPrimary
                 )
                 Text(
                     text = "Update last service odometer and optionally charge maintenance cost to an envelope.",
                     style = FinanceTypography.bodySmall,
-                    color = OLEDColors.textSecondary
+                    color = FinanceTheme.colors.textSecondary
                 )
                 OutlinedTextField(
                     value = rawKm,
@@ -945,10 +945,10 @@ private fun LogPmsServiceDialog(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = OLEDColors.accentSky,
-                        unfocusedBorderColor = OLEDColors.borderSubtle,
-                        focusedTextColor = OLEDColors.textPrimary,
-                        unfocusedTextColor = OLEDColors.textPrimary
+                        focusedBorderColor = FinanceTheme.colors.accentSky,
+                        unfocusedBorderColor = FinanceTheme.colors.borderSubtle,
+                        focusedTextColor = FinanceTheme.colors.textPrimary,
+                        unfocusedTextColor = FinanceTheme.colors.textPrimary
                     )
                 )
                 OutlinedTextField(
@@ -960,10 +960,10 @@ private fun LogPmsServiceDialog(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = OLEDColors.accentSky,
-                        unfocusedBorderColor = OLEDColors.borderSubtle,
-                        focusedTextColor = OLEDColors.textPrimary,
-                        unfocusedTextColor = OLEDColors.textPrimary
+                        focusedBorderColor = FinanceTheme.colors.accentSky,
+                        unfocusedBorderColor = FinanceTheme.colors.borderSubtle,
+                        focusedTextColor = FinanceTheme.colors.textPrimary,
+                        unfocusedTextColor = FinanceTheme.colors.textPrimary
                     )
                 )
 
@@ -986,8 +986,8 @@ private fun LogPmsServiceDialog(
                 },
                 modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = OLEDColors.accentSky,
-                    contentColor = OLEDColors.bgBase
+                    containerColor = FinanceTheme.colors.accentSky,
+                    contentColor = FinanceTheme.colors.bgBase
                 )
             ) {
                 Text("Confirm Service", style = FinanceTypography.labelLarge)
@@ -998,7 +998,7 @@ private fun LogPmsServiceDialog(
                 onClick = onDismiss,
                 modifier = Modifier.defaultMinSize(minHeight = 48.dp)
             ) {
-                Text("Cancel", color = OLEDColors.textSecondary)
+                Text("Cancel", color = FinanceTheme.colors.textSecondary)
             }
         }
     )
@@ -1029,12 +1029,12 @@ private fun AddEditPmsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = OLEDColors.bgCard,
+        containerColor = FinanceTheme.colors.bgCard,
         title = {
             Text(
                 if (isEditing) "Edit PMS Schedule" else "Add PMS Schedule",
                 style = FinanceTypography.headlineSmall,
-                color = OLEDColors.textPrimary
+                color = FinanceTheme.colors.textPrimary
             )
         },
         text = {
@@ -1050,10 +1050,10 @@ private fun AddEditPmsDialog(
                     placeholder = { Text("e.g. Brake Fluid Flush") },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = OLEDColors.accentSky,
-                        unfocusedBorderColor = OLEDColors.borderSubtle,
-                        focusedTextColor = OLEDColors.textPrimary,
-                        unfocusedTextColor = OLEDColors.textPrimary
+                        focusedBorderColor = FinanceTheme.colors.accentSky,
+                        unfocusedBorderColor = FinanceTheme.colors.borderSubtle,
+                        focusedTextColor = FinanceTheme.colors.textPrimary,
+                        unfocusedTextColor = FinanceTheme.colors.textPrimary
                     )
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1064,10 +1064,10 @@ private fun AddEditPmsDialog(
                         label = { Text("Icon") },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = OLEDColors.accentSky,
-                            unfocusedBorderColor = OLEDColors.borderSubtle,
-                            focusedTextColor = OLEDColors.textPrimary,
-                            unfocusedTextColor = OLEDColors.textPrimary
+                            focusedBorderColor = FinanceTheme.colors.accentSky,
+                            unfocusedBorderColor = FinanceTheme.colors.borderSubtle,
+                            focusedTextColor = FinanceTheme.colors.textPrimary,
+                            unfocusedTextColor = FinanceTheme.colors.textPrimary
                         )
                     )
                     OutlinedTextField(
@@ -1078,10 +1078,10 @@ private fun AddEditPmsDialog(
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = OLEDColors.accentSky,
-                            unfocusedBorderColor = OLEDColors.borderSubtle,
-                            focusedTextColor = OLEDColors.textPrimary,
-                            unfocusedTextColor = OLEDColors.textPrimary
+                            focusedBorderColor = FinanceTheme.colors.accentSky,
+                            unfocusedBorderColor = FinanceTheme.colors.borderSubtle,
+                            focusedTextColor = FinanceTheme.colors.textPrimary,
+                            unfocusedTextColor = FinanceTheme.colors.textPrimary
                         )
                     )
                 }
@@ -1093,10 +1093,10 @@ private fun AddEditPmsDialog(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = OLEDColors.accentSky,
-                        unfocusedBorderColor = OLEDColors.borderSubtle,
-                        focusedTextColor = OLEDColors.textPrimary,
-                        unfocusedTextColor = OLEDColors.textPrimary
+                        focusedBorderColor = FinanceTheme.colors.accentSky,
+                        unfocusedBorderColor = FinanceTheme.colors.borderSubtle,
+                        focusedTextColor = FinanceTheme.colors.textPrimary,
+                        unfocusedTextColor = FinanceTheme.colors.textPrimary
                     )
                 )
                 if (!isEditing) {
@@ -1109,10 +1109,10 @@ private fun AddEditPmsDialog(
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = OLEDColors.accentSky,
-                            unfocusedBorderColor = OLEDColors.borderSubtle,
-                            focusedTextColor = OLEDColors.textPrimary,
-                            unfocusedTextColor = OLEDColors.textPrimary
+                            focusedBorderColor = FinanceTheme.colors.accentSky,
+                            unfocusedBorderColor = FinanceTheme.colors.borderSubtle,
+                            focusedTextColor = FinanceTheme.colors.textPrimary,
+                            unfocusedTextColor = FinanceTheme.colors.textPrimary
                         )
                     )
 
@@ -1143,8 +1143,8 @@ private fun AddEditPmsDialog(
                 },
                 modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = OLEDColors.accentSky,
-                    contentColor = OLEDColors.bgBase
+                    containerColor = FinanceTheme.colors.accentSky,
+                    contentColor = FinanceTheme.colors.bgBase
                 )
             ) {
                 Text(if (isEditing) "Save Changes" else "Save", style = FinanceTypography.labelLarge)
@@ -1160,18 +1160,18 @@ private fun AddEditPmsDialog(
                         Icon(
                             imageVector = Icons.Rounded.Delete,
                             contentDescription = null,
-                            tint = OLEDColors.accentRose,
+                            tint = FinanceTheme.colors.accentRose,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Delete", color = OLEDColors.accentRose)
+                        Text("Delete", color = FinanceTheme.colors.accentRose)
                     }
                 }
                 TextButton(
                     onClick = onDismiss,
                     modifier = Modifier.defaultMinSize(minHeight = 48.dp)
                 ) {
-                    Text("Cancel", color = OLEDColors.textSecondary)
+                    Text("Cancel", color = FinanceTheme.colors.textSecondary)
                 }
             }
         }

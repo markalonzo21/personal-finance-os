@@ -56,7 +56,7 @@ import com.mcalonzo.personalfinanceos.data.local.entity.RoutineEnvelopeTemplateE
 import com.mcalonzo.personalfinanceos.domain.calculator.BudgetCalculator
 import com.mcalonzo.personalfinanceos.ui.theme.FinanceTypography
 import com.mcalonzo.personalfinanceos.ui.theme.NumericTextStyles
-import com.mcalonzo.personalfinanceos.ui.theme.OLEDColors
+import com.mcalonzo.personalfinanceos.ui.theme.FinanceTheme
 import com.mcalonzo.personalfinanceos.ui.viewmodel.RoutineUiState
 
 private data class EnvelopeDraft(
@@ -152,8 +152,8 @@ fun RoutineSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = OLEDColors.bgCard,
-        contentColor = OLEDColors.textPrimary
+        containerColor = FinanceTheme.colors.bgCard,
+        contentColor = FinanceTheme.colors.textPrimary
     ) {
         Column(
             modifier = Modifier
@@ -173,7 +173,7 @@ fun RoutineSheet(
                 Text(
                     text = "Monthly Routine Template",
                     style = FinanceTypography.titleLarge,
-                    color = OLEDColors.textPrimary
+                    color = FinanceTheme.colors.textPrimary
                 )
                 IconButton(
                     onClick = onDismiss,
@@ -182,7 +182,7 @@ fun RoutineSheet(
                     Icon(
                         imageVector = Icons.Rounded.Close,
                         contentDescription = "Close routine editor",
-                        tint = OLEDColors.textSecondary
+                        tint = FinanceTheme.colors.textSecondary
                     )
                 }
             }
@@ -190,7 +190,7 @@ fun RoutineSheet(
             Text(
                 text = "Baseline envelopes and recurring bills auto-clone on the 1st of each month.",
                 style = FinanceTypography.bodyMedium,
-                color = OLEDColors.textSecondary
+                color = FinanceTheme.colors.textSecondary
             )
 
             OutlinedTextField(
@@ -204,10 +204,10 @@ fun RoutineSheet(
                     Text(
                         text = "₱",
                         style = NumericTextStyles.cardAmount,
-                        color = OLEDColors.accentSky
+                        color = FinanceTheme.colors.accentSky
                     )
                 },
-                textStyle = NumericTextStyles.cardAmount.copy(color = OLEDColors.textPrimary),
+                textStyle = NumericTextStyles.cardAmount.copy(color = FinanceTheme.colors.textPrimary),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 colors = routineFieldColors(),
@@ -225,7 +225,7 @@ fun RoutineSheet(
                 Text(
                     text = "Envelopes sum: ${BudgetCalculator.formatPeso(envelopesSumCentavos, showDecimal = false)}",
                     style = FinanceTypography.bodyMedium,
-                    color = OLEDColors.textSecondary
+                    color = FinanceTheme.colors.textSecondary
                 )
                 TextButton(
                     onClick = {
@@ -237,16 +237,16 @@ fun RoutineSheet(
                     Text(
                         text = "Use Envelopes Sum",
                         style = FinanceTypography.labelLarge,
-                        color = OLEDColors.accentSky
+                        color = FinanceTheme.colors.accentSky
                     )
                 }
             }
 
             Surface(
                 onClick = { autoRolloverEnabled = !autoRolloverEnabled },
-                color = OLEDColors.bgCardSubtle,
+                color = FinanceTheme.colors.bgCardSubtle,
                 shape = RoundedCornerShape(14.dp),
-                border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+                border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -260,26 +260,26 @@ fun RoutineSheet(
                         Text(
                             text = "Auto-Rollover on 1st",
                             style = FinanceTypography.titleMedium,
-                            color = OLEDColors.textPrimary
+                            color = FinanceTheme.colors.textPrimary
                         )
                         Text(
                             text = "Automatically start new month cycles from this template",
                             style = FinanceTypography.bodyMedium,
-                            color = OLEDColors.textSecondary
+                            color = FinanceTheme.colors.textSecondary
                         )
                     }
                     Switch(
                         checked = autoRolloverEnabled,
                         onCheckedChange = { autoRolloverEnabled = it },
                         colors = SwitchDefaults.colors(
-                            checkedThumbColor = OLEDColors.bgBase,
-                            checkedTrackColor = OLEDColors.accentEmerald
+                            checkedThumbColor = FinanceTheme.colors.bgBase,
+                            checkedTrackColor = FinanceTheme.colors.accentEmerald
                         )
                     )
                 }
             }
 
-            HorizontalDivider(color = OLEDColors.borderSubtle)
+            HorizontalDivider(color = FinanceTheme.colors.borderSubtle)
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -289,7 +289,7 @@ fun RoutineSheet(
                 Text(
                     text = "ENVELOPE BASELINES",
                     style = FinanceTypography.labelMedium,
-                    color = OLEDColors.textSecondary
+                    color = FinanceTheme.colors.textSecondary
                 )
                 TextButton(
                     onClick = {
@@ -309,23 +309,23 @@ fun RoutineSheet(
                     Icon(
                         imageVector = Icons.Rounded.Add,
                         contentDescription = null,
-                        tint = OLEDColors.accentSky,
+                        tint = FinanceTheme.colors.accentSky,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "Add Envelope",
                         style = FinanceTypography.labelLarge,
-                        color = OLEDColors.accentSky
+                        color = FinanceTheme.colors.accentSky
                     )
                 }
             }
 
             envelopeDrafts.forEachIndexed { index, draft ->
                 Surface(
-                    color = OLEDColors.bgCardSubtle,
+                    color = FinanceTheme.colors.bgCardSubtle,
                     shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+                    border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
@@ -339,9 +339,9 @@ fun RoutineSheet(
                         ) {
                             Surface(
                                 onClick = { iconPickerTarget = RoutineIconTarget.Envelope(index) },
-                                color = OLEDColors.bgCardElevated,
+                                color = FinanceTheme.colors.bgCardElevated,
                                 shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+                                border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
                                 modifier = Modifier.size(48.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
@@ -370,9 +370,9 @@ fun RoutineSheet(
                                     imageVector = Icons.Rounded.DeleteOutline,
                                     contentDescription = "Remove envelope template",
                                     tint = if (envelopeDrafts.size > 1) {
-                                        OLEDColors.accentRose
+                                        FinanceTheme.colors.accentRose
                                     } else {
-                                        OLEDColors.textSecondary.copy(alpha = 0.4f)
+                                        FinanceTheme.colors.textSecondary.copy(alpha = 0.4f)
                                     }
                                 )
                             }
@@ -387,8 +387,8 @@ fun RoutineSheet(
                                 validationError = null
                             },
                             label = { Text("Monthly Limit (PHP)") },
-                            prefix = { Text("₱", style = NumericTextStyles.bodyAmount, color = OLEDColors.accentSky) },
-                            textStyle = NumericTextStyles.bodyAmount.copy(color = OLEDColors.textPrimary),
+                            prefix = { Text("₱", style = NumericTextStyles.bodyAmount, color = FinanceTheme.colors.accentSky) },
+                            textStyle = NumericTextStyles.bodyAmount.copy(color = FinanceTheme.colors.textPrimary),
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             colors = routineFieldColors(),
@@ -398,7 +398,7 @@ fun RoutineSheet(
                 }
             }
 
-            HorizontalDivider(color = OLEDColors.borderSubtle)
+            HorizontalDivider(color = FinanceTheme.colors.borderSubtle)
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -408,7 +408,7 @@ fun RoutineSheet(
                 Text(
                     text = "RECURRING BILL TEMPLATES",
                     style = FinanceTypography.labelMedium,
-                    color = OLEDColors.textSecondary
+                    color = FinanceTheme.colors.textSecondary
                 )
                 TextButton(
                     onClick = {
@@ -428,23 +428,23 @@ fun RoutineSheet(
                     Icon(
                         imageVector = Icons.Rounded.Add,
                         contentDescription = null,
-                        tint = OLEDColors.accentSky,
+                        tint = FinanceTheme.colors.accentSky,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "Add Bill",
                         style = FinanceTypography.labelLarge,
-                        color = OLEDColors.accentSky
+                        color = FinanceTheme.colors.accentSky
                     )
                 }
             }
 
             billDrafts.forEachIndexed { index, draft ->
                 Surface(
-                    color = OLEDColors.bgCardSubtle,
+                    color = FinanceTheme.colors.bgCardSubtle,
                     shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+                    border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
@@ -458,9 +458,9 @@ fun RoutineSheet(
                         ) {
                             Surface(
                                 onClick = { iconPickerTarget = RoutineIconTarget.Bill(index) },
-                                color = OLEDColors.bgCardElevated,
+                                color = FinanceTheme.colors.bgCardElevated,
                                 shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+                                border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
                                 modifier = Modifier.size(48.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
@@ -487,7 +487,7 @@ fun RoutineSheet(
                                 Icon(
                                     imageVector = Icons.Rounded.DeleteOutline,
                                     contentDescription = "Remove bill template",
-                                    tint = OLEDColors.accentRose
+                                    tint = FinanceTheme.colors.accentRose
                                 )
                             }
                         }
@@ -506,8 +506,8 @@ fun RoutineSheet(
                                     validationError = null
                                 },
                                 label = { Text("Amount") },
-                                prefix = { Text("₱", style = NumericTextStyles.bodyAmount, color = OLEDColors.accentSky) },
-                                textStyle = NumericTextStyles.bodyAmount.copy(color = OLEDColors.textPrimary),
+                                prefix = { Text("₱", style = NumericTextStyles.bodyAmount, color = FinanceTheme.colors.accentSky) },
+                                textStyle = NumericTextStyles.bodyAmount.copy(color = FinanceTheme.colors.textPrimary),
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                 colors = routineFieldColors(),
@@ -522,7 +522,7 @@ fun RoutineSheet(
                                     validationError = null
                                 },
                                 label = { Text("Due Day") },
-                                textStyle = NumericTextStyles.bodyAmount.copy(color = OLEDColors.textPrimary),
+                                textStyle = NumericTextStyles.bodyAmount.copy(color = FinanceTheme.colors.textPrimary),
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 colors = routineFieldColors(),
@@ -535,8 +535,8 @@ fun RoutineSheet(
                                     billDrafts[index] = draft.copy(isActive = checked)
                                 },
                                 colors = SwitchDefaults.colors(
-                                    checkedThumbColor = OLEDColors.bgBase,
-                                    checkedTrackColor = OLEDColors.accentSky
+                                    checkedThumbColor = FinanceTheme.colors.bgBase,
+                                    checkedTrackColor = FinanceTheme.colors.accentSky
                                 )
                             )
                         }
@@ -546,11 +546,11 @@ fun RoutineSheet(
 
             Surface(
                 onClick = { applyToCurrentMonth = !applyToCurrentMonth },
-                color = OLEDColors.bgCardElevated,
+                color = FinanceTheme.colors.bgCardElevated,
                 shape = RoundedCornerShape(14.dp),
                 border = BorderStroke(
                     1.dp,
-                    if (applyToCurrentMonth) OLEDColors.accentSky else OLEDColors.borderSubtle
+                    if (applyToCurrentMonth) FinanceTheme.colors.accentSky else FinanceTheme.colors.borderSubtle
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -566,20 +566,20 @@ fun RoutineSheet(
                         checked = applyToCurrentMonth,
                         onCheckedChange = { applyToCurrentMonth = it },
                         colors = CheckboxDefaults.colors(
-                            checkedColor = OLEDColors.accentSky,
-                            checkmarkColor = OLEDColors.bgBase
+                            checkedColor = FinanceTheme.colors.accentSky,
+                            checkmarkColor = FinanceTheme.colors.bgBase
                         )
                     )
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Also apply to current month",
                             style = FinanceTypography.labelLarge,
-                            color = OLEDColors.textPrimary
+                            color = FinanceTheme.colors.textPrimary
                         )
                         Text(
                             text = "Updates $currentMonthLabel total budget, limits & unpaid bills while preserving spend",
                             style = FinanceTypography.bodyMedium,
-                            color = OLEDColors.textSecondary
+                            color = FinanceTheme.colors.textSecondary
                         )
                     }
                 }
@@ -589,7 +589,7 @@ fun RoutineSheet(
                 Text(
                     text = validationError!!,
                     style = FinanceTypography.bodyMedium,
-                    color = OLEDColors.accentRose
+                    color = FinanceTheme.colors.accentRose
                 )
             }
 
@@ -661,8 +661,8 @@ fun RoutineSheet(
                     onDismiss()
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = OLEDColors.accentSky,
-                    contentColor = OLEDColors.bgBase
+                    containerColor = FinanceTheme.colors.accentSky,
+                    contentColor = FinanceTheme.colors.bgBase
                 ),
                 shape = RoundedCornerShape(14.dp),
                 contentPadding = PaddingValues(vertical = 14.dp),
@@ -712,10 +712,10 @@ fun RoutineSheet(
 
 @Composable
 private fun routineFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = OLEDColors.accentSky,
-    unfocusedBorderColor = OLEDColors.borderSubtle,
-    focusedTextColor = OLEDColors.textPrimary,
-    unfocusedTextColor = OLEDColors.textPrimary,
-    focusedLabelColor = OLEDColors.accentSky,
-    unfocusedLabelColor = OLEDColors.textSecondary
+    focusedBorderColor = FinanceTheme.colors.accentSky,
+    unfocusedBorderColor = FinanceTheme.colors.borderSubtle,
+    focusedTextColor = FinanceTheme.colors.textPrimary,
+    unfocusedTextColor = FinanceTheme.colors.textPrimary,
+    focusedLabelColor = FinanceTheme.colors.accentSky,
+    unfocusedLabelColor = FinanceTheme.colors.textSecondary
 )
