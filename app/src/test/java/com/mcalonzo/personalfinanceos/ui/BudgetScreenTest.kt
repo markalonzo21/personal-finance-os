@@ -510,15 +510,16 @@ class BudgetScreenTest {
     }
 
     @Test
-    fun `envelope card expands added items list and wires edit and delete per item`() {
-        var editedItem: Triple<Long, String, Long>? = null
+    fun `envelope card expands added items list and wires edit move envelope and delete per item`() {
+        var editedItem: List<Any?>? = null
         var deletedItemId: Long? = null
 
         val state = MainUiState(
             budgetState = BudgetUiState(
                 yearMonthLabel = "November 2026",
                 envelopes = listOf(
-                    EnvelopeItemUi(1L, "Groceries", "🛒", "#38BDF8", 1_500_000L, 85_000L)
+                    EnvelopeItemUi(1L, "Groceries", "🛒", "#38BDF8", 1_500_000L, 85_000L),
+                    EnvelopeItemUi(2L, "Gas & Fuel", "⛽", "#34D399", 500_000L, 0L)
                 ),
                 transactions = listOf(
                     TransactionItemUi(
@@ -538,8 +539,8 @@ class BudgetScreenTest {
             PersonalFinanceTheme {
                 MainScreen(
                     state = state,
-                    onUpdateTransaction = { id, title, amount ->
-                        editedItem = Triple(id, title, amount)
+                    onUpdateTransaction = { id, title, amount, newEnvId ->
+                        editedItem = listOf(id, title, amount, newEnvId)
                     },
                     onDeleteTransaction = { id ->
                         deletedItemId = id
@@ -561,12 +562,15 @@ class BudgetScreenTest {
         rule.onNode(hasText("Amount (PHP)") and hasSetTextAction())
             .performScrollTo()
             .performTextReplacement("950")
+        rule.onAllNodesWithText("Gas & Fuel")[1]
+            .performScrollTo()
+            .performSemanticsAction(SemanticsActions.OnClick)
         rule.onNodeWithText("Save Item")
             .performScrollTo()
             .assertIsEnabled()
             .performSemanticsAction(SemanticsActions.OnClick)
 
-        assertThat(editedItem).isEqualTo(Triple(101L, "Puregold", 95_000L))
+        assertThat(editedItem).isEqualTo(listOf(101L, "Puregold", 95_000L, 2L))
 
         rule.onNodeWithContentDescription("Delete SM Supermarket")
             .performSemanticsAction(SemanticsActions.OnClick)

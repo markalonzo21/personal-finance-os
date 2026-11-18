@@ -822,4 +822,36 @@ class BudgetRepositoryTest {
         repo.deleteCard(cardId)
         assertThat(repo.observeCards().first()).isEmpty()
     }
+
+    @Test
+    fun `updateTransaction moves item to another envelope and transfers spentCentavos atomically`() = runTest {
+        val cycleId = rolloverUseCase(YearMonth.of(2026, 11))
+        val envelopes = db.budgetDao().getEnvelopesForCycleOnce(cycleId)
+        val groceries = envelopes.first { it.name == "Groceries" }
+        val targetEnvelope = envelopes.first { it.id != groceries.id }
+
+        val undo = repo.logExpense(
+            cycleId = cycleId,
+            envelopeId = groceries.id,
+            amountCentavos = 50_000L,
+            title = "Petron Fuel"
+        )
+        assertThat(db.budgetDao().getEnvelopeById(groceries.id)!!.spentCentavos).isEqualTo(50_000L)
+        assertThat(db.budgetDao().getEnvelopeById(targetEnvelope.id)!!.spentCentavos).isEqualTo(0L)
+
+        repo.updateTransaction(
+            transactionId = undo.transactionId,
+            title = "Petron Blaze",
+            amountCentavos = 65_000L,
+            newEnvelopeId = targetEnvelope.id
+        )
+
+        val updatedTx = db.budgetDao().getTransactionById(undo.transactionId)!!
+        assertThat(updatedTx.title).isEqualTo("Petron Blaze")
+        assertThat(updatedTx.amountCentavos).isEqualTo(65_000L)
+        assertThat(updatedTx.envelopeId).isEqualTo(targetEnvelope.id)
+        assertThat(updatedTx.categoryLabel).isEqualTo(targetEnvelope.name)
+        assertThat(db.budgetDao().getEnvelopeById(groceries.id)!!.spentCentavos).isEqualTo(0L)
+        assertThat(db.budgetDao().getEnvelopeById(targetEnvelope.id)!!.spentCentavos).isEqualTo(65_000L)
+    }
 }

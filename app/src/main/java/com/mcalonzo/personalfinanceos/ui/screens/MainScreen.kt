@@ -132,7 +132,7 @@ fun MainScreen(
     ) -> Unit = { _, _, _, _, _, _, _, _ -> },
     onDeleteLoan: (loanId: Long) -> Unit = {},
     onToggleAmountsVisibility: () -> Unit = {},
-    onUpdateTransaction: (transactionId: Long, title: String, amountCentavos: Long) -> Unit = { _, _, _ -> },
+    onUpdateTransaction: (transactionId: Long, title: String, amountCentavos: Long, newEnvelopeId: Long?) -> Unit = { _, _, _, _ -> },
     onDeleteTransaction: (transactionId: Long) -> Unit = {},
     onSaveRoutine: (
         totalMonthlyBudgetCentavos: Long,
@@ -508,6 +508,7 @@ fun MainScreen(
     editingTransaction?.let { tx ->
         EditTransactionSheet(
             transaction = tx,
+            envelopes = state.budgetState.envelopes,
             onSaveEdit = onUpdateTransaction,
             onDelete = onDeleteTransaction,
             onDismiss = { editingTransaction = null }

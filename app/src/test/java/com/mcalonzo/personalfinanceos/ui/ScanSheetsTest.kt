@@ -9,7 +9,9 @@ import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
@@ -252,5 +254,63 @@ class ScanSheetsTest {
             .performScrollTo()
             .performSemanticsAction(SemanticsActions.OnClick)
         assertThat(confirmClicked).isTrue()
+    }
+
+    @Test
+    fun `scan review sheet requires confirmation before closing`() {
+        var dismissed = false
+        val batchState = ScanBatchUiState(
+            isSheetVisible = true,
+            storeName = "Puregold",
+            drafts = listOf(
+                ScannedExpenseDraft(
+                    localId = "d-1",
+                    title = "Rice",
+                    amountCentavos = 100_000L,
+                    parsedDate = null,
+                    dateLabel = "",
+                    targetYearMonth = YearMonth.of(2026, 11),
+                    isCredit = false,
+                    isSummaryNoise = false,
+                    isDuplicate = false,
+                    isSelected = true,
+                    envelopeName = "Groceries"
+                )
+            )
+        )
+
+        rule.setContent {
+            PersonalFinanceTheme {
+                ScanReviewSheet(
+                    scanBatchState = batchState,
+                    envelopes = listOf(
+                        EnvelopeItemUi(1L, "Groceries", "🛒", "#38BDF8", 1_500_000L, 0L)
+                    ),
+                    onUpdateStoreName = {},
+                    onApplyDefaultEnvelope = {},
+                    onUpdateDraft = { _, _, _, _ -> },
+                    onToggleDraft = {},
+                    onScanAnotherPart = {},
+                    onConfirm = {},
+                    onDismiss = { dismissed = true }
+                )
+            }
+        }
+
+        rule.onNodeWithContentDescription("Close scan review")
+            .performSemanticsAction(SemanticsActions.OnClick)
+        rule.onNodeWithText("Discard Scanned Items?").assertExists()
+        assertThat(dismissed).isFalse()
+
+        rule.onNodeWithText("Keep Editing")
+            .performSemanticsAction(SemanticsActions.OnClick)
+        rule.onNodeWithText("Discard Scanned Items?").assertDoesNotExist()
+        assertThat(dismissed).isFalse()
+
+        rule.onNodeWithContentDescription("Close scan review")
+            .performSemanticsAction(SemanticsActions.OnClick)
+        rule.onNodeWithText("Discard")
+            .performSemanticsAction(SemanticsActions.OnClick)
+        assertThat(dismissed).isTrue()
     }
 }

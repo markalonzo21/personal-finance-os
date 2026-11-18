@@ -984,7 +984,12 @@ class MainViewModel internal constructor(
         }
     }
 
-    fun updateTransaction(transactionId: Long, title: String, amountCentavos: Long) {
+    fun updateTransaction(
+        transactionId: Long,
+        title: String,
+        amountCentavos: Long,
+        newEnvelopeId: Long? = null
+    ) {
         viewModelScope.launch {
             runMutation("Unable to update item") {
                 if (activeUndo.value?.transactionId == transactionId) {
@@ -993,7 +998,8 @@ class MainViewModel internal constructor(
                 budgetRepository.updateTransaction(
                     transactionId = transactionId,
                     title = title,
-                    amountCentavos = amountCentavos
+                    amountCentavos = amountCentavos,
+                    newEnvelopeId = newEnvelopeId
                 )
                 infoMessage.value = "Updated ${title.trim()}"
             }

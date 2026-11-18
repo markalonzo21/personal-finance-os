@@ -598,7 +598,8 @@ class BudgetRepository(
     suspend fun updateTransaction(
         transactionId: Long,
         title: String,
-        amountCentavos: Long
+        amountCentavos: Long,
+        newEnvelopeId: Long? = null
     ) {
         require(amountCentavos > 0L) { "Amount must be greater than zero" }
         val trimmedTitle = title.trim()
@@ -606,15 +607,36 @@ class BudgetRepository(
 
         db.withTransaction {
             val existing = budgetDao.getTransactionById(transactionId) ?: return@withTransaction
-            val deltaCentavos = amountCentavos - existing.amountCentavos
+            val targetEnvelopeId = newEnvelopeId ?: existing.envelopeId
+            val isMovingEnvelope =
+                targetEnvelopeId != null && targetEnvelopeId != existing.envelopeId
+
+            val targetCategoryLabel = if (isMovingEnvelope) {
+                val targetEnvelope = budgetDao.getEnvelopeById(targetEnvelopeId!!)
+                    ?: throw IllegalArgumentException("Target envelope $targetEnvelopeId not found")
+                require(targetEnvelope.cycleId == existing.cycleId) {
+                    "Target envelope must belong to the same budget cycle"
+                }
+                if (existing.envelopeId != null) {
+                    budgetDao.incrementEnvelopeSpent(existing.envelopeId, -existing.amountCentavos)
+                }
+                budgetDao.incrementEnvelopeSpent(targetEnvelope.id, amountCentavos)
+                targetEnvelope.name
+            } else {
+                val deltaCentavos = amountCentavos - existing.amountCentavos
+                if (existing.envelopeId != null && deltaCentavos != 0L) {
+                    budgetDao.incrementEnvelopeSpent(existing.envelopeId, deltaCentavos)
+                }
+                existing.categoryLabel
+            }
+
             budgetDao.updateTransaction(
                 transactionId = existing.id,
                 title = trimmedTitle,
-                amountCentavos = amountCentavos
+                amountCentavos = amountCentavos,
+                envelopeId = targetEnvelopeId,
+                categoryLabel = targetCategoryLabel
             )
-            if (existing.envelopeId != null && deltaCentavos != 0L) {
-                budgetDao.incrementEnvelopeSpent(existing.envelopeId, deltaCentavos)
-            }
         }
     }
 
