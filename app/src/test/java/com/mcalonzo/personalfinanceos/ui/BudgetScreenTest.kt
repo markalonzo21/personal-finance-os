@@ -191,6 +191,8 @@ class BudgetScreenTest {
         rule.onNodeWithText("MONTHLY DEBT & OBLIGATIONS").assertExists()
         rule.onNode(hasScrollToIndexAction()).performScrollToIndex(4)
         rule.onNodeWithText("Mark Paid").performClick()
+        rule.onNodeWithText("Confirm Loan Payment").assertIsDisplayed()
+        rule.onNodeWithText("Confirm Paid").performClick()
         assertThat(settledLoanCall).isEqualTo(20L to false)
 
         rule.onNode(hasScrollToIndexAction()).performScrollToIndex(5)
@@ -201,11 +203,13 @@ class BudgetScreenTest {
             .performSemanticsAction(SemanticsActions.OnClick)
         assertThat(settledLoanCall).isEqualTo(21L to true)
 
-        // Switch to Activity sub-tab and trigger transaction delete
+        // Switch to Activity sub-tab and trigger transaction delete with confirmation
         rule.onNode(hasScrollToIndexAction()).performScrollToIndex(0)
         rule.onNodeWithText("Activity").performClick()
-        rule.onNode(hasScrollToIndexAction()).performScrollToIndex(3)
+        rule.onNode(hasScrollToIndexAction()).performScrollToIndex(4)
         rule.onNodeWithContentDescription("Delete Petron Fuel").performClick()
+        rule.onNodeWithText("Delete Expense?").assertIsDisplayed()
+        rule.onNodeWithText("Delete").performClick()
         assertThat(deletedTxId).isEqualTo(30L)
     }
 
@@ -382,7 +386,7 @@ class BudgetScreenTest {
         rule.onNodeWithText("UNDO").assertIsDisplayed().performClick()
         assertThat(undoClicked).isTrue()
 
-        rule.onNodeWithText("SOA").performClick()
+        rule.onNodeWithText("Attach SOA").performClick()
         rule.onNodeWithText("No SOA PDF attached yet").assertIsDisplayed()
         rule.onAllNodesWithText("Upload SOA PDF")[0]
             .assertIsEnabled()
@@ -574,6 +578,8 @@ class BudgetScreenTest {
 
         rule.onNodeWithContentDescription("Delete SM Supermarket")
             .performSemanticsAction(SemanticsActions.OnClick)
+        rule.onNodeWithText("Delete Expense?").assertIsDisplayed()
+        rule.onNodeWithText("Delete").performClick()
         assertThat(deletedItemId).isEqualTo(101L)
     }
 }

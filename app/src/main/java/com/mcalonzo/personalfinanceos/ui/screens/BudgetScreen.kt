@@ -18,24 +18,30 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.PictureAsPdf
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -94,6 +100,25 @@ fun BudgetScreen(
     onEditTransactionClick: (TransactionItemUi) -> Unit = {},
     onDeleteTransactionClick: (TransactionItemUi) -> Unit = {}
 ) {
+    var pendingDeleteTransaction by remember { mutableStateOf<TransactionItemUi?>(null) }
+    var pendingSettleLoan by remember { mutableStateOf<LoanItemUi?>(null) }
+    var activityQuery by remember { mutableStateOf("") }
+    var selectedActivityCategory by remember { mutableStateOf<String?>(null) }
+    val activityCategories = remember(state.transactions) {
+        state.transactions.map { it.categoryLabel }.distinct().sorted()
+    }
+    val activeCategory = selectedActivityCategory?.takeIf { it in activityCategories }
+    val filteredTransactions = remember(state.transactions, activityQuery, activeCategory) {
+        val trimmed = activityQuery.trim()
+        state.transactions.filter { tx ->
+            val matchesCategory = activeCategory == null || tx.categoryLabel == activeCategory
+            val matchesQuery = trimmed.isEmpty() ||
+                tx.title.contains(trimmed, ignoreCase = true) ||
+                tx.categoryLabel.contains(trimmed, ignoreCase = true)
+            matchesCategory && matchesQuery
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -111,7 +136,7 @@ fun BudgetScreen(
                 .fillMaxWidth()
                 .weight(1f),
             contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 0.dp, bottom = 96.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item(key = "hero_card") {
                 SafeToSpendHeroCard(
@@ -156,7 +181,7 @@ fun BudgetScreen(
                                 onQuickLog = { onQuickLogEnvelope(envelope) },
                                 onEdit = { onEditEnvelopeClick(envelope) },
                                 onEditItem = onEditTransactionClick,
-                                onDeleteItem = onDeleteTransactionClick
+                                onDeleteItem = { tx -> pendingDeleteTransaction = tx }
                             )
                         }
                     }
@@ -219,7 +244,7 @@ fun BudgetScreen(
                             LoanCard(
                                 loan = loan,
                                 isAmountsHidden = state.isAmountsHidden,
-                                onMarkPaid = { onSettleLoanClick(loan) },
+                                onMarkPaid = { pendingSettleLoan = loan },
                                 onPayAdvance = { onAdvanceLoanClick(loan) },
                                 onEdit = { onEditLoanClick(loan) }
                             )
@@ -228,10 +253,16 @@ fun BudgetScreen(
                 }
 
                 BudgetSubTab.ACTIVITY -> {
+                    val countLabel = if (activityQuery.isNotBlank() || activeCategory != null) {
+                        "${filteredTransactions.size} of ${state.transactions.size}"
+                    } else {
+                        "${state.transactions.size} logged"
+                    }
+
                     item(key = "activity_header") {
                         SectionHeaderRow(
                             title = "ACTIVITY",
-                            actionLabel = "${state.transactions.size} logged",
+                            actionLabel = countLabel,
                             onActionClick = null
                         )
                     }
@@ -243,22 +274,137 @@ fun BudgetScreen(
                             )
                         }
                     } else {
-                        items(state.transactions, key = { "tx_${it.id}" }) { tx ->
-                            TransactionRowCard(
-                                transaction = tx,
-                                isAmountsHidden = state.isAmountsHidden,
-                                onEdit = if (tx.envelopeId != null) {
-                                    { onEditTransactionClick(tx) }
-                                } else {
-                                    null
-                                },
-                                onDelete = { onDeleteTransactionClick(tx) }
+                        item(key = "activity_filter") {
+                            ActivityFilterBar(
+                                query = activityQuery,
+                                onQueryChange = { activityQuery = it },
+                                categories = activityCategories,
+                                selectedCategory = activeCategory,
+                                onSelectCategory = { selectedActivityCategory = it }
                             )
+                        }
+                        if (filteredTransactions.isEmpty()) {
+                            item(key = "activity_no_matches") {
+                                EmptyStateCard(
+                                    title = "No matching transactions",
+                                    subtitle = "Clear your search or category filter to view all ${state.transactions.size} items."
+                                )
+                            }
+                        } else {
+                            items(filteredTransactions, key = { "tx_${it.id}" }) { tx ->
+                                TransactionRowCard(
+                                    transaction = tx,
+                                    isAmountsHidden = state.isAmountsHidden,
+                                    onEdit = if (tx.envelopeId != null) {
+                                        { onEditTransactionClick(tx) }
+                                    } else {
+                                        null
+                                    },
+                                    onDelete = { pendingDeleteTransaction = tx }
+                                )
+                            }
                         }
                     }
                 }
             }
         }
+    }
+
+    pendingDeleteTransaction?.let { tx ->
+        AlertDialog(
+            onDismissRequest = { pendingDeleteTransaction = null },
+            containerColor = OLEDColors.bgCardElevated,
+            titleContentColor = OLEDColors.textPrimary,
+            textContentColor = OLEDColors.textSecondary,
+            title = {
+                Text(
+                    text = "Delete Expense?",
+                    style = FinanceTypography.titleLarge
+                )
+            },
+            text = {
+                val formattedAmount = maskAmount(
+                    BudgetCalculator.formatPeso(tx.amountCentavos),
+                    state.isAmountsHidden
+                )
+                Text(
+                    text = "Remove \"${tx.title}\" ($formattedAmount) from ${tx.categoryLabel}? This updates your Safe-to-Spend balance.",
+                    style = FinanceTypography.bodyMedium
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteTransactionClick(tx)
+                        pendingDeleteTransaction = null
+                    }
+                ) {
+                    Text(
+                        text = "Delete",
+                        style = FinanceTypography.labelLarge,
+                        color = OLEDColors.accentRose
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDeleteTransaction = null }) {
+                    Text(
+                        text = "Cancel",
+                        style = FinanceTypography.labelLarge,
+                        color = OLEDColors.textSecondary
+                    )
+                }
+            }
+        )
+    }
+
+    pendingSettleLoan?.let { loan ->
+        AlertDialog(
+            onDismissRequest = { pendingSettleLoan = null },
+            containerColor = OLEDColors.bgCardElevated,
+            titleContentColor = OLEDColors.textPrimary,
+            textContentColor = OLEDColors.textSecondary,
+            title = {
+                Text(
+                    text = "Confirm Loan Payment",
+                    style = FinanceTypography.titleLarge
+                )
+            },
+            text = {
+                val nextInstallment = (loan.paidInstallments + 1).coerceAtMost(loan.totalInstallments)
+                val formattedAmount = maskAmount(
+                    BudgetCalculator.formatPeso(loan.monthlyAmortizationCentavos),
+                    state.isAmountsHidden
+                )
+                Text(
+                    text = "Mark ${loan.name} installment $nextInstallment/${loan.totalInstallments} ($formattedAmount) as paid for ${state.yearMonthLabel}?",
+                    style = FinanceTypography.bodyMedium
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onSettleLoanClick(loan)
+                        pendingSettleLoan = null
+                    }
+                ) {
+                    Text(
+                        text = "Confirm Paid",
+                        style = FinanceTypography.labelLarge,
+                        color = OLEDColors.accentEmerald
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingSettleLoan = null }) {
+                    Text(
+                        text = "Cancel",
+                        style = FinanceTypography.labelLarge,
+                        color = OLEDColors.textSecondary
+                    )
+                }
+            }
+        )
     }
 }
 
@@ -272,7 +418,7 @@ private fun BudgetTopBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 2.dp),
+            .padding(horizontal = 14.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -310,7 +456,15 @@ private fun BudgetTopBar(
                 width = 1.dp,
                 color = if (hasSoa) OLEDColors.accentSky.copy(alpha = 0.45f) else OLEDColors.borderSubtle
             ),
-            modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+            modifier = Modifier
+                .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                .semantics {
+                    contentDescription = if (hasSoa) {
+                        "View Statement of Account PDF"
+                    } else {
+                        "Attach Statement of Account PDF"
+                    }
+                }
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
@@ -324,7 +478,7 @@ private fun BudgetTopBar(
                     modifier = Modifier.size(16.dp)
                 )
                 Text(
-                    text = "SOA",
+                    text = if (hasSoa) "View SOA" else "Attach SOA",
                     style = FinanceTypography.labelLarge,
                     color = if (hasSoa) OLEDColors.accentSky else OLEDColors.textPrimary
                 )
@@ -355,23 +509,27 @@ private fun SafeToSpendHeroCard(
     } else {
         OLEDColors.accentEmerald
     }
+    val spentSegmentColor = if (state.isSafeToSpendNegative) {
+        OLEDColors.accentRose
+    } else {
+        OLEDColors.accentSky
+    }
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
+            .clip(RoundedCornerShape(20.dp))
             .background(heroBrush)
-            .clip(RoundedCornerShape(22.dp))
     ) {
         Surface(
             color = Color.Transparent,
-            shape = RoundedCornerShape(22.dp),
+            shape = RoundedCornerShape(20.dp),
             border = BorderStroke(1.dp, OLEDColors.accentSky.copy(alpha = 0.24f)),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -455,12 +613,18 @@ private fun SafeToSpendHeroCard(
                 }
 
                 // Single 3-segment progress track (Spent / Committed Loans / Safe Remaining)
+                val barDescription = if (state.isSafeToSpendNegative) {
+                    "Budget exceeded: ${state.spentPercent}% spent"
+                } else {
+                    "Budget progress: ${state.spentPercent}% spent"
+                }
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(6.dp)
                         .clip(RoundedCornerShape(6.dp))
                         .background(Color(0xFF1E293B))
+                        .semantics { contentDescription = barDescription }
                 ) {
                     Row(modifier = Modifier.fillMaxSize()) {
                         if (state.spentProgressFraction > 0f) {
@@ -468,7 +632,7 @@ private fun SafeToSpendHeroCard(
                                 modifier = Modifier
                                     .fillMaxHeight()
                                     .weight(state.spentProgressFraction.coerceIn(0.001f, 1f))
-                                    .background(OLEDColors.accentSky)
+                                    .background(spentSegmentColor)
                             )
                         }
                         if (state.committedLoansProgressFraction > 0f) {
@@ -503,7 +667,7 @@ private fun SafeToSpendHeroCard(
                     HeroMetricColumn(
                         label = "SPENT (${state.spentPercent}%)",
                         value = maskAmount(state.spentSoFarFormatted, state.isAmountsHidden),
-                        valueColor = OLEDColors.accentSky,
+                        valueColor = spentSegmentColor,
                         modifier = Modifier.weight(1f)
                     )
                     HeroMetricColumn(
@@ -733,7 +897,7 @@ private fun EnvelopeCard(
 
     Surface(
         color = OLEDColors.bgCard,
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, OLEDColors.borderSubtle),
         modifier = Modifier
             .fillMaxWidth()
@@ -758,7 +922,7 @@ private fun EnvelopeCard(
                         color = accentColor.copy(alpha = 0.16f),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
-                            .size(48.dp)
+                            .size(44.dp)
                             .semantics { contentDescription = "Change ${envelope.name} icon" }
                     ) {
                         Box(contentAlignment = Alignment.Center) {
@@ -825,6 +989,9 @@ private fun EnvelopeCard(
                         .height(6.dp)
                         .clip(RoundedCornerShape(3.dp))
                         .background(Color(0xFF1E293B))
+                        .semantics {
+                            contentDescription = "${envelope.name} spent $pct percent"
+                        }
                 ) {
                     Box(
                         modifier = Modifier
@@ -855,55 +1022,48 @@ private fun EnvelopeCard(
                 }
             }
 
-            Surface(
-                onClick = { isItemsExpanded = !isItemsExpanded },
-                color = OLEDColors.bgCardSubtle,
-                shape = RoundedCornerShape(10.dp),
-                border = BorderStroke(1.dp, OLEDColors.borderSubtle),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .defaultMinSize(minHeight = 48.dp)
-                    .semantics { contentDescription = "Toggle ${envelope.name} items" }
-            ) {
-                Row(
+            if (items.isNotEmpty()) {
+                Surface(
+                    onClick = { isItemsExpanded = !isItemsExpanded },
+                    color = OLEDColors.bgCardSubtle,
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, OLEDColors.borderSubtle),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .defaultMinSize(minHeight = 48.dp)
+                        .semantics { contentDescription = "Toggle ${envelope.name} items" }
                 ) {
-                    val itemCountLabel = when (items.size) {
-                        0 -> "No added items"
-                        1 -> "1 added item"
-                        else -> "${items.size} added items"
-                    }
-                    Text(
-                        text = itemCountLabel,
-                        style = FinanceTypography.labelLarge,
-                        color = OLEDColors.textSecondary
-                    )
-                    Icon(
-                        imageVector = if (isItemsExpanded) {
-                            Icons.Rounded.KeyboardArrowUp
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val itemCountLabel = if (items.size == 1) {
+                            "1 added item"
                         } else {
-                            Icons.Rounded.KeyboardArrowDown
-                        },
-                        contentDescription = null,
-                        tint = OLEDColors.textSecondary,
-                        modifier = Modifier.size(18.dp)
-                    )
+                            "${items.size} added items"
+                        }
+                        Text(
+                            text = itemCountLabel,
+                            style = FinanceTypography.labelLarge,
+                            color = OLEDColors.textSecondary
+                        )
+                        Icon(
+                            imageVector = if (isItemsExpanded) {
+                                Icons.Rounded.KeyboardArrowUp
+                            } else {
+                                Icons.Rounded.KeyboardArrowDown
+                            },
+                            contentDescription = null,
+                            tint = OLEDColors.textSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
-            }
 
-            if (isItemsExpanded) {
-                if (items.isEmpty()) {
-                    Text(
-                        text = "Tap + to log an item under ${envelope.name}.",
-                        style = FinanceTypography.bodyMedium,
-                        color = OLEDColors.textSecondary,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-                    )
-                } else {
+                if (isItemsExpanded) {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
@@ -1021,9 +1181,17 @@ private fun BillCard(
                 Row(
                     modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text(text = bill.iconEmoji, fontSize = 22.sp)
+                    Surface(
+                        color = OLEDColors.bgCardElevated,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(text = bill.iconEmoji, fontSize = 20.sp)
+                        }
+                    }
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = bill.name,
@@ -1122,7 +1290,7 @@ private fun LoansSummaryBanner(
 ) {
     Surface(
         color = OLEDColors.bgCard,
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, OLEDColors.accentAmber.copy(alpha = 0.3f)),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -1192,15 +1360,15 @@ private fun LoanCard(
                 Row(
                     modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Surface(
                         color = OLEDColors.accentAmber.copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.size(42.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.size(44.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Text(text = loan.iconEmoji, fontSize = 18.sp)
+                            Text(text = loan.iconEmoji, fontSize = 20.sp)
                         }
                     }
 
@@ -1288,14 +1456,15 @@ private fun LoanCard(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Surface(
-                                color = OLEDColors.accentEmerald,
-                                shape = RoundedCornerShape(10.dp)
+                                color = OLEDColors.accentEmerald.copy(alpha = 0.16f),
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, OLEDColors.accentEmerald.copy(alpha = 0.35f))
                             ) {
                                 Text(
                                     text = "✓ Paid",
-                                    style = FinanceTypography.labelLarge,
-                                    color = OLEDColors.bgBase,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
+                                    style = FinanceTypography.labelSmall,
+                                    color = OLEDColors.accentEmerald,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                 )
                             }
                             OutlinedButton(
@@ -1408,10 +1577,119 @@ private fun TransactionRowCard(
                     Icon(
                         imageVector = Icons.Rounded.DeleteOutline,
                         contentDescription = "Delete ${transaction.title}",
-                        tint = OLEDColors.accentRose
+                        tint = OLEDColors.accentRose,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ActivityFilterBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    categories: List<String>,
+    selectedCategory: String?,
+    onSelectCategory: (String?) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            singleLine = true,
+            placeholder = {
+                Text(
+                    text = "Search merchant or category",
+                    style = FinanceTypography.bodyMedium,
+                    color = OLEDColors.textTertiary
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Rounded.Search,
+                    contentDescription = null,
+                    tint = OLEDColors.textSecondary,
+                    modifier = Modifier.size(18.dp)
+                )
+            },
+            trailingIcon = if (query.isNotEmpty()) {
+                {
+                    IconButton(onClick = { onQueryChange("") }) {
+                        Icon(
+                            imageVector = Icons.Rounded.Close,
+                            contentDescription = "Clear search",
+                            tint = OLEDColors.textSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            } else {
+                null
+            },
+            textStyle = FinanceTypography.bodyMedium.copy(color = OLEDColors.textPrimary),
+            shape = RoundedCornerShape(14.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = OLEDColors.bgCard,
+                unfocusedContainerColor = OLEDColors.bgCard,
+                focusedBorderColor = OLEDColors.accentSky.copy(alpha = 0.55f),
+                unfocusedBorderColor = OLEDColors.borderSubtle,
+                cursorColor = OLEDColors.accentSky
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        if (categories.size > 1) {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                item(key = "cat_all") {
+                    ActivityCategoryChip(
+                        label = "All",
+                        selected = selectedCategory == null,
+                        onClick = { onSelectCategory(null) }
+                    )
+                }
+                items(categories, key = { "cat_$it" }) { category ->
+                    ActivityCategoryChip(
+                        label = category,
+                        selected = selectedCategory == category,
+                        onClick = {
+                            onSelectCategory(if (selectedCategory == category) null else category)
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActivityCategoryChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        color = if (selected) OLEDColors.accentSky.copy(alpha = 0.16f) else OLEDColors.bgCard,
+        shape = RoundedCornerShape(10.dp),
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (selected) OLEDColors.accentSky.copy(alpha = 0.45f) else OLEDColors.borderSubtle
+        ),
+        modifier = Modifier.defaultMinSize(minHeight = 36.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+        ) {
+            Text(
+                text = label,
+                style = FinanceTypography.labelLarge,
+                color = if (selected) OLEDColors.accentSky else OLEDColors.textSecondary
+            )
         }
     }
 }
@@ -1423,7 +1701,7 @@ private fun EmptyStateCard(
 ) {
     Surface(
         color = OLEDColors.bgCard,
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, OLEDColors.borderSubtle),
         modifier = Modifier.fillMaxWidth()
     ) {
