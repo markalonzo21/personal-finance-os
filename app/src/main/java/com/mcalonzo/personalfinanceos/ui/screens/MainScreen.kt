@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.EventRepeat
 import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.TwoWheeler
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.HorizontalDivider
@@ -55,6 +56,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mcalonzo.personalfinanceos.data.local.ThemeMode
 import com.mcalonzo.personalfinanceos.data.local.entity.CardEntity
 import com.mcalonzo.personalfinanceos.data.local.entity.RoutineBillTemplateEntity
 import com.mcalonzo.personalfinanceos.data.local.entity.RoutineEnvelopeTemplateEntity
@@ -95,6 +97,7 @@ fun MainScreen(
     state: MainUiState,
     modifier: Modifier = Modifier,
     onSelectBottomTab: (BottomTab) -> Unit = {},
+    onSelectThemeMode: (ThemeMode) -> Unit = {},
     onSelectBudgetSubTab: (BudgetSubTab) -> Unit = {},
     onSelectMonth: (YearMonth) -> Unit = {},
     onOpenExpenseSheet: () -> Unit = {},
@@ -406,6 +409,13 @@ fun MainScreen(
                         )
                     }
                 }
+
+                BottomTab.SETTINGS -> {
+                    SettingsScreen(
+                        themeMode = state.themeMode,
+                        onSelectThemeMode = onSelectThemeMode
+                    )
+                }
             }
         }
     }
@@ -642,6 +652,14 @@ private fun BottomNavigationBar(
                     selected = false,
                     showAlertDot = false,
                     onClick = onOpenRoutineSheet,
+                    modifier = Modifier.weight(1f)
+                )
+                BottomIconNavItem(
+                    icon = Icons.Rounded.Settings,
+                    label = "Settings",
+                    selected = selectedTab == BottomTab.SETTINGS,
+                    showAlertDot = false,
+                    onClick = { onSelectTab(BottomTab.SETTINGS) },
                     modifier = Modifier.weight(1f)
                 )
             }

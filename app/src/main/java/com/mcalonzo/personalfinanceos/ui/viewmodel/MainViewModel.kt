@@ -5,6 +5,9 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mcalonzo.personalfinanceos.data.local.GasWatcherConfig
+import com.mcalonzo.personalfinanceos.data.local.InMemoryThemePreferenceStore
+import com.mcalonzo.personalfinanceos.data.local.ThemeMode
+import com.mcalonzo.personalfinanceos.data.local.ThemePreferenceStore
 import com.mcalonzo.personalfinanceos.data.local.dao.MotoDao
 import com.mcalonzo.personalfinanceos.data.local.entity.BudgetCycleEntity
 import com.mcalonzo.personalfinanceos.data.local.entity.CardEntity
@@ -59,7 +62,8 @@ import kotlinx.coroutines.launch
 enum class BottomTab {
     BUDGET,
     REMINDERS,
-    MOTO
+    MOTO,
+    SETTINGS
 }
 
 enum class BudgetSubTab {
@@ -279,7 +283,8 @@ data class MainUiState(
     val motoState: MotoUiState = MotoUiState(),
     val remindersState: RemindersUiState = RemindersUiState(),
     val cards: List<CardEntity> = emptyList(),
-    val scanBatchState: ScanBatchUiState = ScanBatchUiState()
+    val scanBatchState: ScanBatchUiState = ScanBatchUiState(),
+    val themeMode: ThemeMode = ThemeMode.SYSTEM
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -291,7 +296,8 @@ class MainViewModel internal constructor(
     @ApplicationContext private val context: Context? = null,
     private val todayProvider: () -> LocalDate = { LocalDate.now(MANILA_ZONE) },
     private val undoTimeoutMs: Long = DEFAULT_UNDO_TIMEOUT_MS,
-    private val ocrImageScanner: OcrImageScanner? = null
+    private val ocrImageScanner: OcrImageScanner? = null,
+    private val themePreferenceStore: ThemePreferenceStore = InMemoryThemePreferenceStore()
 ) : ViewModel() {
 
     @Inject
@@ -300,7 +306,8 @@ class MainViewModel internal constructor(
         gasPriceRepository: GasPriceRepository,
         motoDao: MotoDao,
         @ApplicationContext context: Context,
-        ocrImageScanner: OcrImageScanner
+        ocrImageScanner: OcrImageScanner,
+        themePreferenceStore: ThemePreferenceStore
     ) : this(
         budgetRepository = budgetRepository,
         gasPriceRepository = gasPriceRepository,
@@ -308,7 +315,8 @@ class MainViewModel internal constructor(
         context = context,
         todayProvider = { LocalDate.now(MANILA_ZONE) },
         undoTimeoutMs = DEFAULT_UNDO_TIMEOUT_MS,
-        ocrImageScanner = ocrImageScanner
+        ocrImageScanner = ocrImageScanner,
+        themePreferenceStore = themePreferenceStore
     )
 
     internal constructor(
@@ -437,11 +445,12 @@ class MainViewModel internal constructor(
         Triple(overview, allCycles, routineState)
     }
 
-    private val scanAndCardsFlow: Flow<Pair<List<CardEntity>, ScanBatchUiState>> = combine(
+    private val scanAndCardsFlow: Flow<Triple<List<CardEntity>, ScanBatchUiState, ThemeMode>> = combine(
         budgetRepository.observeCards(),
-        scanBatchState
-    ) { cards, batch ->
-        cards to batch
+        scanBatchState,
+        themePreferenceStore.observeThemeMode()
+    ) { cards, batch, themeMode ->
+        Triple(cards, batch, themeMode)
     }
 
     val uiState: StateFlow<MainUiState> = combine(
@@ -452,7 +461,7 @@ class MainViewModel internal constructor(
         scanAndCardsFlow
     ) { budgetData, chrome, motoState, remindersState, scanAndCards ->
         val (overview, allCycles, routineState) = budgetData
-        val (cards, batchState) = scanAndCards
+        val (cards, batchState, themeMode) = scanAndCards
         val today = todayProvider()
         val budgetUi = if (overview != null) {
             mapOverviewToUi(
@@ -482,7 +491,8 @@ class MainViewModel internal constructor(
             motoState = motoState,
             remindersState = remindersState,
             cards = cards,
-            scanBatchState = batchState
+            scanBatchState = batchState,
+            themeMode = themeMode
         )
     }.stateIn(
         scope = viewModelScope,
@@ -507,6 +517,10 @@ class MainViewModel internal constructor(
 
     fun switchBottomTab(tab: BottomTab) {
         selectedBottomTab.value = tab
+    }
+
+    fun selectThemeMode(mode: ThemeMode) {
+        themePreferenceStore.setThemeMode(mode)
     }
 
     fun switchBudgetSubTab(subTab: BudgetSubTab) {
