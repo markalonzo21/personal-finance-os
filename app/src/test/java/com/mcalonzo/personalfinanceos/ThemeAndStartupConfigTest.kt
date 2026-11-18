@@ -15,6 +15,7 @@ import androidx.work.WorkManager
 import androidx.work.testing.SynchronousExecutor
 import androidx.work.testing.WorkManagerTestInitHelper
 import com.google.common.truth.Truth.assertThat
+import com.mcalonzo.personalfinanceos.data.local.ThemeMode
 import com.mcalonzo.personalfinanceos.ui.theme.DarkOLEDColors
 import com.mcalonzo.personalfinanceos.ui.theme.FinanceTheme
 import com.mcalonzo.personalfinanceos.ui.theme.FinanceTypography
@@ -145,5 +146,15 @@ class ThemeAndStartupConfigTest {
         assertThat(lightColorsBg).isEqualTo(Color(0xFFF7F6F2))
         assertThat(lightColorsText).isEqualTo(Color(0xFF1C1917))
         assertThat(lightMaterialBg).isEqualTo(Color(0xFFF7F6F2))
+    }
+
+    @Test
+    fun `resolveDarkTheme handles all ThemeMode and system appearance combinations`() {
+        assertThat(resolveDarkTheme(ThemeMode.SYSTEM, systemInDarkTheme = true)).isTrue()
+        assertThat(resolveDarkTheme(ThemeMode.SYSTEM, systemInDarkTheme = false)).isFalse()
+        assertThat(resolveDarkTheme(ThemeMode.LIGHT, systemInDarkTheme = true)).isFalse()
+        assertThat(resolveDarkTheme(ThemeMode.LIGHT, systemInDarkTheme = false)).isFalse()
+        assertThat(resolveDarkTheme(ThemeMode.DARK, systemInDarkTheme = true)).isTrue()
+        assertThat(resolveDarkTheme(ThemeMode.DARK, systemInDarkTheme = false)).isTrue()
     }
 }
