@@ -132,6 +132,8 @@ class MainActivity : ComponentActivity() {
                     onLogFullTank = viewModel::logClick160FullTank,
                     onRefreshGas = viewModel::triggerManualGasSync,
                     onOverridePrice = viewModel::overrideGasPrice,
+                    onLoadGasStationsForLocation = viewModel::loadGasStationsForLocation,
+                    onUpdateGasWatcherConfig = viewModel::updateGasWatcherConfig,
                     onSavePms = viewModel::addPmsInterval,
                     onLogPmsService = viewModel::logPmsService,
                     onUpdatePms = viewModel::updatePmsInterval,

@@ -63,7 +63,7 @@ class GasPriceRepositoryTest {
                     .code(200)
                     .message("OK")
                     .body(
-                        """<script>{"id":621,"name":"Petron Commonwealth Ave Fairview","prices":{"premium95":79.25}}</script>"""
+                        """<script>{"id":874,"name":"Petron Commonwealth Ave","prices":{"premium95":79.25}}</script>"""
                             .toResponseBody("text/html".toMediaType())
                     )
                     .build()
@@ -79,9 +79,9 @@ class GasPriceRepositoryTest {
         assertThat(userAgent).contains("Mozilla/5.0")
 
         val saved = repo.observeLatestPrice().first()!!
-        assertThat(saved.stationId).isEqualTo(621)
-        assertThat(saved.stationDisplayName).isEqualTo("Petron Fairview")
-        assertThat(saved.stationDisplayName).doesNotContain("Commonwealth")
+        assertThat(saved.stationId).isEqualTo(874)
+        assertThat(saved.stationDisplayName).isEqualTo("Petron Commonwealth D.A")
+        assertThat(saved.stationDisplayName).doesNotContain("Ave")
         assertThat(saved.stationDisplayName).doesNotContain("gaswatchph")
         assertThat(saved.fuelType).isEqualTo("Premium 95")
         assertThat(saved.pricePerLiterCentavos).isEqualTo(7925L)
@@ -100,7 +100,7 @@ class GasPriceRepositoryTest {
                     .code(200)
                     .message("OK")
                     .body(
-                        """<script>{"id":621,"name":"Petron Commonwealth Ave Fairview","prices":{"premium95":78.4}}</script>"""
+                        """<script>{"id":874,"name":"Petron Commonwealth Ave","prices":{"premium95":78.4}}</script>"""
                             .toResponseBody("text/html".toMediaType())
                     )
                     .build()
@@ -183,7 +183,7 @@ class GasPriceRepositoryTest {
                         .code(200)
                         .message("OK")
                         .body(
-                            """<script>{"id":621,"name":"Petron Commonwealth Ave Fairview","prices":{"premium95":78.4}}</script>"""
+                            """<script>{"id":874,"name":"Petron Commonwealth Ave","prices":{"premium95":78.4}}</script>"""
                                 .toResponseBody("text/html".toMediaType())
                         )
                         .build()
@@ -198,7 +198,7 @@ class GasPriceRepositoryTest {
             assertThat(saved.pricePerLiterCentavos).isEqualTo(7840L)
             assertThat(saved.previousPricePerLiterCentavos).isNull()
             assertThat(saved.diffCentavos).isEqualTo(0L)
-            assertThat(saved.stationDisplayName).isEqualTo("Petron Fairview")
+            assertThat(saved.stationDisplayName).isEqualTo("Petron Commonwealth D.A")
         } finally {
             emptyDb.close()
         }
@@ -214,7 +214,7 @@ class GasPriceRepositoryTest {
                     .code(200)
                     .message("OK")
                     .body(
-                        """<script>{"id":621,"name":"Petron Commonwealth Ave Fairview","prices":{"premium95":80.5}}</script>"""
+                        """<script>{"id":874,"name":"Petron Commonwealth Ave","prices":{"premium95":80.5}}</script>"""
                             .toResponseBody("text/html".toMediaType())
                     )
                     .build()
@@ -256,7 +256,7 @@ class GasPriceRepositoryTest {
                     .code(200)
                     .message("OK")
                     .body(
-                        """<script>{"id":621,"name":"Petron Commonwealth Ave Fairview","prices":{"premium95":79.25}}</script>"""
+                        """<script>{"id":874,"name":"Petron Commonwealth Ave","prices":{"premium95":79.25}}</script>"""
                             .toResponseBody("text/html".toMediaType())
                     )
                     .build()
@@ -288,7 +288,7 @@ class GasPriceRepositoryTest {
                     .code(200)
                     .message("OK")
                     .body(
-                        """<script>{"id":621,"name":"Petron Commonwealth Ave Fairview","prices":{"premium95":79.25}}</script>"""
+                        """<script>{"id":874,"name":"Petron Commonwealth Ave","prices":{"premium95":79.25}}</script>"""
                             .toResponseBody("text/html".toMediaType())
                     )
                     .build()
@@ -347,5 +347,53 @@ class GasPriceRepositoryTest {
         val seeded = history[2]
         assertThat(seeded.pricePerLiterCentavos).isEqualTo(7840L)
         assertThat(seeded.diffCentavos).isEqualTo(45L)
+    }
+
+    @Test
+    fun `fetchStationsForLocation and updateWatcherConfig switch location, branch, and fuel type`() = runTest {
+        var lastRequestedUrl: String? = null
+        val client = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                lastRequestedUrl = chain.request().url.toString()
+                Response.Builder()
+                    .request(chain.request())
+                    .protocol(Protocol.HTTP_1_1)
+                    .code(200)
+                    .message("OK")
+                    .body(
+                        """
+                        <script>
+                          [{"id": 901, "brand": "shell", "name": "Shell Ayala Ave", "prices": {"unleaded": 69.8, "premium95": 75.5, "diesel": 62.4}}]
+                        </script>
+                        """.trimIndent().toResponseBody("text/html".toMediaType())
+                    )
+                    .build()
+            }
+            .build()
+
+        val repo = GasPriceRepository(db.motoDao(), client)
+        val stationsResult = repo.fetchStationsForLocation("makati")
+        assertThat(stationsResult.isSuccess).isTrue()
+        assertThat(lastRequestedUrl).isEqualTo("https://gaswatchph.com/makati")
+        val stations = stationsResult.getOrThrow()
+        assertThat(stations).hasSize(1)
+        assertThat(stations.first().stationId).isEqualTo(901)
+
+        val updateResult = repo.updateWatcherConfig(
+            com.mcalonzo.personalfinanceos.data.local.GasWatcherConfig(
+                locationSlug = "makati",
+                locationDisplayName = "Makati",
+                stationId = 901,
+                stationDisplayName = "Shell Ayala Ave",
+                fuelKey = "unleaded",
+                fuelDisplayName = "Unleaded"
+            )
+        )
+        assertThat(updateResult.isSuccess).isTrue()
+        val saved = repo.observeLatestPrice().first()!!
+        assertThat(saved.stationId).isEqualTo(901)
+        assertThat(saved.stationDisplayName).isEqualTo("Shell Ayala Ave")
+        assertThat(saved.fuelType).isEqualTo("Unleaded")
+        assertThat(saved.pricePerLiterCentavos).isEqualTo(6980L)
     }
 }

@@ -3,7 +3,9 @@ package com.mcalonzo.personalfinanceos.di
 import android.content.Context
 import androidx.room.Room
 import com.mcalonzo.personalfinanceos.data.local.AppDatabase
+import com.mcalonzo.personalfinanceos.data.local.GasWatcherConfigStore
 import com.mcalonzo.personalfinanceos.data.local.SeedDatabaseCallback
+import com.mcalonzo.personalfinanceos.data.local.SharedPreferencesGasWatcherConfigStore
 import com.mcalonzo.personalfinanceos.data.local.dao.BudgetDao
 import com.mcalonzo.personalfinanceos.data.local.dao.MotoDao
 import com.mcalonzo.personalfinanceos.data.local.dao.ObligationDao
@@ -53,6 +55,12 @@ object AppModule {
 
     @Provides
     fun provideScanDao(db: AppDatabase): ScanDao = db.scanDao()
+
+    @Provides
+    @Singleton
+    fun provideGasWatcherConfigStore(
+        store: SharedPreferencesGasWatcherConfigStore
+    ): GasWatcherConfigStore = store
 
     @Provides
     @Singleton

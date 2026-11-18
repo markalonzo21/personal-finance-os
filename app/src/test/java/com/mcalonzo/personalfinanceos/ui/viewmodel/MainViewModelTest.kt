@@ -271,12 +271,12 @@ class MainViewModelTest {
     }
 
     @Test
-    fun `moto care state loads Honda Click 160 profile, seeded Petron Fairview price, and PMS intervals`() = runTest(testDispatcher.scheduler) {
+    fun `moto care state loads Honda Click 160 profile, seeded Petron Commonwealth D A price, and PMS intervals`() = runTest(testDispatcher.scheduler) {
         val state = pumpUntil { !it.isLoading && it.motoState.pmsItems.isNotEmpty() }
 
         assertThat(state.motoState.modelName).isEqualTo("Honda Click 160")
         assertThat(state.motoState.odometerKm).isEqualTo(8450)
-        assertThat(state.motoState.stationDisplayName).isEqualTo("Petron Fairview")
+        assertThat(state.motoState.stationDisplayName).isEqualTo("Petron Commonwealth D.A")
         assertThat(state.motoState.fuelType).isEqualTo("Premium 95")
         assertThat(state.motoState.pricePerLiterFormatted).isEqualTo("₱78.40")
         assertThat(state.motoState.fullTankCostFormatted).isEqualTo("₱431.20")

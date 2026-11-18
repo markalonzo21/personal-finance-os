@@ -1,6 +1,6 @@
 # Personal Finance OS
 
-Offline-first native Android daily-driver app for Philippine Peso (`₱`) monthly budgeting, recurring bill and loan due-date notifications, SOA PDF archival, and Honda Click 160 maintenance with an automated Saturday noon Petron Fairview fuel price watcher.
+Offline-first native Android daily-driver app for Philippine Peso (`₱`) monthly budgeting, recurring bill and loan due-date notifications, SOA PDF archival, and Honda Click 160 maintenance with an automated Saturday noon Petron Commonwealth D.A fuel price watcher.
 
 ## Architecture & Tech Stack
 

@@ -6,12 +6,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -46,12 +49,12 @@ class MotoAndRemindersScreenTest {
     val rule = createComposeRule()
 
     @Test
-    fun `moto care displays Honda Click 160, Petron Fairview without address or source, and weekly trend diff`() {
+    fun `moto care displays Honda Click 160, Petron Commonwealth D A without address or source, and weekly trend diff`() {
         val motoState = MotoUiState(
             modelName = "Honda Click 160",
             odometerKm = 8450,
             tankCapacityLiters = 5.5,
-            stationDisplayName = "Petron Fairview",
+            stationDisplayName = "Petron Commonwealth D.A",
             fuelType = "Premium 95",
             pricePerLiterFormatted = "₱78.40",
             prevPriceFormatted = "Prev: ₱77.95/L (+₱0.45)",
@@ -73,7 +76,7 @@ class MotoAndRemindersScreenTest {
             }
         }
         rule.onNodeWithText("Honda Click 160").assertIsDisplayed()
-        rule.onNodeWithText("Petron Fairview").assertIsDisplayed()
+        rule.onNodeWithText("Petron Commonwealth D.A").assertIsDisplayed()
         rule.onNodeWithText("Premium 95").assertIsDisplayed()
         rule.onNodeWithText("▲ +₱0.45").assertIsDisplayed()
         rule.onNodeWithText("₱431.20").assertIsDisplayed()
@@ -128,6 +131,79 @@ class MotoAndRemindersScreenTest {
         rule.onNode(hasSetTextAction()).performTextReplacement("8600")
         rule.onNodeWithText("Save").performClick()
         assertThat(updatedOdo).isEqualTo(8600)
+    }
+
+    @Test
+    fun `moto care tapping station opens gas watcher settings and saves location, branch, and gas type`() {
+        var loadedLocation: String? = null
+        var savedSelection: List<Any>? = null
+        val stations = listOf(
+            com.mcalonzo.personalfinanceos.data.remote.ParsedGasStation(
+                stationId = 901,
+                brand = "shell",
+                stationName = "Shell Ayala Ave",
+                pricesCentavos = mapOf(
+                    com.mcalonzo.personalfinanceos.data.remote.GasFuelType.UNLEADED to 6980L,
+                    com.mcalonzo.personalfinanceos.data.remote.GasFuelType.PREMIUM_95 to 7550L
+                )
+            )
+        )
+        val motoState = MotoUiState(
+            stationDisplayName = "Petron Commonwealth D.A",
+            fuelType = "Premium 95",
+            watcherPickerState = com.mcalonzo.personalfinanceos.ui.viewmodel.GasWatcherPickerUiState(
+                selectedLocationSlug = "quezon-city",
+                stations = stations
+            )
+        )
+        rule.setContent {
+            PersonalFinanceTheme {
+                MotoCareScreen(
+                    state = motoState,
+                    onLoadGasStationsForLocation = { loadedLocation = it },
+                    onUpdateGasWatcherConfig = { locSlug, locName, id, name, fuelKey, fuelName ->
+                        savedSelection = listOf(locSlug, locName, id, name, fuelKey, fuelName)
+                    }
+                )
+            }
+        }
+        rule.onNodeWithText("Petron Commonwealth D.A").performClick()
+        assertThat(loadedLocation).isEqualTo("quezon-city")
+        rule.onNodeWithText("Gas Watcher Settings").assertIsDisplayed()
+        rule.onAllNodesWithText("Shell Ayala Ave")[0].performClick()
+        rule.onNodeWithText("Unleaded (₱69.80)").performScrollTo().performClick()
+        rule.onNodeWithText("Save").performClick()
+        assertThat(savedSelection).containsExactly(
+            "quezon-city",
+            "Quezon City",
+            901,
+            "Shell Ayala Ave",
+            "unleaded",
+            "Unleaded"
+        ).inOrder()
+    }
+
+    @Test
+    fun `gas watcher settings disables Save after switching location until new branch is loaded`() {
+        val motoState = MotoUiState(
+            locationSlug = "quezon-city",
+            locationDisplayName = "Quezon City",
+            stationId = 874,
+            stationDisplayName = "Petron Commonwealth D.A",
+            watcherPickerState = com.mcalonzo.personalfinanceos.ui.viewmodel.GasWatcherPickerUiState(
+                isLoadingStations = false,
+                selectedLocationSlug = "quezon-city"
+            )
+        )
+        rule.setContent {
+            PersonalFinanceTheme {
+                MotoCareScreen(state = motoState)
+            }
+        }
+        rule.onNodeWithText("Petron Commonwealth D.A").performClick()
+        rule.onNodeWithText("Save").assertIsEnabled()
+        rule.onNodeWithText("Makati").performClick()
+        rule.onNodeWithText("Save").assertIsNotEnabled()
     }
 
     @Test
