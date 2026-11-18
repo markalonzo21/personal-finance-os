@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -1192,7 +1193,8 @@ fun MonthPickerSheet(
 @Composable
 fun EditTransactionSheet(
     transaction: TransactionItemUi,
-    onSaveEdit: (transactionId: Long, title: String, amountCentavos: Long) -> Unit,
+    envelopes: List<EnvelopeItemUi> = emptyList(),
+    onSaveEdit: (transactionId: Long, title: String, amountCentavos: Long, newEnvelopeId: Long?) -> Unit,
     onDelete: (transactionId: Long) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -1201,6 +1203,7 @@ fun EditTransactionSheet(
     var amountText by remember(transaction.id) {
         mutableStateOf(CurrencyFormatters.formatCentavosForInput(transaction.amountCentavos))
     }
+    var selectedEnvelopeId by remember(transaction.id) { mutableStateOf(transaction.envelopeId) }
     var validationError by remember { mutableStateOf<String?>(null) }
 
     ModalBottomSheet(
@@ -1263,6 +1266,51 @@ fun EditTransactionSheet(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            if (envelopes.isNotEmpty() && transaction.envelopeId != null) {
+                Text(
+                    text = "MOVE TO ENVELOPE",
+                    style = FinanceTypography.labelMedium,
+                    color = OLEDColors.textSecondary
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    envelopes.forEach { envelope ->
+                        val isSelected = selectedEnvelopeId == envelope.id
+                        Surface(
+                            onClick = { selectedEnvelopeId = envelope.id },
+                            color = if (isSelected) {
+                                OLEDColors.accentSky.copy(alpha = 0.16f)
+                            } else {
+                                OLEDColors.bgCardElevated
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(
+                                width = if (isSelected) 1.5.dp else 1.dp,
+                                color = if (isSelected) OLEDColors.accentSky else OLEDColors.borderSubtle
+                            ),
+                            modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(text = envelope.iconEmoji)
+                                Text(
+                                    text = envelope.name,
+                                    style = FinanceTypography.labelLarge,
+                                    color = if (isSelected) OLEDColors.accentSky else OLEDColors.textPrimary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             if (validationError != null) {
                 Text(
                     text = validationError!!,
@@ -1313,7 +1361,7 @@ fun EditTransactionSheet(
                             validationError = "Amount must be greater than ₱0."
                             return@Button
                         }
-                        onSaveEdit(transaction.id, trimmed, amountCentavos)
+                        onSaveEdit(transaction.id, trimmed, amountCentavos, selectedEnvelopeId)
                         onDismiss()
                     },
                     colors = ButtonDefaults.buttonColors(

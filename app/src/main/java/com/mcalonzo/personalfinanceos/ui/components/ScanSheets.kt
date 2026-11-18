@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.CreditCard
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.PictureAsPdf
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -36,9 +37,11 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -458,12 +461,17 @@ fun ScanReviewSheet(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { it != SheetValue.Hidden }
+    )
+    var showDiscardConfirm by remember { mutableStateOf(false) }
     val selectedCount = scanBatchState.drafts.count { it.isSelected && it.amountCentavos > 0L }
 
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { showDiscardConfirm = true },
         sheetState = sheetState,
+        properties = ModalBottomSheetProperties(shouldDismissOnBackPress = false),
         containerColor = OLEDColors.bgCard,
         contentColor = OLEDColors.textPrimary
     ) {
@@ -480,7 +488,7 @@ fun ScanReviewSheet(
             ScanSheetHeader(
                 title = "Review Scanned Expenses",
                 closeDescription = "Close scan review",
-                onDismiss = onDismiss
+                onDismiss = { showDiscardConfirm = true }
             )
 
             if (scanBatchState.isScanning) {
@@ -620,6 +628,54 @@ fun ScanReviewSheet(
                 )
             }
         }
+    }
+
+    if (showDiscardConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDiscardConfirm = false },
+            containerColor = OLEDColors.bgCard,
+            titleContentColor = OLEDColors.textPrimary,
+            textContentColor = OLEDColors.textSecondary,
+            title = {
+                Text(
+                    text = "Discard Scanned Items?",
+                    style = FinanceTypography.titleMedium
+                )
+            },
+            text = {
+                Text(
+                    text = "Closing will discard this scan batch without logging any expenses.",
+                    style = FinanceTypography.bodyMedium
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDiscardConfirm = false
+                        onDismiss()
+                    },
+                    modifier = Modifier.defaultMinSize(minHeight = 48.dp)
+                ) {
+                    Text(
+                        text = "Discard",
+                        style = FinanceTypography.labelLarge,
+                        color = OLEDColors.accentRose
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDiscardConfirm = false },
+                    modifier = Modifier.defaultMinSize(minHeight = 48.dp)
+                ) {
+                    Text(
+                        text = "Keep Editing",
+                        style = FinanceTypography.labelLarge,
+                        color = OLEDColors.accentSky
+                    )
+                }
+            }
+        )
     }
 }
 

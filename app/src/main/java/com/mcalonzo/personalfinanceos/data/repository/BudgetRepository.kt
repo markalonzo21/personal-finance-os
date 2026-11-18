@@ -473,18 +473,29 @@ class BudgetRepository(
                     paidAtEpochMs = paidAtMs
                 )
             )
+            val cycleEnvelopes = budgetDao.getEnvelopesForCycleOnce(bill.cycleId)
+            val utilitiesEnvelope = cycleEnvelopes.firstOrNull {
+                it.name.equals("Utilities", ignoreCase = true) ||
+                    it.name.equals("Utilities & Net", ignoreCase = true)
+            } ?: cycleEnvelopes.firstOrNull {
+                it.name.contains("utilities", ignoreCase = true)
+            }
+
             val txId = budgetDao.insertTransaction(
                 TransactionEntity(
                     cycleId = bill.cycleId,
-                    envelopeId = null,
+                    envelopeId = utilitiesEnvelope?.id,
                     billId = bill.id,
                     loanId = null,
                     title = bill.name,
-                    categoryLabel = "Bills",
+                    categoryLabel = utilitiesEnvelope?.name ?: "Bills",
                     amountCentavos = paidAmount,
                     timestampEpochMs = paidAtMs
                 )
             )
+            if (utilitiesEnvelope != null) {
+                budgetDao.incrementEnvelopeSpent(utilitiesEnvelope.id, paidAmount)
+            }
 
             UndoAction.BillSettled(
                 transactionId = txId,
@@ -559,7 +570,7 @@ class BudgetRepository(
     suspend fun undoAction(action: UndoAction) {
         db.withTransaction {
             // Guard against double-tap undo or concurrent activity deletion.
-            budgetDao.getTransactionById(action.transactionId) ?: return@withTransaction
+            val existingTx = budgetDao.getTransactionById(action.transactionId) ?: return@withTransaction
             budgetDao.deleteTransactionById(action.transactionId)
 
             when (action) {
@@ -569,6 +580,9 @@ class BudgetRepository(
                     }
                 }
                 is UndoAction.BillSettled -> {
+                    if (existingTx.envelopeId != null) {
+                        budgetDao.incrementEnvelopeSpent(existingTx.envelopeId, -existingTx.amountCentavos)
+                    }
                     obligationDao.getBillById(action.billId)?.let { bill ->
                         obligationDao.updateBill(
                             bill.copy(
@@ -598,7 +612,8 @@ class BudgetRepository(
     suspend fun updateTransaction(
         transactionId: Long,
         title: String,
-        amountCentavos: Long
+        amountCentavos: Long,
+        newEnvelopeId: Long? = null
     ) {
         require(amountCentavos > 0L) { "Amount must be greater than zero" }
         val trimmedTitle = title.trim()
@@ -606,15 +621,36 @@ class BudgetRepository(
 
         db.withTransaction {
             val existing = budgetDao.getTransactionById(transactionId) ?: return@withTransaction
-            val deltaCentavos = amountCentavos - existing.amountCentavos
+            val targetEnvelopeId = newEnvelopeId ?: existing.envelopeId
+            val isMovingEnvelope =
+                targetEnvelopeId != null && targetEnvelopeId != existing.envelopeId
+
+            val targetCategoryLabel = if (isMovingEnvelope) {
+                val targetEnvelope = budgetDao.getEnvelopeById(targetEnvelopeId!!)
+                    ?: throw IllegalArgumentException("Target envelope $targetEnvelopeId not found")
+                require(targetEnvelope.cycleId == existing.cycleId) {
+                    "Target envelope must belong to the same budget cycle"
+                }
+                if (existing.envelopeId != null) {
+                    budgetDao.incrementEnvelopeSpent(existing.envelopeId, -existing.amountCentavos)
+                }
+                budgetDao.incrementEnvelopeSpent(targetEnvelope.id, amountCentavos)
+                targetEnvelope.name
+            } else {
+                val deltaCentavos = amountCentavos - existing.amountCentavos
+                if (existing.envelopeId != null && deltaCentavos != 0L) {
+                    budgetDao.incrementEnvelopeSpent(existing.envelopeId, deltaCentavos)
+                }
+                existing.categoryLabel
+            }
+
             budgetDao.updateTransaction(
                 transactionId = existing.id,
                 title = trimmedTitle,
-                amountCentavos = amountCentavos
+                amountCentavos = amountCentavos,
+                envelopeId = targetEnvelopeId,
+                categoryLabel = targetCategoryLabel
             )
-            if (existing.envelopeId != null && deltaCentavos != 0L) {
-                budgetDao.incrementEnvelopeSpent(existing.envelopeId, deltaCentavos)
-            }
         }
     }
 
@@ -622,21 +658,20 @@ class BudgetRepository(
         db.withTransaction {
             val tx = budgetDao.getTransactionById(transactionId) ?: return@withTransaction
 
-            when {
-                tx.envelopeId != null -> {
-                    budgetDao.incrementEnvelopeSpent(tx.envelopeId, -tx.amountCentavos)
-                }
-                tx.billId != null -> {
-                    obligationDao.getBillById(tx.billId)?.let { bill ->
-                        obligationDao.updateBill(
-                            bill.copy(
-                                isPaid = false,
-                                paidAtEpochMs = null
-                            )
+            if (tx.envelopeId != null) {
+                budgetDao.incrementEnvelopeSpent(tx.envelopeId, -tx.amountCentavos)
+            }
+            if (tx.billId != null) {
+                obligationDao.getBillById(tx.billId)?.let { bill ->
+                    obligationDao.updateBill(
+                        bill.copy(
+                            isPaid = false,
+                            paidAtEpochMs = null
                         )
-                    }
+                    )
                 }
-                tx.loanId != null -> {
+            }
+            if (tx.loanId != null) {
                     obligationDao.getLoanById(tx.loanId)?.let { loan ->
                         val revertedPaid = (loan.paidInstallments - 1).coerceAtLeast(0)
                         val revertedNextDue = YearMonth.parse(loan.nextDueYearMonth)
@@ -659,7 +694,6 @@ class BudgetRepository(
                                 isActive = revertedPaid < loan.totalInstallments
                             )
                         )
-                    }
                 }
             }
 
