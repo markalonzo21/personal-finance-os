@@ -854,4 +854,24 @@ class BudgetRepositoryTest {
         assertThat(db.budgetDao().getEnvelopeById(groceries.id)!!.spentCentavos).isEqualTo(0L)
         assertThat(db.budgetDao().getEnvelopeById(targetEnvelope.id)!!.spentCentavos).isEqualTo(65_000L)
     }
+
+    @Test
+    fun `settleBill logs transaction to utilities envelope and reverts both on delete`() = runTest {
+        val cycleId = rolloverUseCase(YearMonth.of(2026, 11))
+        val utilities = db.budgetDao().getEnvelopesForCycleOnce(cycleId)
+            .first { it.name.contains("Utilities", ignoreCase = true) }
+        val meralco = db.obligationDao().getBillsForCycleOnce(cycleId).first { it.name == "Meralco" }
+
+        val undo = repo.settleBill(meralco.id, overrideAmountCentavos = 350_000L)
+
+        val loggedTx = db.budgetDao().getTransactionById(undo.transactionId)!!
+        assertThat(loggedTx.billId).isEqualTo(meralco.id)
+        assertThat(loggedTx.envelopeId).isEqualTo(utilities.id)
+        assertThat(loggedTx.categoryLabel).isEqualTo(utilities.name)
+        assertThat(db.budgetDao().getEnvelopeById(utilities.id)!!.spentCentavos).isEqualTo(350_000L)
+
+        repo.deleteTransactionAndRevert(loggedTx.id)
+        assertThat(db.budgetDao().getEnvelopeById(utilities.id)!!.spentCentavos).isEqualTo(0L)
+        assertThat(db.obligationDao().getBillById(meralco.id)!!.isPaid).isFalse()
+    }
 }
