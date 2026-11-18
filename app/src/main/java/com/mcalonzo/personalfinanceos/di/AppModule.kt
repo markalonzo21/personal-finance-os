@@ -6,6 +6,8 @@ import com.mcalonzo.personalfinanceos.data.local.AppDatabase
 import com.mcalonzo.personalfinanceos.data.local.GasWatcherConfigStore
 import com.mcalonzo.personalfinanceos.data.local.SeedDatabaseCallback
 import com.mcalonzo.personalfinanceos.data.local.SharedPreferencesGasWatcherConfigStore
+import com.mcalonzo.personalfinanceos.data.local.SharedPreferencesThemePreferenceStore
+import com.mcalonzo.personalfinanceos.data.local.ThemePreferenceStore
 import com.mcalonzo.personalfinanceos.data.local.dao.BudgetDao
 import com.mcalonzo.personalfinanceos.data.local.dao.MotoDao
 import com.mcalonzo.personalfinanceos.data.local.dao.ObligationDao
@@ -61,6 +63,12 @@ object AppModule {
     fun provideGasWatcherConfigStore(
         store: SharedPreferencesGasWatcherConfigStore
     ): GasWatcherConfigStore = store
+
+    @Provides
+    @Singleton
+    fun provideThemePreferenceStore(
+        store: SharedPreferencesThemePreferenceStore
+    ): ThemePreferenceStore = store
 
     @Provides
     @Singleton
