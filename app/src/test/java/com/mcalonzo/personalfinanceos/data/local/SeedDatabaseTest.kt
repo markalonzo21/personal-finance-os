@@ -16,7 +16,7 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class SeedDatabaseTest {
     @Test
-    fun `fresh database seeds routine, gas envelope tag, click 160 profile, and petron fairview baseline`() = runTest {
+    fun `fresh database seeds routine, gas envelope tag, click 160 profile, and petron commonwealth baseline`() = runTest {
         val expectedYearMonth = YearMonth.now(ZoneId.of("Asia/Manila")).toString()
         lateinit var db: AppDatabase
         db = Room.inMemoryDatabaseBuilder(
@@ -48,8 +48,8 @@ class SeedDatabaseTest {
         assertThat(moto?.currentOdometerKm).isEqualTo(8450)
         assertThat(moto?.tankCapacityLiters).isEqualTo(5.5)
         assertThat(pmsIntervals).hasSize(3)
-        assertThat(latestGas?.stationId).isEqualTo(621)
-        assertThat(latestGas?.stationDisplayName).isEqualTo("Petron Fairview")
+        assertThat(latestGas?.stationId).isEqualTo(874)
+        assertThat(latestGas?.stationDisplayName).isEqualTo("Petron Commonwealth D.A")
         assertThat(latestGas?.fuelType).isEqualTo("Premium 95")
         assertThat(latestGas?.pricePerLiterCentavos).isEqualTo(7840L)
         assertThat(latestGas?.previousPricePerLiterCentavos).isEqualTo(7795L)

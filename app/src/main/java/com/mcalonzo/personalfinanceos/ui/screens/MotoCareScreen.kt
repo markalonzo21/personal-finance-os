@@ -59,6 +59,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mcalonzo.personalfinanceos.ui.components.CurrencyFormatters
+import com.mcalonzo.personalfinanceos.ui.components.GasWatcherConfigDialog
 import com.mcalonzo.personalfinanceos.ui.theme.FinanceTypography
 import com.mcalonzo.personalfinanceos.ui.theme.NumericTextStyles
 import com.mcalonzo.personalfinanceos.ui.theme.OLEDColors
@@ -76,6 +77,15 @@ fun MotoCareScreen(
     onRefreshGas: () -> Unit = {},
     onEditOdometer: (Int) -> Unit = {},
     onOverridePrice: (Long) -> Unit = {},
+    onLoadGasStationsForLocation: (String) -> Unit = {},
+    onUpdateGasWatcherConfig: (
+        locationSlug: String,
+        locationDisplayName: String,
+        stationId: Int,
+        stationDisplayName: String,
+        fuelKey: String,
+        fuelDisplayName: String
+    ) -> Unit = { _, _, _, _, _, _ -> },
     onAddPms: () -> Unit = {},
     onSavePms: (taskName: String, iconEmoji: String, intervalKm: Int, lastServiceKm: Int, costCentavos: Long) -> Unit = { _, _, _, _, _ -> },
     onSavePmsWithEnvelope: (taskName: String, iconEmoji: String, intervalKm: Int, lastServiceKm: Int, costCentavos: Long, envelopeId: Long?) -> Unit = { taskName, icon, interval, lastKm, cost, _ ->
@@ -90,6 +100,7 @@ fun MotoCareScreen(
 ) {
     var showOdometerDialog by remember { mutableStateOf(false) }
     var showOverridePriceDialog by remember { mutableStateOf(false) }
+    var showGasWatcherConfigDialog by remember { mutableStateOf(false) }
     var showAddPmsDialog by remember { mutableStateOf(false) }
     var editingPmsItem by remember { mutableStateOf<PmsItemUi?>(null) }
     var servicingPmsItem by remember { mutableStateOf<PmsItemUi?>(null) }
@@ -145,7 +156,11 @@ fun MotoCareScreen(
                         state = state,
                         onLogFullTank = onLogFullTank,
                         onRefreshGas = onRefreshGas,
-                        onTapPrice = { showOverridePriceDialog = true }
+                        onTapPrice = { showOverridePriceDialog = true },
+                        onConfigureWatcher = {
+                            showGasWatcherConfigDialog = true
+                            onLoadGasStationsForLocation(state.locationSlug)
+                        }
                     )
                 }
 
@@ -243,11 +258,26 @@ fun MotoCareScreen(
 
     if (showOverridePriceDialog) {
         OverrideGasPriceDialog(
+            stationDisplayName = state.stationDisplayName,
+            fuelType = state.fuelType,
             currentPriceCentavos = state.pricePerLiterCentavos,
             onDismiss = { showOverridePriceDialog = false },
             onConfirm = { newCentavos ->
                 onOverridePrice(newCentavos)
                 showOverridePriceDialog = false
+            }
+        )
+    }
+
+    if (showGasWatcherConfigDialog) {
+        GasWatcherConfigDialog(
+            currentState = state,
+            pickerState = state.watcherPickerState,
+            onLocationSelected = onLoadGasStationsForLocation,
+            onDismiss = { showGasWatcherConfigDialog = false },
+            onConfirm = { locSlug, locName, stationId, stationName, fuelKey, fuelName ->
+                onUpdateGasWatcherConfig(locSlug, locName, stationId, stationName, fuelKey, fuelName)
+                showGasWatcherConfigDialog = false
             }
         )
     }
@@ -388,6 +418,7 @@ private fun GasPriceWatcherCard(
     onLogFullTank: () -> Unit,
     onRefreshGas: () -> Unit,
     onTapPrice: () -> Unit,
+    onConfigureWatcher: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val trendColor = when {
@@ -432,12 +463,25 @@ private fun GasPriceWatcherCard(
                     )
                 }
                 Spacer(modifier = Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = state.stationDisplayName,
-                        style = FinanceTypography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                        color = OLEDColors.textPrimary
-                    )
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable(role = Role.Button, onClick = onConfigureWatcher)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = state.stationDisplayName,
+                            style = FinanceTypography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                            color = OLEDColors.textPrimary
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.Rounded.Edit,
+                            contentDescription = "Configure Gas Watcher",
+                            tint = OLEDColors.accentSky,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
                     Text(
                         text = state.fuelType,
                         style = FinanceTypography.labelSmall,
@@ -732,6 +776,8 @@ private fun EditOdometerDialog(
 
 @Composable
 private fun OverrideGasPriceDialog(
+    stationDisplayName: String,
+    fuelType: String,
     currentPriceCentavos: Long,
     onDismiss: () -> Unit,
     onConfirm: (Long) -> Unit
@@ -753,7 +799,7 @@ private fun OverrideGasPriceDialog(
         text = {
             Column {
                 Text(
-                    "Set manual price per liter for Petron Fairview (Premium 95).",
+                    "Set manual price per liter for $stationDisplayName ($fuelType).",
                     style = FinanceTypography.bodyMedium,
                     color = OLEDColors.textSecondary
                 )

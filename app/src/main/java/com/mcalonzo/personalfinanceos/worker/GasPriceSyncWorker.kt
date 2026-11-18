@@ -10,7 +10,7 @@ import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
 
 /**
- * Syncs Petron Fairview Premium 95 pricing from GasWatchPH, retrying transient network or parse failures.
+ * Syncs Petron Commonwealth D.A Premium 95 pricing from GasWatchPH, retrying transient network or parse failures.
  */
 @HiltWorker
 class GasPriceSyncWorker @AssistedInject constructor(

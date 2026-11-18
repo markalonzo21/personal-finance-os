@@ -4,12 +4,13 @@ import android.content.ContentValues
 import android.database.sqlite.SQLiteDatabase
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.mcalonzo.personalfinanceos.data.repository.GasPriceRepository
 import java.time.YearMonth
 import java.time.ZoneId
 
 /**
  * Populates initial Philippine Peso routine, obligations, Honda Click 160 profile,
- * PMS schedule, and Petron Fairview fuel baseline synchronously during database creation.
+ * PMS schedule, and Petron Commonwealth D.A fuel baseline synchronously during database creation.
  */
 class SeedDatabaseCallback(
     @Suppress("unused") private val dbProvider: () -> AppDatabase,
@@ -162,8 +163,8 @@ class SeedDatabaseCallback(
 
     private fun seedInitialGasPrice(db: SupportSQLiteDatabase, nowMs: Long) {
         val values = ContentValues().apply {
-            put("stationId", 621)
-            put("stationDisplayName", "Petron Fairview")
+            put("stationId", GasPriceRepository.STATION_ID)
+            put("stationDisplayName", GasPriceRepository.STATION_DISPLAY_NAME)
             put("fuelType", "Premium 95")
             put("pricePerLiterCentavos", 7840L)
             put("previousPricePerLiterCentavos", 7795L)

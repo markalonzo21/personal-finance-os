@@ -158,7 +158,7 @@ class WorkSchedulerTest {
     fun `GasPriceSyncWorker returns success on valid scrape and retry preserving cache on failure`() = runTest {
         val successClient = fakeHttpClient(
             code = 200,
-            body = """<script>{"id":621,"name":"Petron Commonwealth Ave Fairview","prices":{"premium95":79.15}}</script>"""
+            body = """<script>{"id":874,"name":"Petron Commonwealth Ave","prices":{"premium95":79.15}}</script>"""
         )
         val successWorker = buildWorker(GasPriceRepository(db.motoDao(), successClient))
 

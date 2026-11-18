@@ -5,6 +5,61 @@ import java.math.RoundingMode
 import org.json.JSONException
 import org.json.JSONObject
 
+enum class GasFuelType(val jsonKey: String, val displayName: String) {
+    UNLEADED("unleaded", "Unleaded"),
+    PREMIUM_95("premium95", "Premium 95"),
+    PREMIUM_97("premium97", "Premium 97"),
+    DIESEL("diesel", "Diesel"),
+    PREMIUM_DIESEL("premiumDiesel", "Premium Diesel"),
+    EGASOLINE("egasoline", "E-Gasoline"),
+    KEROSENE("kerosene", "Kerosene");
+
+    companion object {
+        fun fromKeyOrLabel(value: String): GasFuelType {
+            val normalized = value.trim()
+            return entries.firstOrNull {
+                it.jsonKey.equals(normalized, ignoreCase = true) ||
+                    it.displayName.equals(normalized, ignoreCase = true)
+            } ?: PREMIUM_95
+        }
+    }
+}
+
+data class GasLocationOption(
+    val slug: String,
+    val displayName: String
+)
+
+object GasWatchLocations {
+    val ALL: List<GasLocationOption> = listOf(
+        GasLocationOption("quezon-city", "Quezon City"),
+        GasLocationOption("manila", "Manila"),
+        GasLocationOption("makati", "Makati"),
+        GasLocationOption("pasig", "Pasig"),
+        GasLocationOption("taguig", "Taguig"),
+        GasLocationOption("mandaluyong", "Mandaluyong"),
+        GasLocationOption("san-juan", "San Juan"),
+        GasLocationOption("marikina", "Marikina"),
+        GasLocationOption("caloocan", "Caloocan"),
+        GasLocationOption("paranaque", "Parañaque"),
+        GasLocationOption("las-pinas", "Las Piñas"),
+        GasLocationOption("muntinlupa", "Muntinlupa"),
+        GasLocationOption("valenzuela", "Valenzuela"),
+        GasLocationOption("malabon", "Malabon"),
+        GasLocationOption("navotas", "Navotas"),
+        GasLocationOption("pateros", "Pateros"),
+        GasLocationOption("antipolo", "Antipolo"),
+        GasLocationOption("cavite-city", "Cavite City")
+    )
+}
+
+data class ParsedGasStation(
+    val stationId: Int,
+    val brand: String,
+    val stationName: String,
+    val pricesCentavos: Map<GasFuelType, Long>
+)
+
 data class ParsedGasPrice(
     val stationId: Int,
     val stationName: String,
@@ -12,49 +67,46 @@ data class ParsedGasPrice(
 )
 
 /**
- * Extracts Petron Commonwealth Ave Fairview (`id = 621`) Premium 95 prices from
- * standard inline `<script>` JSON or Next.js escaped script payloads on GasWatchPH.
+ * Extracts station fuel prices from standard inline `<script>` JSON or Next.js escaped
+ * script payloads on GasWatchPH.
  */
 object GasWatchParser {
 
-    private const val DEFAULT_STATION_ID = 621
+    private const val DEFAULT_STATION_ID = 874
     private val CENTAVOS_MULTIPLIER = BigDecimal(100)
     private val SCRIPT_BLOCK_REGEX = Regex("<script\\b[^>]*>([\\s\\S]*?)</script>", RegexOption.IGNORE_CASE)
     private val SCRIPT_TAG_PRESENT_REGEX = Regex("<script\\b", RegexOption.IGNORE_CASE)
+    private val PRICES_ANCHOR_REGEX = Regex(""""prices"\s*:\s*\{""")
 
     fun parseStationPremium95(
         html: String,
         targetStationId: Int = DEFAULT_STATION_ID
+    ): ParsedGasPrice? = parseStationPrice(html, targetStationId, GasFuelType.PREMIUM_95)
+
+    fun parseStationPrice(
+        html: String,
+        targetStationId: Int = DEFAULT_STATION_ID,
+        fuelType: GasFuelType = GasFuelType.PREMIUM_95
     ): ParsedGasPrice? {
         if (html.isBlank()) return null
 
         return try {
-            val scriptBlocks = SCRIPT_BLOCK_REGEX.findAll(html)
-                .map { it.groupValues[1] }
-                .filter { it.isNotBlank() }
-                .toList()
-
-            val candidateBlocks = when {
-                scriptBlocks.isNotEmpty() -> scriptBlocks
-                !SCRIPT_TAG_PRESENT_REGEX.containsMatchIn(html) -> listOf(html)
-                else -> return null
-            }
-
+            val candidateBlocks = extractCandidateBlocks(html) ?: return null
             val idPattern = Regex(""""id"\s*:\s*${Regex.escape(targetStationId.toString())}(?![0-9])""")
             val idToken = targetStationId.toString()
 
             for (block in candidateBlocks) {
                 if (!block.contains(idToken)) continue
 
-                parseFromText(block, idPattern, targetStationId)?.let { return it }
+                parseFromText(block, idPattern, targetStationId, fuelType)?.let { return it }
 
                 if (block.contains("\\\"")) {
                     val unescapedLayer1 = unescapeJsonStringLayer(block)
-                    parseFromText(unescapedLayer1, idPattern, targetStationId)?.let { return it }
+                    parseFromText(unescapedLayer1, idPattern, targetStationId, fuelType)?.let { return it }
 
                     if (unescapedLayer1.contains("\\\"")) {
                         val unescapedLayer2 = unescapeJsonStringLayer(unescapedLayer1)
-                        parseFromText(unescapedLayer2, idPattern, targetStationId)?.let { return it }
+                        parseFromText(unescapedLayer2, idPattern, targetStationId, fuelType)?.let { return it }
                     }
                 }
             }
@@ -64,21 +116,120 @@ object GasWatchParser {
         }
     }
 
+    fun parseStations(html: String): List<ParsedGasStation> {
+        if (html.isBlank()) return emptyList()
+
+        return try {
+            val candidateBlocks = extractCandidateBlocks(html) ?: return emptyList()
+            val byId = LinkedHashMap<Int, ParsedGasStation>()
+
+            for (block in candidateBlocks) {
+                if (!block.contains("prices")) continue
+
+                collectStationsFromText(block, byId)
+
+                if (block.contains("\\\"")) {
+                    val unescapedLayer1 = unescapeJsonStringLayer(block)
+                    collectStationsFromText(unescapedLayer1, byId)
+
+                    if (unescapedLayer1.contains("\\\"")) {
+                        val unescapedLayer2 = unescapeJsonStringLayer(unescapedLayer1)
+                        collectStationsFromText(unescapedLayer2, byId)
+                    }
+                }
+            }
+
+            byId.values.sortedWith(compareBy<ParsedGasStation> { it.brand.lowercase() }.thenBy { it.stationName.lowercase() })
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun extractCandidateBlocks(html: String): List<String>? {
+        val scriptBlocks = SCRIPT_BLOCK_REGEX.findAll(html)
+            .map { it.groupValues[1] }
+            .filter { it.isNotBlank() }
+            .toList()
+
+        return when {
+            scriptBlocks.isNotEmpty() -> scriptBlocks
+            !SCRIPT_TAG_PRESENT_REGEX.containsMatchIn(html) -> listOf(html)
+            else -> null
+        }
+    }
+
+    private fun collectStationsFromText(
+        text: String,
+        out: MutableMap<Int, ParsedGasStation>
+    ) {
+        for (match in PRICES_ANCHOR_REGEX.findAll(text)) {
+            val objectStart = findEnclosingObjectStart(text, match.range.first) ?: continue
+            val objectEnd = findMatchingObjectEnd(text, objectStart) ?: continue
+            val jsonCandidate = text.substring(objectStart, objectEnd + 1)
+            val parsed = parseFullStationJson(jsonCandidate) ?: continue
+            out.putIfAbsent(parsed.stationId, parsed)
+        }
+    }
+
     private fun parseFromText(
         text: String,
         idPattern: Regex,
-        targetStationId: Int
+        targetStationId: Int,
+        fuelType: GasFuelType
     ): ParsedGasPrice? {
         for (match in idPattern.findAll(text)) {
             val objectStart = findEnclosingObjectStart(text, match.range.first) ?: continue
             val objectEnd = findMatchingObjectEnd(text, objectStart) ?: continue
             val jsonCandidate = text.substring(objectStart, objectEnd + 1)
-            parseStationJson(jsonCandidate, targetStationId)?.let { return it }
+            parseStationJson(jsonCandidate, targetStationId, fuelType)?.let { return it }
         }
         return null
     }
 
-    private fun parseStationJson(jsonStr: String, targetStationId: Int): ParsedGasPrice? {
+    private fun parseFullStationJson(jsonStr: String): ParsedGasStation? {
+        val stationObject = try {
+            JSONObject(jsonStr)
+        } catch (_: JSONException) {
+            return null
+        }
+
+        val idValue = stationObject.opt("id") as? Number ?: return null
+        val idDouble = idValue.toDouble()
+        if (!idDouble.isFinite()) return null
+        val stationId = idValue.toInt()
+        if (stationId.toDouble() != idDouble) return null
+
+        if (stationObject.isNull("name")) return null
+        val stationName = (stationObject.opt("name") as? String)
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+            ?: return null
+
+        val brand = (stationObject.opt("brand") as? String)?.trim().orEmpty()
+        val pricesObject = stationObject.optJSONObject("prices") ?: return null
+
+        val prices = LinkedHashMap<GasFuelType, Long>()
+        for (fuel in GasFuelType.entries) {
+            if (pricesObject.isNull(fuel.jsonKey)) continue
+            val rawPrice = pricesObject.opt(fuel.jsonKey) as? Number ?: continue
+            val centavos = toCentavosOrNull(rawPrice) ?: continue
+            prices[fuel] = centavos
+        }
+        if (prices.isEmpty()) return null
+
+        return ParsedGasStation(
+            stationId = stationId,
+            brand = brand,
+            stationName = stationName,
+            pricesCentavos = prices
+        )
+    }
+
+    private fun parseStationJson(
+        jsonStr: String,
+        targetStationId: Int,
+        fuelType: GasFuelType
+    ): ParsedGasPrice? {
         val stationObject = try {
             JSONObject(jsonStr)
         } catch (_: JSONException) {
@@ -98,8 +249,8 @@ object GasWatchParser {
             ?: return null
 
         val pricesObject = stationObject.optJSONObject("prices") ?: return null
-        if (pricesObject.isNull("premium95")) return null
-        val rawPrice = pricesObject.opt("premium95") as? Number ?: return null
+        if (pricesObject.isNull(fuelType.jsonKey)) return null
+        val rawPrice = pricesObject.opt(fuelType.jsonKey) as? Number ?: return null
         val centavos = toCentavosOrNull(rawPrice) ?: return null
 
         return ParsedGasPrice(

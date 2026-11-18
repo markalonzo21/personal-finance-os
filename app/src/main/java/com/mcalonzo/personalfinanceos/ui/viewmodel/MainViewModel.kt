@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mcalonzo.personalfinanceos.data.local.GasWatcherConfig
 import com.mcalonzo.personalfinanceos.data.local.dao.MotoDao
 import com.mcalonzo.personalfinanceos.data.local.entity.BudgetCycleEntity
 import com.mcalonzo.personalfinanceos.data.local.entity.CardEntity
@@ -14,6 +15,8 @@ import com.mcalonzo.personalfinanceos.data.local.entity.RoutineBillTemplateEntit
 import com.mcalonzo.personalfinanceos.data.local.entity.RoutineEnvelopeTemplateEntity
 import com.mcalonzo.personalfinanceos.data.local.entity.RoutineTemplateEntity
 import com.mcalonzo.personalfinanceos.data.ocr.OcrImageScanner
+import com.mcalonzo.personalfinanceos.data.remote.GasFuelType
+import com.mcalonzo.personalfinanceos.data.remote.ParsedGasStation
 import com.mcalonzo.personalfinanceos.data.repository.BudgetRepository
 import com.mcalonzo.personalfinanceos.data.repository.GasPriceRepository
 import com.mcalonzo.personalfinanceos.domain.calculator.BudgetCalculator
@@ -196,12 +199,23 @@ data class PmsItemUi(
     val lastServiceEpochMs: Long = 0L
 )
 
+data class GasWatcherPickerUiState(
+    val isLoadingStations: Boolean = false,
+    val errorMessage: String? = null,
+    val selectedLocationSlug: String = GasPriceRepository.DEFAULT_LOCATION_SLUG,
+    val stations: List<ParsedGasStation> = emptyList()
+)
+
 data class MotoUiState(
     val modelName: String = "Honda Click 160",
     val odometerKm: Int = 8450,
     val tankCapacityLiters: Double = 5.5,
-    val stationDisplayName: String = "Petron Fairview",
-    val fuelType: String = "Premium 95",
+    val locationSlug: String = GasPriceRepository.DEFAULT_LOCATION_SLUG,
+    val locationDisplayName: String = GasPriceRepository.DEFAULT_LOCATION_NAME,
+    val stationId: Int = GasPriceRepository.STATION_ID,
+    val stationDisplayName: String = GasPriceRepository.STATION_DISPLAY_NAME,
+    val fuelKey: String = GasFuelType.PREMIUM_95.jsonKey,
+    val fuelType: String = GasFuelType.PREMIUM_95.displayName,
     val pricePerLiterFormatted: String = "₱78.40",
     val prevPriceFormatted: String = "",
     val trendBadgeText: String = "— ₱0.00",
@@ -211,7 +225,8 @@ data class MotoUiState(
     val pmsItems: List<PmsItemUi> = emptyList(),
     val pricePerLiterCentavos: Long = 7840L,
     val isSyncing: Boolean = false,
-    val isSyncingGas: Boolean = isSyncing
+    val isSyncingGas: Boolean = isSyncing,
+    val watcherPickerState: GasWatcherPickerUiState = GasWatcherPickerUiState()
 )
 
 data class DueReminderItemUi(
@@ -319,12 +334,16 @@ class MainViewModel internal constructor(
     private val infoMessage = MutableStateFlow<String?>(null)
     private val isAmountsHidden = MutableStateFlow(false)
     private val isGasSyncing = MutableStateFlow(false)
+    private val gasWatcherPickerState = MutableStateFlow(
+        GasWatcherPickerUiState(selectedLocationSlug = gasPriceRepository.getConfig().locationSlug)
+    )
     private val scanBatchState = MutableStateFlow(ScanBatchUiState())
     private val globalPushEnabledFlow = MutableStateFlow(
         context?.let { NotificationHelper.isGlobalPushEnabled(it) } ?: true
     )
 
     private var undoTimerJob: Job? = null
+    private var stationLoadJob: Job? = null
 
     private val overviewFlow: Flow<CycleOverview?> = selectedYearMonth
         .flatMapLatest { ym ->
@@ -386,13 +405,17 @@ class MainViewModel internal constructor(
     private val gasPriceFlow: Flow<GasPriceHistoryEntity?> =
         gasPriceRepository.observeLatestPrice()
 
+    private val gasConfigFlow: Flow<GasWatcherConfig> =
+        gasPriceRepository.observeConfig()
+
     private val motoUiStateFlow: Flow<MotoUiState> = combine(
         motoProfileFlow,
         gasPriceFlow,
         pmsIntervalsFlow,
-        isGasSyncing
-    ) { profile, gasPrice, pmsList, isSyncing ->
-        mapMotoToUi(profile, gasPrice, pmsList, isSyncing)
+        isGasSyncing,
+        combine(gasConfigFlow, gasWatcherPickerState) { cfg, picker -> cfg to picker }
+    ) { profile, gasPrice, pmsList, isSyncing, (config, picker) ->
+        mapMotoToUi(profile, gasPrice, pmsList, isSyncing, config, picker)
     }
 
     private val remindersUiStateFlow: Flow<RemindersUiState> = combine(
@@ -1121,6 +1144,68 @@ class MainViewModel internal constructor(
         }
     }
 
+    fun loadGasStationsForLocation(locationSlug: String) {
+        stationLoadJob?.cancel()
+        stationLoadJob = viewModelScope.launch {
+            gasWatcherPickerState.value = gasWatcherPickerState.value.copy(
+                isLoadingStations = true,
+                errorMessage = null,
+                selectedLocationSlug = locationSlug
+            )
+            val result = gasPriceRepository.fetchStationsForLocation(locationSlug)
+            if (gasWatcherPickerState.value.selectedLocationSlug != locationSlug) return@launch
+            result.onSuccess { stations ->
+                gasWatcherPickerState.value = GasWatcherPickerUiState(
+                    isLoadingStations = false,
+                    errorMessage = null,
+                    selectedLocationSlug = locationSlug,
+                    stations = stations
+                )
+            }.onFailure { err ->
+                gasWatcherPickerState.value = GasWatcherPickerUiState(
+                    isLoadingStations = false,
+                    errorMessage = err.message ?: "Unable to load stations for $locationSlug",
+                    selectedLocationSlug = locationSlug,
+                    stations = emptyList()
+                )
+            }
+        }
+    }
+
+    fun updateGasWatcherConfig(
+        locationSlug: String,
+        locationDisplayName: String,
+        stationId: Int,
+        stationDisplayName: String,
+        fuelKey: String,
+        fuelDisplayName: String
+    ) {
+        val cleanName = stationDisplayName.trim().ifEmpty { GasPriceRepository.STATION_DISPLAY_NAME }
+        val config = GasWatcherConfig(
+            locationSlug = locationSlug,
+            locationDisplayName = locationDisplayName,
+            stationId = stationId,
+            stationDisplayName = cleanName,
+            fuelKey = fuelKey,
+            fuelDisplayName = fuelDisplayName
+        )
+        viewModelScope.launch {
+            runMutation("Unable to update gas watcher") {
+                isGasSyncing.value = true
+                val result = try {
+                    gasPriceRepository.updateWatcherConfig(config)
+                } finally {
+                    isGasSyncing.value = false
+                }
+                result.onSuccess {
+                    infoMessage.value = "Watching $cleanName ($fuelDisplayName): ${BudgetCalculator.formatPeso(it.pricePerLiterCentavos)}/L"
+                }.onFailure { err ->
+                    errorMessage.value = "Saved watcher ($cleanName), sync failed: ${err.message ?: "offline"}"
+                }
+            }
+        }
+    }
+
     fun logPmsService(
         pmsId: Long,
         serviceKm: Int,
@@ -1357,19 +1442,28 @@ class MainViewModel internal constructor(
         profile: MotoProfileEntity?,
         gasPrice: GasPriceHistoryEntity?,
         pmsList: List<PmsIntervalEntity>,
-        isSyncing: Boolean
+        isSyncing: Boolean,
+        config: GasWatcherConfig,
+        pickerState: GasWatcherPickerUiState
     ): MotoUiState {
         val modelName = profile?.modelName ?: "Honda Click 160"
         val odoKm = profile?.currentOdometerKm ?: 8450
         val tankLiters = profile?.tankCapacityLiters ?: 5.5
-        val stationName = gasPrice?.stationDisplayName ?: "Petron Fairview"
-        val fuelType = gasPrice?.fuelType ?: "Premium 95"
-        val priceCentavos = gasPrice?.pricePerLiterCentavos ?: 7840L
-        val priceFormatted = BudgetCalculator.formatPeso(priceCentavos)
-        val fullTankCostCentavos = MotoCalculator.calculateFullTankCentavos(priceCentavos, tankLiters)
-        val fullTankFormatted = BudgetCalculator.formatPeso(fullTankCostCentavos)
+        val stationName = config.stationDisplayName
+        val fuelType = config.fuelDisplayName
+        val matchingGasPrice = gasPrice?.takeIf {
+            it.stationId == config.stationId && it.fuelType == config.fuelDisplayName
+        }
+        val priceCentavos = matchingGasPrice?.pricePerLiterCentavos ?: if (gasPrice == null) 7840L else 0L
+        val priceFormatted = if (priceCentavos > 0L) BudgetCalculator.formatPeso(priceCentavos) else "—"
+        val fullTankCostCentavos = if (priceCentavos > 0L) {
+            MotoCalculator.calculateFullTankCentavos(priceCentavos, tankLiters)
+        } else {
+            0L
+        }
+        val fullTankFormatted = if (priceCentavos > 0L) BudgetCalculator.formatPeso(fullTankCostCentavos) else "—"
 
-        val diff = gasPrice?.diffCentavos ?: 0L
+        val diff = matchingGasPrice?.diffCentavos ?: 0L
         val isPriceUp = diff > 0L
         val isPriceDown = diff < 0L
         val trendText = when {
@@ -1377,8 +1471,8 @@ class MainViewModel internal constructor(
             isPriceDown -> "▼ -${BudgetCalculator.formatPeso(kotlin.math.abs(diff))}"
             else -> "— ₱0.00"
         }
-        val prevPriceFormatted = if (gasPrice?.previousPricePerLiterCentavos != null) {
-            val prevFormatted = BudgetCalculator.formatPeso(gasPrice.previousPricePerLiterCentavos)
+        val prevPriceFormatted = if (matchingGasPrice?.previousPricePerLiterCentavos != null) {
+            val prevFormatted = BudgetCalculator.formatPeso(matchingGasPrice.previousPricePerLiterCentavos)
             when {
                 isPriceUp -> "Prev: $prevFormatted/L (+${BudgetCalculator.formatPeso(diff)})"
                 isPriceDown -> "Prev: $prevFormatted/L (-${BudgetCalculator.formatPeso(kotlin.math.abs(diff))})"
@@ -1417,7 +1511,11 @@ class MainViewModel internal constructor(
             modelName = modelName,
             odometerKm = odoKm,
             tankCapacityLiters = tankLiters,
+            locationSlug = config.locationSlug,
+            locationDisplayName = config.locationDisplayName,
+            stationId = config.stationId,
             stationDisplayName = stationName,
+            fuelKey = config.fuelKey,
             fuelType = fuelType,
             pricePerLiterFormatted = priceFormatted,
             prevPriceFormatted = prevPriceFormatted,
@@ -1427,7 +1525,8 @@ class MainViewModel internal constructor(
             fullTankCostFormatted = fullTankFormatted,
             pmsItems = pmsItems,
             pricePerLiterCentavos = priceCentavos,
-            isSyncing = isSyncing
+            isSyncing = isSyncing,
+            watcherPickerState = pickerState
         )
     }
 
