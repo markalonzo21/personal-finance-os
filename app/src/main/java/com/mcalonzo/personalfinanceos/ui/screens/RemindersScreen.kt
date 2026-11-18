@@ -42,7 +42,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -165,8 +164,8 @@ fun RemindersScreen(
                                     .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                                     .semantics { contentDescription = "Global Push Toggle" },
                                 colors = SwitchDefaults.colors(
-                                    checkedThumbColor = FinanceTheme.colors.accentSky,
-                                    checkedTrackColor = FinanceTheme.colors.bgCardElevated,
+                                    checkedThumbColor = FinanceTheme.colors.bgBase,
+                                    checkedTrackColor = FinanceTheme.colors.accentSky,
                                     uncheckedThumbColor = FinanceTheme.colors.textTertiary,
                                     uncheckedTrackColor = FinanceTheme.colors.bgCardSubtle
                                 )
@@ -348,7 +347,7 @@ private fun ReminderItemCard(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(FinanceTheme.colors.bgCardElevated)
+                                .background(FinanceTheme.colors.bgCardSubtle)
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(

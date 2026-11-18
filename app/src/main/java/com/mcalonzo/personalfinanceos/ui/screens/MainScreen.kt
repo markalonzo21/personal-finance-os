@@ -88,8 +88,8 @@ import com.mcalonzo.personalfinanceos.ui.viewmodel.TransactionItemUi
 import java.time.YearMonth
 
 /**
- * Root OLED application shell hosting the active screen, elevated Log Expense FAB,
- * 4-item bottom navigation bar (Budget, Reminders, Moto Care, Routine trigger),
+ * Root application shell hosting the active screen, elevated Log Expense FAB,
+ * 5-item bottom navigation bar (Budget, Reminders, Moto Care, Routine trigger, Settings),
  * 5-second Undo Snackbar, and modal action sheets.
  */
 @Composable
@@ -619,7 +619,7 @@ private fun BottomNavigationBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp)
+                    .defaultMinSize(minHeight = 56.dp)
                     .padding(horizontal = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {

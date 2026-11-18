@@ -502,7 +502,8 @@ class MainViewModel internal constructor(
                 yearMonthLabel = formatYearMonthLabel(selectedYearMonth.value),
                 selectedYearMonth = selectedYearMonth.value.toString()
             ),
-            isLoading = true
+            isLoading = true,
+            themeMode = themePreferenceStore.getThemeMode()
         )
     )
 

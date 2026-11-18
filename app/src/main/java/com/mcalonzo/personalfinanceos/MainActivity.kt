@@ -9,7 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,17 +36,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.dark(AndroidColor.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.dark(AndroidColor.TRANSPARENT)
-        )
+        enableEdgeToEdge()
         setContent {
             val context = LocalContext.current
             val viewModel: MainViewModel = hiltViewModel()
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
             val isDarkTheme = resolveDarkTheme(uiState.themeMode, isSystemInDarkTheme())
 
-            LaunchedEffect(isDarkTheme) {
+            DisposableEffect(isDarkTheme) {
                 val barStyle = if (isDarkTheme) {
                     SystemBarStyle.dark(AndroidColor.TRANSPARENT)
                 } else {
@@ -56,6 +53,7 @@ class MainActivity : ComponentActivity() {
                     statusBarStyle = barStyle,
                     navigationBarStyle = barStyle
                 )
+                onDispose {}
             }
 
             PersonalFinanceTheme(darkTheme = isDarkTheme) {

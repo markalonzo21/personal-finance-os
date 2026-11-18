@@ -38,6 +38,7 @@ import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -183,7 +184,7 @@ fun BillPaymentConfirmSheet(
                 },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = FinanceTheme.colors.accentEmerald,
-                    contentColor = FinanceTheme.colors.bgBase
+                    contentColor = MaterialTheme.colorScheme.onSecondary
                 ),
                 shape = RoundedCornerShape(14.dp),
                 contentPadding = PaddingValues(vertical = 14.dp),
@@ -329,7 +330,7 @@ fun AddEditEnvelopeSheet(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 CurrencyFormatters.ENVELOPE_COLOR_PALETTE.forEach { (hex, label) ->
-                    val swatchColor = CurrencyFormatters.parseColorHex(hex)
+                    val swatchColor = CurrencyFormatters.parseColorHex(hex, FinanceTheme.colors.accentSky)
                     val selected = hex.equals(colorHex, ignoreCase = true)
                     Box(
                         modifier = Modifier
@@ -1066,7 +1067,7 @@ fun AdvanceLoanPaymentDialog(
                 },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = FinanceTheme.colors.accentAmber,
-                    contentColor = FinanceTheme.colors.bgBase
+                    contentColor = MaterialTheme.colorScheme.onTertiary
                 ),
                 modifier = Modifier.defaultMinSize(minHeight = 48.dp)
             ) {

@@ -1,7 +1,6 @@
 package com.mcalonzo.personalfinanceos.ui.components
 
 import androidx.compose.ui.graphics.Color
-import com.mcalonzo.personalfinanceos.ui.theme.DarkOLEDColors
 import java.math.BigDecimal
 import java.math.RoundingMode
 
@@ -83,7 +82,7 @@ object CurrencyFormatters {
     /**
      * Parses `#RRGGBB` or `#AARRGGBB` hex strings safely onto Compose [Color].
      */
-    fun parseColorHex(hex: String, fallback: Color = DarkOLEDColors.accentSky): Color {
+    fun parseColorHex(hex: String, fallback: Color): Color {
         return runCatching {
             Color(android.graphics.Color.parseColor(hex.trim()))
         }.getOrDefault(fallback)

@@ -243,8 +243,8 @@ private fun CadenceToggleRow(
             checked = checked,
             onCheckedChange = null,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = FinanceTheme.colors.accentSky,
-                checkedTrackColor = FinanceTheme.colors.bgCardElevated,
+                checkedThumbColor = FinanceTheme.colors.bgBase,
+                checkedTrackColor = FinanceTheme.colors.accentSky,
                 uncheckedThumbColor = FinanceTheme.colors.textTertiary,
                 uncheckedTrackColor = FinanceTheme.colors.bgCardSubtle
             )

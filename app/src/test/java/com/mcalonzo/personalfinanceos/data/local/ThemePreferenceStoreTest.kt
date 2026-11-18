@@ -21,9 +21,11 @@ class ThemePreferenceStoreTest {
 
         store.setThemeMode(ThemeMode.LIGHT)
         assertThat(store.getThemeMode()).isEqualTo(ThemeMode.LIGHT)
+        assertThat(store.observeThemeMode().first()).isEqualTo(ThemeMode.LIGHT)
 
         val reloaded = SharedPreferencesThemePreferenceStore(context)
         assertThat(reloaded.getThemeMode()).isEqualTo(ThemeMode.LIGHT)
+        assertThat(reloaded.observeThemeMode().first()).isEqualTo(ThemeMode.LIGHT)
     }
 
     @Test
