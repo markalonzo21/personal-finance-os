@@ -3,6 +3,9 @@ package com.mcalonzo.personalfinanceos
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.text.font.FontListFontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.ResourceFont
@@ -12,16 +15,25 @@ import androidx.work.WorkManager
 import androidx.work.testing.SynchronousExecutor
 import androidx.work.testing.WorkManagerTestInitHelper
 import com.google.common.truth.Truth.assertThat
+import com.mcalonzo.personalfinanceos.data.local.ThemeMode
+import com.mcalonzo.personalfinanceos.ui.theme.DarkOLEDColors
+import com.mcalonzo.personalfinanceos.ui.theme.FinanceTheme
 import com.mcalonzo.personalfinanceos.ui.theme.FinanceTypography
 import com.mcalonzo.personalfinanceos.ui.theme.JetBrainsMonoFamily
+import com.mcalonzo.personalfinanceos.ui.theme.LightWarmPaperColors
 import com.mcalonzo.personalfinanceos.ui.theme.NumericTextStyles
+import com.mcalonzo.personalfinanceos.ui.theme.PersonalFinanceTheme
 import com.mcalonzo.personalfinanceos.ui.theme.PlusJakartaSansFamily
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
 class ThemeAndStartupConfigTest {
+
+    @get:Rule
+    val composeRule = createComposeRule()
 
     @Test
     fun `bundled font families cover all weights used in typography and numeric styles`() {
@@ -105,5 +117,44 @@ class ThemeAndStartupConfigTest {
         } finally {
             WorkManagerTestInitHelper.closeWorkDatabase()
         }
+    }
+
+    @Test
+    fun `PersonalFinanceTheme provides DarkOLEDColors and LightWarmPaperColors based on darkTheme`() {
+        var darkColorsBg: Color? = null
+        var darkMaterialBg: Color? = null
+        var lightColorsBg: Color? = null
+        var lightColorsText: Color? = null
+        var lightMaterialBg: Color? = null
+
+        composeRule.setContent {
+            PersonalFinanceTheme(darkTheme = true) {
+                darkColorsBg = FinanceTheme.colors.bgBase
+                darkMaterialBg = MaterialTheme.colorScheme.background
+            }
+            PersonalFinanceTheme(darkTheme = false) {
+                lightColorsBg = FinanceTheme.colors.bgBase
+                lightColorsText = FinanceTheme.colors.textPrimary
+                lightMaterialBg = MaterialTheme.colorScheme.background
+            }
+        }
+        composeRule.waitForIdle()
+
+        assertThat(darkColorsBg).isEqualTo(DarkOLEDColors.bgBase)
+        assertThat(darkMaterialBg).isEqualTo(Color(0xFF06090E))
+        assertThat(lightColorsBg).isEqualTo(LightWarmPaperColors.bgBase)
+        assertThat(lightColorsBg).isEqualTo(Color(0xFFF7F6F2))
+        assertThat(lightColorsText).isEqualTo(Color(0xFF1C1917))
+        assertThat(lightMaterialBg).isEqualTo(Color(0xFFF7F6F2))
+    }
+
+    @Test
+    fun `resolveDarkTheme handles all ThemeMode and system appearance combinations`() {
+        assertThat(resolveDarkTheme(ThemeMode.SYSTEM, systemInDarkTheme = true)).isTrue()
+        assertThat(resolveDarkTheme(ThemeMode.SYSTEM, systemInDarkTheme = false)).isFalse()
+        assertThat(resolveDarkTheme(ThemeMode.LIGHT, systemInDarkTheme = true)).isFalse()
+        assertThat(resolveDarkTheme(ThemeMode.LIGHT, systemInDarkTheme = false)).isFalse()
+        assertThat(resolveDarkTheme(ThemeMode.DARK, systemInDarkTheme = true)).isTrue()
+        assertThat(resolveDarkTheme(ThemeMode.DARK, systemInDarkTheme = false)).isTrue()
     }
 }

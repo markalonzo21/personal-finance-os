@@ -47,7 +47,7 @@ import androidx.compose.ui.unit.sp
 import com.mcalonzo.personalfinanceos.domain.calculator.BudgetCalculator
 import com.mcalonzo.personalfinanceos.ui.theme.FinanceTypography
 import com.mcalonzo.personalfinanceos.ui.theme.NumericTextStyles
-import com.mcalonzo.personalfinanceos.ui.theme.OLEDColors
+import com.mcalonzo.personalfinanceos.ui.theme.FinanceTheme
 import com.mcalonzo.personalfinanceos.ui.viewmodel.EnvelopeItemUi
 
 private val QUICK_INCREMENT_CHIPS: List<Pair<String, Long>> = listOf(
@@ -87,8 +87,8 @@ fun LogExpenseSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = OLEDColors.bgCard,
-        contentColor = OLEDColors.textPrimary
+        containerColor = FinanceTheme.colors.bgCard,
+        contentColor = FinanceTheme.colors.textPrimary
     ) {
         Column(
             modifier = Modifier
@@ -108,7 +108,7 @@ fun LogExpenseSheet(
                 Text(
                     text = "+ Log Daily Expense",
                     style = FinanceTypography.titleLarge,
-                    color = OLEDColors.textPrimary
+                    color = FinanceTheme.colors.textPrimary
                 )
                 IconButton(
                     onClick = onDismiss,
@@ -117,7 +117,7 @@ fun LogExpenseSheet(
                     Icon(
                         imageVector = Icons.Rounded.Close,
                         contentDescription = "Close expense logger",
-                        tint = OLEDColors.textSecondary
+                        tint = FinanceTheme.colors.textSecondary
                     )
                 }
             }
@@ -127,7 +127,7 @@ fun LogExpenseSheet(
                     onDismiss()
                     onScanReceiptClick()
                 },
-                border = BorderStroke(1.dp, OLEDColors.accentSky.copy(alpha = 0.5f)),
+                border = BorderStroke(1.dp, FinanceTheme.colors.accentSky.copy(alpha = 0.5f)),
                 shape = RoundedCornerShape(14.dp),
                 contentPadding = PaddingValues(vertical = 12.dp),
                 modifier = Modifier
@@ -137,21 +137,21 @@ fun LogExpenseSheet(
                 Icon(
                     imageVector = Icons.Rounded.DocumentScanner,
                     contentDescription = null,
-                    tint = OLEDColors.accentSky,
+                    tint = FinanceTheme.colors.accentSky,
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.size(8.dp))
                 Text(
                     text = "Scan Receipt / Screenshot",
                     style = FinanceTypography.labelLarge,
-                    color = OLEDColors.accentSky
+                    color = FinanceTheme.colors.accentSky
                 )
             }
 
             Surface(
-                color = OLEDColors.bgCardSubtle,
+                color = FinanceTheme.colors.bgCardSubtle,
                 shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+                border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -161,7 +161,7 @@ fun LogExpenseSheet(
                     Text(
                         text = "AMOUNT (PHP)",
                         style = FinanceTypography.labelMedium,
-                        color = OLEDColors.textSecondary
+                        color = FinanceTheme.colors.textSecondary
                     )
                     OutlinedTextField(
                         value = amountText,
@@ -173,24 +173,24 @@ fun LogExpenseSheet(
                             Text(
                                 text = "₱",
                                 style = NumericTextStyles.sectionAmount,
-                                color = OLEDColors.accentSky
+                                color = FinanceTheme.colors.accentSky
                             )
                         },
                         placeholder = {
                             Text(
                                 text = "0.00",
                                 style = NumericTextStyles.sectionAmount,
-                                color = OLEDColors.textSecondary
+                                color = FinanceTheme.colors.textSecondary
                             )
                         },
-                        textStyle = NumericTextStyles.sectionAmount.copy(color = OLEDColors.accentSky),
+                        textStyle = NumericTextStyles.sectionAmount.copy(color = FinanceTheme.colors.accentSky),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = OLEDColors.accentSky,
-                            unfocusedBorderColor = OLEDColors.borderSubtle,
-                            focusedTextColor = OLEDColors.accentSky,
-                            unfocusedTextColor = OLEDColors.accentSky
+                            focusedBorderColor = FinanceTheme.colors.accentSky,
+                            unfocusedBorderColor = FinanceTheme.colors.borderSubtle,
+                            focusedTextColor = FinanceTheme.colors.accentSky,
+                            unfocusedTextColor = FinanceTheme.colors.accentSky
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -210,9 +210,9 @@ fun LogExpenseSheet(
                             amountText = CurrencyFormatters.formatCentavosForInput(current + deltaCentavos)
                             validationError = null
                         },
-                        color = OLEDColors.bgCardElevated,
+                        color = FinanceTheme.colors.bgCardElevated,
                         shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+                        border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
                         modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                     ) {
                         Row(
@@ -222,7 +222,7 @@ fun LogExpenseSheet(
                             Text(
                                 text = label,
                                 style = NumericTextStyles.bodyAmount,
-                                color = OLEDColors.textPrimary
+                                color = FinanceTheme.colors.textPrimary
                             )
                         }
                     }
@@ -232,9 +232,9 @@ fun LogExpenseSheet(
                         amountText = ""
                         validationError = null
                     },
-                    color = OLEDColors.accentRose.copy(alpha = 0.14f),
+                    color = FinanceTheme.colors.accentRose.copy(alpha = 0.14f),
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, OLEDColors.accentRose.copy(alpha = 0.35f)),
+                    border = BorderStroke(1.dp, FinanceTheme.colors.accentRose.copy(alpha = 0.35f)),
                     modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                 ) {
                     Row(
@@ -244,7 +244,7 @@ fun LogExpenseSheet(
                         Text(
                             text = "Reset",
                             style = FinanceTypography.labelLarge,
-                            color = OLEDColors.accentRose
+                            color = FinanceTheme.colors.accentRose
                         )
                     }
                 }
@@ -257,12 +257,12 @@ fun LogExpenseSheet(
                 placeholder = { Text("e.g. Robinsons Supermarket") },
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = OLEDColors.accentSky,
-                    unfocusedBorderColor = OLEDColors.borderSubtle,
-                    focusedTextColor = OLEDColors.textPrimary,
-                    unfocusedTextColor = OLEDColors.textPrimary,
-                    focusedLabelColor = OLEDColors.accentSky,
-                    unfocusedLabelColor = OLEDColors.textSecondary
+                    focusedBorderColor = FinanceTheme.colors.accentSky,
+                    unfocusedBorderColor = FinanceTheme.colors.borderSubtle,
+                    focusedTextColor = FinanceTheme.colors.textPrimary,
+                    unfocusedTextColor = FinanceTheme.colors.textPrimary,
+                    focusedLabelColor = FinanceTheme.colors.accentSky,
+                    unfocusedLabelColor = FinanceTheme.colors.textSecondary
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -270,14 +270,14 @@ fun LogExpenseSheet(
             Text(
                 text = "SELECT CATEGORY",
                 style = FinanceTypography.labelMedium,
-                color = OLEDColors.textSecondary
+                color = FinanceTheme.colors.textSecondary
             )
 
             if (envelopes.isEmpty()) {
                 Text(
                     text = "Add a budget envelope first before logging expenses.",
                     style = FinanceTypography.bodyMedium,
-                    color = OLEDColors.accentAmber
+                    color = FinanceTheme.colors.accentAmber
                 )
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -294,17 +294,17 @@ fun LogExpenseSheet(
                                         validationError = null
                                     },
                                     color = if (isSelected) {
-                                        OLEDColors.accentSky.copy(alpha = 0.16f)
+                                        FinanceTheme.colors.accentSky.copy(alpha = 0.16f)
                                     } else {
-                                        OLEDColors.bgCardElevated
+                                        FinanceTheme.colors.bgCardElevated
                                     },
                                     shape = RoundedCornerShape(14.dp),
                                     border = BorderStroke(
                                         width = if (isSelected) 1.5.dp else 1.dp,
                                         color = if (isSelected) {
-                                            OLEDColors.accentSky
+                                            FinanceTheme.colors.accentSky
                                         } else {
-                                            OLEDColors.borderSubtle
+                                            FinanceTheme.colors.borderSubtle
                                         }
                                     ),
                                     modifier = Modifier
@@ -321,14 +321,14 @@ fun LogExpenseSheet(
                                             Text(
                                                 text = env.name,
                                                 style = FinanceTypography.labelLarge,
-                                                color = OLEDColors.textPrimary,
+                                                color = FinanceTheme.colors.textPrimary,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
                                             )
                                             Text(
                                                 text = "${BudgetCalculator.formatPeso(env.remainingCentavos, showDecimal = false)} left",
                                                 style = NumericTextStyles.captionAmount,
-                                                color = OLEDColors.textSecondary,
+                                                color = FinanceTheme.colors.textSecondary,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
                                             )
@@ -348,7 +348,7 @@ fun LogExpenseSheet(
                 Text(
                     text = validationError!!,
                     style = FinanceTypography.bodyMedium,
-                    color = OLEDColors.accentRose
+                    color = FinanceTheme.colors.accentRose
                 )
             }
 
@@ -366,8 +366,8 @@ fun LogExpenseSheet(
                 },
                 enabled = envelopes.isNotEmpty(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = OLEDColors.accentSky,
-                    contentColor = OLEDColors.bgBase
+                    containerColor = FinanceTheme.colors.accentSky,
+                    contentColor = FinanceTheme.colors.bgBase
                 ),
                 shape = RoundedCornerShape(14.dp),
                 contentPadding = PaddingValues(vertical = 14.dp),

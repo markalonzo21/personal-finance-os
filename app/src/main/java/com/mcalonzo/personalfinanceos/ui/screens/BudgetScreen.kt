@@ -39,6 +39,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -66,7 +67,7 @@ import com.mcalonzo.personalfinanceos.domain.calculator.BudgetCalculator
 import com.mcalonzo.personalfinanceos.ui.components.CurrencyFormatters
 import com.mcalonzo.personalfinanceos.ui.theme.FinanceTypography
 import com.mcalonzo.personalfinanceos.ui.theme.NumericTextStyles
-import com.mcalonzo.personalfinanceos.ui.theme.OLEDColors
+import com.mcalonzo.personalfinanceos.ui.theme.FinanceTheme
 import com.mcalonzo.personalfinanceos.ui.viewmodel.BillItemUi
 import com.mcalonzo.personalfinanceos.ui.viewmodel.BudgetSubTab
 import com.mcalonzo.personalfinanceos.ui.viewmodel.BudgetUiState
@@ -122,7 +123,7 @@ fun BudgetScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(OLEDColors.bgBase)
+            .background(FinanceTheme.colors.bgBase)
     ) {
         BudgetTopBar(
             yearMonthLabel = state.yearMonthLabel.ifBlank { "Budget Cycle" },
@@ -313,9 +314,9 @@ fun BudgetScreen(
     pendingDeleteTransaction?.let { tx ->
         AlertDialog(
             onDismissRequest = { pendingDeleteTransaction = null },
-            containerColor = OLEDColors.bgCardElevated,
-            titleContentColor = OLEDColors.textPrimary,
-            textContentColor = OLEDColors.textSecondary,
+            containerColor = FinanceTheme.colors.bgCardElevated,
+            titleContentColor = FinanceTheme.colors.textPrimary,
+            textContentColor = FinanceTheme.colors.textSecondary,
             title = {
                 Text(
                     text = "Delete Expense?",
@@ -342,7 +343,7 @@ fun BudgetScreen(
                     Text(
                         text = "Delete",
                         style = FinanceTypography.labelLarge,
-                        color = OLEDColors.accentRose
+                        color = FinanceTheme.colors.accentRose
                     )
                 }
             },
@@ -351,7 +352,7 @@ fun BudgetScreen(
                     Text(
                         text = "Cancel",
                         style = FinanceTypography.labelLarge,
-                        color = OLEDColors.textSecondary
+                        color = FinanceTheme.colors.textSecondary
                     )
                 }
             }
@@ -361,9 +362,9 @@ fun BudgetScreen(
     pendingSettleLoan?.let { loan ->
         AlertDialog(
             onDismissRequest = { pendingSettleLoan = null },
-            containerColor = OLEDColors.bgCardElevated,
-            titleContentColor = OLEDColors.textPrimary,
-            textContentColor = OLEDColors.textSecondary,
+            containerColor = FinanceTheme.colors.bgCardElevated,
+            titleContentColor = FinanceTheme.colors.textPrimary,
+            textContentColor = FinanceTheme.colors.textSecondary,
             title = {
                 Text(
                     text = "Confirm Loan Payment",
@@ -391,7 +392,7 @@ fun BudgetScreen(
                     Text(
                         text = "Confirm Paid",
                         style = FinanceTypography.labelLarge,
-                        color = OLEDColors.accentEmerald
+                        color = FinanceTheme.colors.accentEmerald
                     )
                 }
             },
@@ -400,7 +401,7 @@ fun BudgetScreen(
                     Text(
                         text = "Cancel",
                         style = FinanceTypography.labelLarge,
-                        color = OLEDColors.textSecondary
+                        color = FinanceTheme.colors.textSecondary
                     )
                 }
             }
@@ -424,9 +425,9 @@ private fun BudgetTopBar(
     ) {
         Surface(
             onClick = onOpenMonthPicker,
-            color = OLEDColors.bgCard,
+            color = FinanceTheme.colors.bgCard,
             shape = RoundedCornerShape(20.dp),
-            border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+            border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
             modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
         ) {
             Row(
@@ -437,12 +438,12 @@ private fun BudgetTopBar(
                 Text(
                     text = yearMonthLabel,
                     style = FinanceTypography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = OLEDColors.textPrimary
+                    color = FinanceTheme.colors.textPrimary
                 )
                 Icon(
                     imageVector = Icons.Rounded.KeyboardArrowDown,
                     contentDescription = "Select month cycle",
-                    tint = OLEDColors.textSecondary,
+                    tint = FinanceTheme.colors.textSecondary,
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -450,11 +451,11 @@ private fun BudgetTopBar(
 
         Surface(
             onClick = onOpenSoaViewer,
-            color = if (hasSoa) OLEDColors.accentSky.copy(alpha = 0.14f) else OLEDColors.bgCard,
+            color = if (hasSoa) FinanceTheme.colors.accentSky.copy(alpha = 0.14f) else FinanceTheme.colors.bgCard,
             shape = RoundedCornerShape(16.dp),
             border = BorderStroke(
                 width = 1.dp,
-                color = if (hasSoa) OLEDColors.accentSky.copy(alpha = 0.45f) else OLEDColors.borderSubtle
+                color = if (hasSoa) FinanceTheme.colors.accentSky.copy(alpha = 0.45f) else FinanceTheme.colors.borderSubtle
             ),
             modifier = Modifier
                 .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
@@ -474,13 +475,13 @@ private fun BudgetTopBar(
                 Icon(
                     imageVector = Icons.Rounded.PictureAsPdf,
                     contentDescription = null,
-                    tint = if (hasSoa) OLEDColors.accentSky else OLEDColors.textPrimary,
+                    tint = if (hasSoa) FinanceTheme.colors.accentSky else FinanceTheme.colors.textPrimary,
                     modifier = Modifier.size(16.dp)
                 )
                 Text(
                     text = if (hasSoa) "View SOA" else "Attach SOA",
                     style = FinanceTypography.labelLarge,
-                    color = if (hasSoa) OLEDColors.accentSky else OLEDColors.textPrimary
+                    color = if (hasSoa) FinanceTheme.colors.accentSky else FinanceTheme.colors.textPrimary
                 )
             }
         }
@@ -500,19 +501,19 @@ private fun SafeToSpendHeroCard(
 ) {
     val heroBrush = Brush.verticalGradient(
         colors = listOf(
-            Color(0xFF152238),
-            Color(0xFF0A111E)
+            FinanceTheme.colors.heroGradientStart,
+            FinanceTheme.colors.heroGradientEnd
         )
     )
     val paceColor = if (state.isSafeToSpendNegative) {
-        OLEDColors.accentRose
+        FinanceTheme.colors.accentRose
     } else {
-        OLEDColors.accentEmerald
+        FinanceTheme.colors.accentEmerald
     }
     val spentSegmentColor = if (state.isSafeToSpendNegative) {
-        OLEDColors.accentRose
+        FinanceTheme.colors.accentRose
     } else {
-        OLEDColors.accentSky
+        FinanceTheme.colors.accentSky
     }
 
     Box(
@@ -524,7 +525,7 @@ private fun SafeToSpendHeroCard(
         Surface(
             color = Color.Transparent,
             shape = RoundedCornerShape(20.dp),
-            border = BorderStroke(1.dp, OLEDColors.accentSky.copy(alpha = 0.24f)),
+            border = BorderStroke(1.dp, FinanceTheme.colors.accentSky.copy(alpha = 0.24f)),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
@@ -542,7 +543,7 @@ private fun SafeToSpendHeroCard(
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 0.5.sp
                         ),
-                        color = OLEDColors.accentSky,
+                        color = FinanceTheme.colors.accentSky,
                         maxLines = 1
                     )
 
@@ -573,7 +574,7 @@ private fun SafeToSpendHeroCard(
                         Text(
                             text = maskAmount(state.safeToSpendFormatted, state.isAmountsHidden, "₱••••••"),
                             style = NumericTextStyles.heroBalance.copy(fontSize = 26.sp, lineHeight = 30.sp),
-                            color = if (state.isSafeToSpendNegative) OLEDColors.accentRose else OLEDColors.textPrimary,
+                            color = if (state.isSafeToSpendNegative) FinanceTheme.colors.accentRose else FinanceTheme.colors.textPrimary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f, fill = false)
@@ -593,7 +594,7 @@ private fun SafeToSpendHeroCard(
                                 } else {
                                     "Hide amounts"
                                 },
-                                tint = OLEDColors.textSecondary,
+                                tint = FinanceTheme.colors.textSecondary,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -607,7 +608,7 @@ private fun SafeToSpendHeroCard(
                     Text(
                         text = daysStatus,
                         style = FinanceTypography.labelSmall,
-                        color = if (state.isSafeToSpendNegative) OLEDColors.accentRose else OLEDColors.textSecondary,
+                        color = if (state.isSafeToSpendNegative) FinanceTheme.colors.accentRose else FinanceTheme.colors.textSecondary,
                         maxLines = 1
                     )
                 }
@@ -623,7 +624,7 @@ private fun SafeToSpendHeroCard(
                         .fillMaxWidth()
                         .height(6.dp)
                         .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0xFF1E293B))
+                        .background(FinanceTheme.colors.progressTrack)
                         .semantics { contentDescription = barDescription }
                 ) {
                     Row(modifier = Modifier.fillMaxSize()) {
@@ -640,7 +641,7 @@ private fun SafeToSpendHeroCard(
                                 modifier = Modifier
                                     .fillMaxHeight()
                                     .weight(state.committedLoansProgressFraction.coerceIn(0.001f, 1f))
-                                    .background(OLEDColors.accentAmber)
+                                    .background(FinanceTheme.colors.accentAmber)
                             )
                         }
                         val remainingFraction =
@@ -652,7 +653,7 @@ private fun SafeToSpendHeroCard(
                     }
                 }
 
-                HorizontalDivider(color = OLEDColors.borderSubtle)
+                HorizontalDivider(color = FinanceTheme.colors.borderSubtle)
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -661,7 +662,7 @@ private fun SafeToSpendHeroCard(
                     HeroMetricColumn(
                         label = "TOTAL BUDGET",
                         value = maskAmount(state.totalBudgetFormatted, state.isAmountsHidden),
-                        valueColor = OLEDColors.textPrimary,
+                        valueColor = FinanceTheme.colors.textPrimary,
                         modifier = Modifier.weight(1f)
                     )
                     HeroMetricColumn(
@@ -673,7 +674,7 @@ private fun SafeToSpendHeroCard(
                     HeroMetricColumn(
                         label = "FIXED / LOANS",
                         value = maskAmount(state.committedLoansFormatted, state.isAmountsHidden),
-                        valueColor = OLEDColors.accentAmber,
+                        valueColor = FinanceTheme.colors.accentAmber,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -696,7 +697,7 @@ private fun HeroMetricColumn(
         Text(
             text = label,
             style = FinanceTypography.labelSmall,
-            color = OLEDColors.textSecondary,
+            color = FinanceTheme.colors.textSecondary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -716,9 +717,9 @@ private fun BudgetSubTabBar(
     onSelectSubTab: (BudgetSubTab) -> Unit
 ) {
     Surface(
-        color = OLEDColors.bgCard,
+        color = FinanceTheme.colors.bgCard,
         shape = RoundedCornerShape(14.dp),
-        border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+        border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -778,9 +779,9 @@ private fun SubTabButton(
 ) {
     Surface(
         onClick = onClick,
-        color = if (isSelected) OLEDColors.bgCardElevated else Color.Transparent,
+        color = if (isSelected) FinanceTheme.colors.bgCardElevated else Color.Transparent,
         shape = RoundedCornerShape(10.dp),
-        border = if (isSelected) BorderStroke(1.dp, OLEDColors.borderSubtle) else null,
+        border = if (isSelected) BorderStroke(1.dp, FinanceTheme.colors.borderSubtle) else null,
         modifier = modifier.defaultMinSize(minHeight = 48.dp)
     ) {
         Row(
@@ -797,7 +798,7 @@ private fun SubTabButton(
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 0.sp
                 ),
-                color = if (isSelected) OLEDColors.textPrimary else OLEDColors.textSecondary,
+                color = if (isSelected) FinanceTheme.colors.textPrimary else FinanceTheme.colors.textSecondary,
                 maxLines = 1,
                 softWrap = false,
                 overflow = TextOverflow.Ellipsis,
@@ -806,9 +807,9 @@ private fun SubTabButton(
             Spacer(modifier = Modifier.width(3.dp))
             Surface(
                 color = when {
-                    isAlertBadge -> OLEDColors.accentRose
-                    isSelected -> OLEDColors.accentSky
-                    else -> OLEDColors.bgCardSubtle
+                    isAlertBadge -> FinanceTheme.colors.accentRose
+                    isSelected -> FinanceTheme.colors.accentSky
+                    else -> FinanceTheme.colors.bgCardSubtle
                 },
                 shape = RoundedCornerShape(6.dp)
             ) {
@@ -819,9 +820,9 @@ private fun SubTabButton(
                         fontWeight = FontWeight.ExtraBold
                     ),
                     color = when {
-                        isAlertBadge -> OLEDColors.textPrimary
-                        isSelected -> OLEDColors.bgBase
-                        else -> OLEDColors.textSecondary
+                        isAlertBadge -> MaterialTheme.colorScheme.onError
+                        isSelected -> FinanceTheme.colors.bgBase
+                        else -> FinanceTheme.colors.textSecondary
                     },
                     maxLines = 1,
                     softWrap = false,
@@ -849,7 +850,7 @@ private fun SectionHeaderRow(
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 0.8.sp
             ),
-            color = OLEDColors.textSecondary
+            color = FinanceTheme.colors.textSecondary
         )
 
         if (onActionClick != null) {
@@ -861,14 +862,14 @@ private fun SectionHeaderRow(
                 Text(
                     text = actionLabel,
                     style = FinanceTypography.labelLarge,
-                    color = OLEDColors.accentSky
+                    color = FinanceTheme.colors.accentSky
                 )
             }
         } else {
             Text(
                 text = actionLabel,
                 style = NumericTextStyles.captionAmount,
-                color = OLEDColors.textSecondary
+                color = FinanceTheme.colors.textSecondary
             )
         }
     }
@@ -886,19 +887,19 @@ private fun EnvelopeCard(
     onDeleteItem: (TransactionItemUi) -> Unit
 ) {
     var isItemsExpanded by remember(envelope.id) { mutableStateOf(false) }
-    val accentColor = CurrencyFormatters.parseColorHex(envelope.colorHex, OLEDColors.accentSky)
+    val accentColor = CurrencyFormatters.parseColorHex(envelope.colorHex, FinanceTheme.colors.accentSky)
     val ratio = envelope.progressRatio
     val pct = (ratio * 100f).toInt().coerceAtLeast(0)
     val barColor = when {
-        ratio > 0.85f -> OLEDColors.accentRose
-        ratio > 0.65f -> OLEDColors.accentAmber
-        else -> OLEDColors.accentEmerald
+        ratio > 0.85f -> FinanceTheme.colors.accentRose
+        ratio > 0.65f -> FinanceTheme.colors.accentAmber
+        else -> FinanceTheme.colors.accentEmerald
     }
 
     Surface(
-        color = OLEDColors.bgCard,
+        color = FinanceTheme.colors.bgCard,
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+        border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onEdit)
@@ -934,7 +935,7 @@ private fun EnvelopeCard(
                         Text(
                             text = envelope.name,
                             style = FinanceTypography.titleMedium,
-                            color = OLEDColors.textPrimary,
+                            color = FinanceTheme.colors.textPrimary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -949,9 +950,9 @@ private fun EnvelopeCard(
                             text = subtitle,
                             style = FinanceTypography.bodyMedium,
                             color = if (envelope.overBudgetCentavos > 0L) {
-                                OLEDColors.accentRose
+                                FinanceTheme.colors.accentRose
                             } else {
-                                OLEDColors.textSecondary
+                                FinanceTheme.colors.textSecondary
                             },
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -968,12 +969,12 @@ private fun EnvelopeCard(
                             isAmountsHidden
                         ),
                         style = NumericTextStyles.cardAmount,
-                        color = OLEDColors.textPrimary
+                        color = FinanceTheme.colors.textPrimary
                     )
                     Text(
                         text = "spent ($pct%)",
                         style = FinanceTypography.labelSmall,
-                        color = OLEDColors.textSecondary
+                        color = FinanceTheme.colors.textSecondary
                     )
                 }
             }
@@ -988,7 +989,7 @@ private fun EnvelopeCard(
                         .weight(1f)
                         .height(6.dp)
                         .clip(RoundedCornerShape(3.dp))
-                        .background(Color(0xFF1E293B))
+                        .background(FinanceTheme.colors.progressTrack)
                         .semantics {
                             contentDescription = "${envelope.name} spent $pct percent"
                         }
@@ -1004,9 +1005,9 @@ private fun EnvelopeCard(
 
                 Surface(
                     onClick = onQuickLog,
-                    color = OLEDColors.bgCardElevated,
+                    color = FinanceTheme.colors.bgCardElevated,
                     shape = RoundedCornerShape(10.dp),
-                    border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+                    border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
                     modifier = Modifier
                         .size(48.dp)
                         .semantics { contentDescription = "Quick log to ${envelope.name}" }
@@ -1015,7 +1016,7 @@ private fun EnvelopeCard(
                         Icon(
                             imageVector = Icons.Rounded.Add,
                             contentDescription = null,
-                            tint = OLEDColors.accentSky,
+                            tint = FinanceTheme.colors.accentSky,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -1025,9 +1026,9 @@ private fun EnvelopeCard(
             if (items.isNotEmpty()) {
                 Surface(
                     onClick = { isItemsExpanded = !isItemsExpanded },
-                    color = OLEDColors.bgCardSubtle,
+                    color = FinanceTheme.colors.bgCardSubtle,
                     shape = RoundedCornerShape(10.dp),
-                    border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+                    border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
                     modifier = Modifier
                         .fillMaxWidth()
                         .defaultMinSize(minHeight = 48.dp)
@@ -1048,7 +1049,7 @@ private fun EnvelopeCard(
                         Text(
                             text = itemCountLabel,
                             style = FinanceTypography.labelLarge,
-                            color = OLEDColors.textSecondary
+                            color = FinanceTheme.colors.textSecondary
                         )
                         Icon(
                             imageVector = if (isItemsExpanded) {
@@ -1057,7 +1058,7 @@ private fun EnvelopeCard(
                                 Icons.Rounded.KeyboardArrowDown
                             },
                             contentDescription = null,
-                            tint = OLEDColors.textSecondary,
+                            tint = FinanceTheme.colors.textSecondary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -1069,9 +1070,9 @@ private fun EnvelopeCard(
                     ) {
                         items.forEach { item ->
                             Surface(
-                                color = OLEDColors.bgCardElevated,
+                                color = FinanceTheme.colors.bgCardElevated,
                                 shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+                                border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
@@ -1085,14 +1086,14 @@ private fun EnvelopeCard(
                                         Text(
                                             text = item.title,
                                             style = FinanceTypography.bodyLarge,
-                                            color = OLEDColors.textPrimary,
+                                            color = FinanceTheme.colors.textPrimary,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
                                         )
                                         Text(
                                             text = item.timeLabel,
                                             style = FinanceTypography.labelSmall,
-                                            color = OLEDColors.textSecondary
+                                            color = FinanceTheme.colors.textSecondary
                                         )
                                     }
                                     Row(
@@ -1105,7 +1106,7 @@ private fun EnvelopeCard(
                                                 "-₱••••"
                                             ),
                                             style = NumericTextStyles.captionAmount,
-                                            color = OLEDColors.accentSky
+                                            color = FinanceTheme.colors.accentSky
                                         )
                                         IconButton(
                                             onClick = { onEditItem(item) },
@@ -1114,7 +1115,7 @@ private fun EnvelopeCard(
                                             Icon(
                                                 imageVector = Icons.Rounded.Edit,
                                                 contentDescription = "Edit ${item.title}",
-                                                tint = OLEDColors.textSecondary,
+                                                tint = FinanceTheme.colors.textSecondary,
                                                 modifier = Modifier.size(18.dp)
                                             )
                                         }
@@ -1125,7 +1126,7 @@ private fun EnvelopeCard(
                                             Icon(
                                                 imageVector = Icons.Rounded.DeleteOutline,
                                                 contentDescription = "Delete ${item.title}",
-                                                tint = OLEDColors.accentRose,
+                                                tint = FinanceTheme.colors.accentRose,
                                                 modifier = Modifier.size(18.dp)
                                             )
                                         }
@@ -1149,15 +1150,15 @@ private fun BillCard(
     onEdit: () -> Unit
 ) {
     val borderColor = when {
-        bill.isOverdue -> OLEDColors.accentRose.copy(alpha = 0.45f)
-        else -> OLEDColors.borderSubtle
+        bill.isOverdue -> FinanceTheme.colors.accentRose.copy(alpha = 0.45f)
+        else -> FinanceTheme.colors.borderSubtle
     }
     val containerBrush = if (bill.isOverdue) {
         Brush.verticalGradient(
-            listOf(OLEDColors.accentRose.copy(alpha = 0.08f), OLEDColors.bgCard)
+            listOf(FinanceTheme.colors.accentRose.copy(alpha = 0.08f), FinanceTheme.colors.bgCard)
         )
     } else {
-        Brush.verticalGradient(listOf(OLEDColors.bgCard, OLEDColors.bgCard))
+        Brush.verticalGradient(listOf(FinanceTheme.colors.bgCard, FinanceTheme.colors.bgCard))
     }
 
     Surface(
@@ -1184,7 +1185,7 @@ private fun BillCard(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Surface(
-                        color = OLEDColors.bgCardElevated,
+                        color = FinanceTheme.colors.bgCardElevated,
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.size(44.dp)
                     ) {
@@ -1196,14 +1197,14 @@ private fun BillCard(
                         Text(
                             text = bill.name,
                             style = FinanceTypography.titleMedium,
-                            color = OLEDColors.textPrimary,
+                            color = FinanceTheme.colors.textPrimary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = "Due ${bill.dueDateLabel}",
                             style = FinanceTypography.bodyMedium,
-                            color = OLEDColors.textSecondary
+                            color = FinanceTheme.colors.textSecondary
                         )
                     }
                 }
@@ -1212,15 +1213,15 @@ private fun BillCard(
                     Text(
                         text = maskAmount(BudgetCalculator.formatPeso(bill.amountCentavos), isAmountsHidden),
                         style = NumericTextStyles.cardAmount,
-                        color = OLEDColors.textPrimary
+                        color = FinanceTheme.colors.textPrimary
                     )
                     val (badgeText, badgeColor) = when {
-                        bill.isPaid -> "✓ Paid" to OLEDColors.accentEmerald
+                        bill.isPaid -> "✓ Paid" to FinanceTheme.colors.accentEmerald
                         bill.isOverdue -> {
                             val unit = if (bill.overdueDays == 1) "day" else "days"
-                            "Overdue by ${bill.overdueDays} $unit" to OLEDColors.accentRose
+                            "Overdue by ${bill.overdueDays} $unit" to FinanceTheme.colors.accentRose
                         }
-                        else -> "Upcoming" to OLEDColors.accentAmber
+                        else -> "Upcoming" to FinanceTheme.colors.accentAmber
                     }
                     Surface(
                         color = badgeColor.copy(alpha = 0.16f),
@@ -1249,7 +1250,7 @@ private fun BillCard(
                     Icon(
                         imageVector = Icons.Rounded.Edit,
                         contentDescription = "Edit ${bill.name}",
-                        tint = OLEDColors.textSecondary,
+                        tint = FinanceTheme.colors.textSecondary,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -1258,10 +1259,10 @@ private fun BillCard(
                     Button(
                         onClick = onPayNow,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = OLEDColors.accentEmerald.copy(alpha = 0.18f),
-                            contentColor = OLEDColors.accentEmerald
+                            containerColor = FinanceTheme.colors.accentEmerald.copy(alpha = 0.18f),
+                            contentColor = FinanceTheme.colors.accentEmerald
                         ),
-                        border = BorderStroke(1.dp, OLEDColors.accentEmerald.copy(alpha = 0.4f)),
+                        border = BorderStroke(1.dp, FinanceTheme.colors.accentEmerald.copy(alpha = 0.4f)),
                         shape = RoundedCornerShape(10.dp),
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                         modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
@@ -1275,7 +1276,7 @@ private fun BillCard(
                     Text(
                         text = "Settled for $cycleLabel",
                         style = FinanceTypography.bodyMedium,
-                        color = OLEDColors.accentEmerald
+                        color = FinanceTheme.colors.accentEmerald
                     )
                 }
             }
@@ -1289,9 +1290,9 @@ private fun LoansSummaryBanner(
     activeLoansCount: Int
 ) {
     Surface(
-        color = OLEDColors.bgCard,
+        color = FinanceTheme.colors.bgCard,
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, OLEDColors.accentAmber.copy(alpha = 0.3f)),
+        border = BorderStroke(1.dp, FinanceTheme.colors.accentAmber.copy(alpha = 0.3f)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -1305,24 +1306,24 @@ private fun LoansSummaryBanner(
                 Text(
                     text = "TOTAL COMMITTED",
                     style = FinanceTypography.labelSmall,
-                    color = OLEDColors.textSecondary
+                    color = FinanceTheme.colors.textSecondary
                 )
                 Text(
                     text = committedLoansFormatted,
                     style = NumericTextStyles.sectionAmount,
-                    color = OLEDColors.textPrimary
+                    color = FinanceTheme.colors.textPrimary
                 )
             }
 
             Surface(
-                color = OLEDColors.accentAmber.copy(alpha = 0.14f),
+                color = FinanceTheme.colors.accentAmber.copy(alpha = 0.14f),
                 shape = RoundedCornerShape(10.dp),
-                border = BorderStroke(1.dp, OLEDColors.accentAmber.copy(alpha = 0.35f))
+                border = BorderStroke(1.dp, FinanceTheme.colors.accentAmber.copy(alpha = 0.35f))
             ) {
                 Text(
                     text = "$activeLoansCount Active Loans",
                     style = FinanceTypography.labelLarge,
-                    color = OLEDColors.accentAmber,
+                    color = FinanceTheme.colors.accentAmber,
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                 )
             }
@@ -1340,11 +1341,11 @@ private fun LoanCard(
 ) {
     val isCompleted = !loan.isActive || loan.paidInstallments >= loan.totalInstallments
     Surface(
-        color = OLEDColors.bgCard,
+        color = FinanceTheme.colors.bgCard,
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(
             1.dp,
-            if (loan.isOverdue) OLEDColors.accentRose.copy(alpha = 0.45f) else OLEDColors.borderSubtle
+            if (loan.isOverdue) FinanceTheme.colors.accentRose.copy(alpha = 0.45f) else FinanceTheme.colors.borderSubtle
         ),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -1363,7 +1364,7 @@ private fun LoanCard(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Surface(
-                        color = OLEDColors.accentAmber.copy(alpha = 0.15f),
+                        color = FinanceTheme.colors.accentAmber.copy(alpha = 0.15f),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.size(44.dp)
                     ) {
@@ -1376,21 +1377,21 @@ private fun LoanCard(
                         Text(
                             text = loan.name,
                             style = FinanceTypography.titleMedium,
-                            color = OLEDColors.textPrimary,
+                            color = FinanceTheme.colors.textPrimary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = "Installment ${loan.paidInstallments}/${loan.totalInstallments} • Due ${loan.dueDateLabel}",
                             style = FinanceTypography.bodyMedium,
-                            color = OLEDColors.textSecondary
+                            color = FinanceTheme.colors.textSecondary
                         )
                         if (loan.isOverdue) {
                             val unit = if (loan.overdueDays == 1) "day" else "days"
                             Text(
                                 text = "Overdue by ${loan.overdueDays} $unit",
                                 style = FinanceTypography.labelSmall,
-                                color = OLEDColors.accentRose
+                                color = FinanceTheme.colors.accentRose
                             )
                         }
                     }
@@ -1402,7 +1403,7 @@ private fun LoanCard(
                         isAmountsHidden
                     ),
                     style = NumericTextStyles.cardAmount,
-                    color = OLEDColors.textPrimary
+                    color = FinanceTheme.colors.textPrimary
                 )
             }
 
@@ -1418,7 +1419,7 @@ private fun LoanCard(
                     Icon(
                         imageVector = Icons.Rounded.Edit,
                         contentDescription = "Edit ${loan.name}",
-                        tint = OLEDColors.textSecondary,
+                        tint = FinanceTheme.colors.textSecondary,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -1426,9 +1427,9 @@ private fun LoanCard(
                 when {
                     isCompleted -> {
                         Surface(
-                            color = OLEDColors.accentEmerald.copy(alpha = 0.18f),
+                            color = FinanceTheme.colors.accentEmerald.copy(alpha = 0.18f),
                             shape = RoundedCornerShape(10.dp),
-                            border = BorderStroke(1.dp, OLEDColors.accentEmerald.copy(alpha = 0.4f))
+                            border = BorderStroke(1.dp, FinanceTheme.colors.accentEmerald.copy(alpha = 0.4f))
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -1438,13 +1439,13 @@ private fun LoanCard(
                                 Icon(
                                     imageVector = Icons.Rounded.Check,
                                     contentDescription = null,
-                                    tint = OLEDColors.accentEmerald,
+                                    tint = FinanceTheme.colors.accentEmerald,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Text(
                                     text = "Completed",
                                     style = FinanceTypography.labelLarge,
-                                    color = OLEDColors.accentEmerald
+                                    color = FinanceTheme.colors.accentEmerald
                                 )
                             }
                         }
@@ -1456,20 +1457,20 @@ private fun LoanCard(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Surface(
-                                color = OLEDColors.accentEmerald.copy(alpha = 0.16f),
+                                color = FinanceTheme.colors.accentEmerald.copy(alpha = 0.16f),
                                 shape = RoundedCornerShape(8.dp),
-                                border = BorderStroke(1.dp, OLEDColors.accentEmerald.copy(alpha = 0.35f))
+                                border = BorderStroke(1.dp, FinanceTheme.colors.accentEmerald.copy(alpha = 0.35f))
                             ) {
                                 Text(
                                     text = "✓ Paid",
                                     style = FinanceTypography.labelSmall,
-                                    color = OLEDColors.accentEmerald,
+                                    color = FinanceTheme.colors.accentEmerald,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                 )
                             }
                             OutlinedButton(
                                 onClick = onPayAdvance,
-                                border = BorderStroke(1.dp, OLEDColors.accentAmber.copy(alpha = 0.45f)),
+                                border = BorderStroke(1.dp, FinanceTheme.colors.accentAmber.copy(alpha = 0.45f)),
                                 shape = RoundedCornerShape(10.dp),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                                 modifier = Modifier.defaultMinSize(minHeight = 48.dp)
@@ -1477,7 +1478,7 @@ private fun LoanCard(
                                 Text(
                                     text = "Pay Advance",
                                     style = FinanceTypography.labelLarge,
-                                    color = OLEDColors.accentAmber
+                                    color = FinanceTheme.colors.accentAmber
                                 )
                             }
                         }
@@ -1487,10 +1488,10 @@ private fun LoanCard(
                         Button(
                             onClick = onMarkPaid,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = OLEDColors.accentEmerald.copy(alpha = 0.18f),
-                                contentColor = OLEDColors.accentEmerald
+                                containerColor = FinanceTheme.colors.accentEmerald.copy(alpha = 0.18f),
+                                contentColor = FinanceTheme.colors.accentEmerald
                             ),
-                            border = BorderStroke(1.dp, OLEDColors.accentEmerald.copy(alpha = 0.4f)),
+                            border = BorderStroke(1.dp, FinanceTheme.colors.accentEmerald.copy(alpha = 0.4f)),
                             shape = RoundedCornerShape(10.dp),
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                             modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
@@ -1515,9 +1516,9 @@ private fun TransactionRowCard(
     onDelete: () -> Unit
 ) {
     Surface(
-        color = OLEDColors.bgCard,
+        color = FinanceTheme.colors.bgCard,
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+        border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -1531,14 +1532,14 @@ private fun TransactionRowCard(
                 Text(
                     text = transaction.title,
                     style = FinanceTypography.titleMedium,
-                    color = OLEDColors.textPrimary,
+                    color = FinanceTheme.colors.textPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = "${transaction.categoryLabel} • ${transaction.timeLabel}",
                     style = FinanceTypography.bodyMedium,
-                    color = OLEDColors.textSecondary,
+                    color = FinanceTheme.colors.textSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1555,7 +1556,7 @@ private fun TransactionRowCard(
                         "-₱••••"
                     ),
                     style = NumericTextStyles.cardAmount,
-                    color = OLEDColors.accentSky
+                    color = FinanceTheme.colors.accentSky
                 )
                 if (onEdit != null) {
                     IconButton(
@@ -1565,7 +1566,7 @@ private fun TransactionRowCard(
                         Icon(
                             imageVector = Icons.Rounded.Edit,
                             contentDescription = "Edit ${transaction.title}",
-                            tint = OLEDColors.textSecondary,
+                            tint = FinanceTheme.colors.textSecondary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -1577,7 +1578,7 @@ private fun TransactionRowCard(
                     Icon(
                         imageVector = Icons.Rounded.DeleteOutline,
                         contentDescription = "Delete ${transaction.title}",
-                        tint = OLEDColors.accentRose,
+                        tint = FinanceTheme.colors.accentRose,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -1603,14 +1604,14 @@ private fun ActivityFilterBar(
                 Text(
                     text = "Search merchant or category",
                     style = FinanceTypography.bodyMedium,
-                    color = OLEDColors.textTertiary
+                    color = FinanceTheme.colors.textTertiary
                 )
             },
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Rounded.Search,
                     contentDescription = null,
-                    tint = OLEDColors.textSecondary,
+                    tint = FinanceTheme.colors.textSecondary,
                     modifier = Modifier.size(18.dp)
                 )
             },
@@ -1620,7 +1621,7 @@ private fun ActivityFilterBar(
                         Icon(
                             imageVector = Icons.Rounded.Close,
                             contentDescription = "Clear search",
-                            tint = OLEDColors.textSecondary,
+                            tint = FinanceTheme.colors.textSecondary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -1628,14 +1629,14 @@ private fun ActivityFilterBar(
             } else {
                 null
             },
-            textStyle = FinanceTypography.bodyMedium.copy(color = OLEDColors.textPrimary),
+            textStyle = FinanceTypography.bodyMedium.copy(color = FinanceTheme.colors.textPrimary),
             shape = RoundedCornerShape(14.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = OLEDColors.bgCard,
-                unfocusedContainerColor = OLEDColors.bgCard,
-                focusedBorderColor = OLEDColors.accentSky.copy(alpha = 0.55f),
-                unfocusedBorderColor = OLEDColors.borderSubtle,
-                cursorColor = OLEDColors.accentSky
+                focusedContainerColor = FinanceTheme.colors.bgCard,
+                unfocusedContainerColor = FinanceTheme.colors.bgCard,
+                focusedBorderColor = FinanceTheme.colors.accentSky.copy(alpha = 0.55f),
+                unfocusedBorderColor = FinanceTheme.colors.borderSubtle,
+                cursorColor = FinanceTheme.colors.accentSky
             ),
             modifier = Modifier.fillMaxWidth()
         )
@@ -1673,11 +1674,11 @@ private fun ActivityCategoryChip(
 ) {
     Surface(
         onClick = onClick,
-        color = if (selected) OLEDColors.accentSky.copy(alpha = 0.16f) else OLEDColors.bgCard,
+        color = if (selected) FinanceTheme.colors.accentSky.copy(alpha = 0.16f) else FinanceTheme.colors.bgCard,
         shape = RoundedCornerShape(10.dp),
         border = BorderStroke(
             width = 1.dp,
-            color = if (selected) OLEDColors.accentSky.copy(alpha = 0.45f) else OLEDColors.borderSubtle
+            color = if (selected) FinanceTheme.colors.accentSky.copy(alpha = 0.45f) else FinanceTheme.colors.borderSubtle
         ),
         modifier = Modifier.defaultMinSize(minHeight = 36.dp)
     ) {
@@ -1688,7 +1689,7 @@ private fun ActivityCategoryChip(
             Text(
                 text = label,
                 style = FinanceTypography.labelLarge,
-                color = if (selected) OLEDColors.accentSky else OLEDColors.textSecondary
+                color = if (selected) FinanceTheme.colors.accentSky else FinanceTheme.colors.textSecondary
             )
         }
     }
@@ -1700,9 +1701,9 @@ private fun EmptyStateCard(
     subtitle: String
 ) {
     Surface(
-        color = OLEDColors.bgCard,
+        color = FinanceTheme.colors.bgCard,
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+        border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -1715,13 +1716,13 @@ private fun EmptyStateCard(
             Text(
                 text = title,
                 style = FinanceTypography.titleMedium,
-                color = OLEDColors.textPrimary,
+                color = FinanceTheme.colors.textPrimary,
                 textAlign = TextAlign.Center
             )
             Text(
                 text = subtitle,
                 style = FinanceTypography.bodyMedium,
-                color = OLEDColors.textSecondary,
+                color = FinanceTheme.colors.textSecondary,
                 textAlign = TextAlign.Center
             )
         }

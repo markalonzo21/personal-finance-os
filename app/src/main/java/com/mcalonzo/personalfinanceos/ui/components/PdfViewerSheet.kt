@@ -69,7 +69,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.mcalonzo.personalfinanceos.ui.theme.FinanceTypography
 import com.mcalonzo.personalfinanceos.ui.theme.NumericTextStyles
-import com.mcalonzo.personalfinanceos.ui.theme.OLEDColors
+import com.mcalonzo.personalfinanceos.ui.theme.FinanceTheme
 import java.io.File
 import java.io.IOException
 import kotlin.math.abs
@@ -286,8 +286,8 @@ fun PdfViewerSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = OLEDColors.bgCard,
-        contentColor = OLEDColors.textPrimary,
+        containerColor = FinanceTheme.colors.bgCard,
+        contentColor = FinanceTheme.colors.textPrimary,
         dragHandle = null
     ) {
         Column(
@@ -310,13 +310,13 @@ fun PdfViewerSheet(
                 onDismiss = onDismiss
             )
 
-            HorizontalDivider(color = OLEDColors.borderSubtle)
+            HorizontalDivider(color = FinanceTheme.colors.borderSubtle)
 
             when (val state = viewerState) {
                 is PdfViewerState.Empty -> {
                     PdfStatusCard(
                         icon = Icons.Rounded.PictureAsPdf,
-                        iconTint = OLEDColors.accentSky,
+                        iconTint = FinanceTheme.colors.accentSky,
                         title = "No SOA PDF attached yet",
                         message = "Upload a credit card or billing statement PDF to view pages offline.",
                         ctaLabel = "Upload SOA PDF",
@@ -327,7 +327,7 @@ fun PdfViewerSheet(
                 is PdfViewerState.Error -> {
                     PdfStatusCard(
                         icon = Icons.Rounded.ErrorOutline,
-                        iconTint = OLEDColors.accentRose,
+                        iconTint = FinanceTheme.colors.accentRose,
                         title = "Could not load SOA PDF",
                         message = state.message,
                         ctaLabel = ctaLabel,
@@ -346,11 +346,11 @@ fun PdfViewerSheet(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            CircularProgressIndicator(color = OLEDColors.accentSky)
+                            CircularProgressIndicator(color = FinanceTheme.colors.accentSky)
                             Text(
                                 text = "Rendering statement pages...",
                                 style = FinanceTypography.bodyMedium,
-                                color = OLEDColors.textSecondary
+                                color = FinanceTheme.colors.textSecondary
                             )
                         }
                     }
@@ -394,7 +394,7 @@ private fun PdfViewerHeader(
             Text(
                 text = title,
                 style = FinanceTypography.titleLarge,
-                color = OLEDColors.textPrimary,
+                color = FinanceTheme.colors.textPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -406,7 +406,7 @@ private fun PdfViewerHeader(
                 } else {
                     FinanceTypography.bodyMedium
                 },
-                color = OLEDColors.textSecondary,
+                color = FinanceTheme.colors.textSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -417,8 +417,8 @@ private fun PdfViewerHeader(
         Button(
             onClick = onUploadOrReplaceClick,
             colors = ButtonDefaults.buttonColors(
-                containerColor = OLEDColors.accentSky,
-                contentColor = OLEDColors.bgBase
+                containerColor = FinanceTheme.colors.accentSky,
+                contentColor = FinanceTheme.colors.bgBase
             ),
             shape = RoundedCornerShape(12.dp),
             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
@@ -439,7 +439,7 @@ private fun PdfViewerHeader(
             Icon(
                 imageVector = Icons.Rounded.Close,
                 contentDescription = "Close PDF viewer",
-                tint = OLEDColors.textPrimary
+                tint = FinanceTheme.colors.textPrimary
             )
         }
     }
@@ -455,9 +455,9 @@ private fun PdfStatusCard(
     onCtaClick: () -> Unit
 ) {
     Surface(
-        color = OLEDColors.bgCardSubtle,
+        color = FinanceTheme.colors.bgCardSubtle,
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+        border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
         modifier = Modifier
             .fillMaxWidth()
             .padding(20.dp)
@@ -478,21 +478,21 @@ private fun PdfStatusCard(
             Text(
                 text = title,
                 style = FinanceTypography.titleMedium,
-                color = OLEDColors.textPrimary,
+                color = FinanceTheme.colors.textPrimary,
                 textAlign = TextAlign.Center
             )
             Text(
                 text = message,
                 style = FinanceTypography.bodyMedium,
-                color = OLEDColors.textSecondary,
+                color = FinanceTheme.colors.textSecondary,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(4.dp))
             Button(
                 onClick = onCtaClick,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = OLEDColors.accentSky,
-                    contentColor = OLEDColors.bgBase
+                    containerColor = FinanceTheme.colors.accentSky,
+                    contentColor = FinanceTheme.colors.bgBase
                 ),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
@@ -531,7 +531,7 @@ private fun PdfPagesViewport(
 
     Box(
         modifier = modifier
-            .background(OLEDColors.bgBase)
+            .background(FinanceTheme.colors.bgBase)
             .clipToBounds()
             .onSizeChanged { viewportSize = it }
             .pointerInput(localPath) {
@@ -622,9 +622,9 @@ private fun PdfPagesViewport(
         }
 
         Surface(
-            color = OLEDColors.bgCardElevated.copy(alpha = 0.94f),
+            color = FinanceTheme.colors.bgCardElevated.copy(alpha = 0.94f),
             shape = RoundedCornerShape(999.dp),
-            border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+            border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 16.dp)
@@ -632,7 +632,7 @@ private fun PdfPagesViewport(
             Text(
                 text = "Page $currentPage of $pageCount",
                 style = NumericTextStyles.bodyAmount,
-                color = OLEDColors.textPrimary,
+                color = FinanceTheme.colors.textPrimary,
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
             )
         }
@@ -647,9 +647,9 @@ private fun PdfPageCard(
     hasFailed: Boolean
 ) {
     Surface(
-        color = OLEDColors.bgCardSubtle,
+        color = FinanceTheme.colors.bgCardSubtle,
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, OLEDColors.borderSubtle),
+        border = BorderStroke(1.dp, FinanceTheme.colors.borderSubtle),
         modifier = Modifier.fillMaxWidth()
     ) {
         Box(
@@ -681,13 +681,13 @@ private fun PdfPageCard(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .aspectRatio(DEFAULT_PAGE_ASPECT_RATIO)
-                                .background(OLEDColors.bgCardElevated),
+                                .background(FinanceTheme.colors.bgCardElevated),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = "Unable to render page $pageNumber.",
                                 style = FinanceTypography.bodyMedium,
-                                color = OLEDColors.textSecondary,
+                                color = FinanceTheme.colors.textSecondary,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.padding(16.dp)
                             )
@@ -702,7 +702,7 @@ private fun PdfPageCard(
                             contentAlignment = Alignment.Center
                         ) {
                             CircularProgressIndicator(
-                                color = OLEDColors.accentSky,
+                                color = FinanceTheme.colors.accentSky,
                                 modifier = Modifier.size(28.dp)
                             )
                         }

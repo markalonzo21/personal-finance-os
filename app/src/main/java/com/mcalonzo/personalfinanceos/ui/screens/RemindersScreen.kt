@@ -42,7 +42,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -53,7 +52,7 @@ import androidx.compose.ui.unit.sp
 import com.mcalonzo.personalfinanceos.ui.components.ReminderCadenceSheet
 import com.mcalonzo.personalfinanceos.ui.theme.FinanceTypography
 import com.mcalonzo.personalfinanceos.ui.theme.NumericTextStyles
-import com.mcalonzo.personalfinanceos.ui.theme.OLEDColors
+import com.mcalonzo.personalfinanceos.ui.theme.FinanceTheme
 import com.mcalonzo.personalfinanceos.ui.viewmodel.DueReminderItemUi
 import com.mcalonzo.personalfinanceos.ui.viewmodel.RemindersUiState
 
@@ -82,7 +81,7 @@ fun RemindersScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(OLEDColors.bgBase)
+            .background(FinanceTheme.colors.bgBase)
     ) {
         LazyColumn(
             modifier = Modifier
@@ -96,19 +95,19 @@ fun RemindersScreen(
                     Text(
                         text = "SCHEDULED ALERTS & OBLIGATIONS",
                         style = FinanceTypography.labelSmall,
-                        color = OLEDColors.accentSky,
+                        color = FinanceTheme.colors.accentSky,
                         letterSpacing = 1.2.sp
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "Bill & Loan Reminders",
                         style = FinanceTypography.headlineMedium,
-                        color = OLEDColors.textPrimary
+                        color = FinanceTheme.colors.textPrimary
                     )
                     Text(
                         text = "Chronological due dates and per-obligation notification triggers",
                         style = FinanceTypography.bodyMedium,
-                        color = OLEDColors.textSecondary
+                        color = FinanceTheme.colors.textSecondary
                     )
                 }
             }
@@ -116,9 +115,9 @@ fun RemindersScreen(
             item(key = "push_controls_card") {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = OLEDColors.bgCard),
+                    colors = CardDefaults.cardColors(containerColor = FinanceTheme.colors.bgCard),
                     shape = RoundedCornerShape(16.dp),
-                    border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(OLEDColors.borderSubtle))
+                    border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(FinanceTheme.colors.borderSubtle))
                 ) {
                     Column(
                         modifier = Modifier
@@ -135,13 +134,13 @@ fun RemindersScreen(
                                 modifier = Modifier
                                     .size(40.dp)
                                     .clip(CircleShape)
-                                    .background(if (state.globalPushEnabled) OLEDColors.accentSky.copy(alpha = 0.15f) else OLEDColors.bgCardSubtle),
+                                    .background(if (state.globalPushEnabled) FinanceTheme.colors.accentSky.copy(alpha = 0.15f) else FinanceTheme.colors.bgCardSubtle),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = if (state.globalPushEnabled) Icons.Rounded.NotificationsActive else Icons.Rounded.Notifications,
                                     contentDescription = null,
-                                    tint = if (state.globalPushEnabled) OLEDColors.accentSky else OLEDColors.textTertiary,
+                                    tint = if (state.globalPushEnabled) FinanceTheme.colors.accentSky else FinanceTheme.colors.textTertiary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -150,12 +149,12 @@ fun RemindersScreen(
                                 Text(
                                     text = "Push Notifications",
                                     style = FinanceTypography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                                    color = OLEDColors.textPrimary
+                                    color = FinanceTheme.colors.textPrimary
                                 )
                                 Text(
                                     text = "Daily 09:00 AM heads-up alerts & overdue tracking",
                                     style = FinanceTypography.labelSmall,
-                                    color = OLEDColors.textSecondary
+                                    color = FinanceTheme.colors.textSecondary
                                 )
                             }
                             Switch(
@@ -165,10 +164,10 @@ fun RemindersScreen(
                                     .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                                     .semantics { contentDescription = "Global Push Toggle" },
                                 colors = SwitchDefaults.colors(
-                                    checkedThumbColor = OLEDColors.accentSky,
-                                    checkedTrackColor = OLEDColors.bgCardElevated,
-                                    uncheckedThumbColor = OLEDColors.textTertiary,
-                                    uncheckedTrackColor = OLEDColors.bgCardSubtle
+                                    checkedThumbColor = FinanceTheme.colors.bgBase,
+                                    checkedTrackColor = FinanceTheme.colors.accentSky,
+                                    uncheckedThumbColor = FinanceTheme.colors.textTertiary,
+                                    uncheckedTrackColor = FinanceTheme.colors.bgCardSubtle
                                 )
                             )
                         }
@@ -184,27 +183,27 @@ fun RemindersScreen(
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(OLEDColors.accentRose.copy(alpha = 0.15f))
-                                        .border(1.dp, OLEDColors.accentRose.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                                        .background(FinanceTheme.colors.accentRose.copy(alpha = 0.15f))
+                                        .border(1.dp, FinanceTheme.colors.accentRose.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
                                         .padding(horizontal = 8.dp, vertical = 4.dp)
                                 ) {
                                     Text(
                                         text = "$overdueCount Overdue",
                                         style = FinanceTypography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = OLEDColors.accentRose
+                                        color = FinanceTheme.colors.accentRose
                                     )
                                 }
                             }
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(OLEDColors.bgCardSubtle)
+                                    .background(FinanceTheme.colors.bgCardSubtle)
                                     .padding(horizontal = 8.dp, vertical = 4.dp)
                             ) {
                                 Text(
                                     text = "$upcomingCount Upcoming",
                                     style = FinanceTypography.labelSmall,
-                                    color = OLEDColors.textSecondary
+                                    color = FinanceTheme.colors.textSecondary
                                 )
                             }
                             Spacer(modifier = Modifier.weight(1f))
@@ -214,7 +213,7 @@ fun RemindersScreen(
                                 modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                                 shape = RoundedCornerShape(10.dp),
                                 colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = OLEDColors.accentSky
+                                    contentColor = FinanceTheme.colors.accentSky
                                 )
                             ) {
                                 Text("Preview Alert", style = FinanceTypography.labelMedium)
@@ -230,7 +229,7 @@ fun RemindersScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 24.dp),
-                        colors = CardDefaults.cardColors(containerColor = OLEDColors.bgCardSubtle),
+                        colors = CardDefaults.cardColors(containerColor = FinanceTheme.colors.bgCardSubtle),
                         shape = RoundedCornerShape(16.dp)
                     ) {
                         Column(
@@ -247,13 +246,13 @@ fun RemindersScreen(
                             Text(
                                 text = "No Due Obligations",
                                 style = FinanceTypography.headlineSmall,
-                                color = OLEDColors.textPrimary
+                                color = FinanceTheme.colors.textPrimary
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = "All recurring bills and installment loans for this cycle are either fully settled or inactive.",
                                 style = FinanceTypography.bodyMedium,
-                                color = OLEDColors.textSecondary,
+                                color = FinanceTheme.colors.textSecondary,
                                 textAlign = TextAlign.Center
                             )
                         }
@@ -300,21 +299,21 @@ private fun ReminderItemCard(
     modifier: Modifier = Modifier
 ) {
     val statusColor = when {
-        item.isPaid -> OLEDColors.accentEmerald
-        item.isOverdue -> OLEDColors.accentRose
-        item.daysUntilDue == 0L -> OLEDColors.accentAmber
-        else -> OLEDColors.textSecondary
+        item.isPaid -> FinanceTheme.colors.accentEmerald
+        item.isOverdue -> FinanceTheme.colors.accentRose
+        item.daysUntilDue == 0L -> FinanceTheme.colors.accentAmber
+        else -> FinanceTheme.colors.textSecondary
     }
 
     val cardBorder = when {
-        item.isOverdue && !item.isPaid -> OLEDColors.accentRose.copy(alpha = 0.4f)
-        item.daysUntilDue == 0L && !item.isPaid -> OLEDColors.accentAmber.copy(alpha = 0.4f)
-        else -> OLEDColors.borderSubtle
+        item.isOverdue && !item.isPaid -> FinanceTheme.colors.accentRose.copy(alpha = 0.4f)
+        item.daysUntilDue == 0L && !item.isPaid -> FinanceTheme.colors.accentAmber.copy(alpha = 0.4f)
+        else -> FinanceTheme.colors.borderSubtle
     }
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = OLEDColors.bgCard),
+        colors = CardDefaults.cardColors(containerColor = FinanceTheme.colors.bgCard),
         shape = RoundedCornerShape(14.dp),
         border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(cardBorder))
     ) {
@@ -331,7 +330,7 @@ private fun ReminderItemCard(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(OLEDColors.bgCardSubtle),
+                        .background(FinanceTheme.colors.bgCardSubtle),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(text = item.iconEmoji, fontSize = 20.sp)
@@ -342,19 +341,19 @@ private fun ReminderItemCard(
                         Text(
                             text = item.title,
                             style = FinanceTypography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                            color = OLEDColors.textPrimary
+                            color = FinanceTheme.colors.textPrimary
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(OLEDColors.bgCardElevated)
+                                .background(FinanceTheme.colors.bgCardSubtle)
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = item.categoryLabel,
                                 style = FinanceTypography.labelSmall,
-                                color = OLEDColors.textTertiary
+                                color = FinanceTheme.colors.textTertiary
                             )
                         }
                     }
@@ -363,7 +362,7 @@ private fun ReminderItemCard(
                         Text(
                             text = "Due ${item.dueDateLabel}",
                             style = FinanceTypography.labelSmall,
-                            color = OLEDColors.textSecondary
+                            color = FinanceTheme.colors.textSecondary
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Box(
@@ -383,7 +382,7 @@ private fun ReminderItemCard(
                 Text(
                     text = item.amountFormatted,
                     style = NumericTextStyles.cardAmount,
-                    color = OLEDColors.textPrimary
+                    color = FinanceTheme.colors.textPrimary
                 )
             }
 
@@ -401,7 +400,7 @@ private fun ReminderItemCard(
                         .defaultMinSize(minHeight = 48.dp),
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = OLEDColors.textSecondary
+                        contentColor = FinanceTheme.colors.textSecondary
                     )
                 ) {
                     Icon(
@@ -421,8 +420,8 @@ private fun ReminderItemCard(
                             .defaultMinSize(minHeight = 48.dp),
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (item.isOverdue) OLEDColors.accentRose else OLEDColors.accentSky,
-                            contentColor = OLEDColors.bgBase
+                            containerColor = if (item.isOverdue) FinanceTheme.colors.accentRose else FinanceTheme.colors.accentSky,
+                            contentColor = FinanceTheme.colors.bgBase
                         )
                     ) {
                         Text(
@@ -441,14 +440,14 @@ private fun ReminderItemCard(
                         Icon(
                             imageVector = Icons.Rounded.CheckCircle,
                             contentDescription = null,
-                            tint = OLEDColors.accentEmerald,
+                            tint = FinanceTheme.colors.accentEmerald,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "Paid",
                             style = FinanceTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = OLEDColors.accentEmerald
+                            color = FinanceTheme.colors.accentEmerald
                         )
                     }
                 }

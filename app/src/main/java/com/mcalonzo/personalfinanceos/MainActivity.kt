@@ -8,6 +8,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -15,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.mcalonzo.personalfinanceos.data.local.ThemeMode
 import com.mcalonzo.personalfinanceos.data.local.entity.CardEntity
 import com.mcalonzo.personalfinanceos.data.ocr.OcrImageScanner
 import com.mcalonzo.personalfinanceos.domain.model.ScanDocumentType
@@ -33,15 +36,27 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.dark(AndroidColor.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.dark(AndroidColor.TRANSPARENT)
-        )
+        enableEdgeToEdge()
         setContent {
-            PersonalFinanceTheme {
-                val context = LocalContext.current
-                val viewModel: MainViewModel = hiltViewModel()
-                val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+            val context = LocalContext.current
+            val viewModel: MainViewModel = hiltViewModel()
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+            val isDarkTheme = resolveDarkTheme(uiState.themeMode, isSystemInDarkTheme())
+
+            DisposableEffect(isDarkTheme) {
+                val barStyle = if (isDarkTheme) {
+                    SystemBarStyle.dark(AndroidColor.TRANSPARENT)
+                } else {
+                    SystemBarStyle.light(AndroidColor.TRANSPARENT, AndroidColor.TRANSPARENT)
+                }
+                enableEdgeToEdge(
+                    statusBarStyle = barStyle,
+                    navigationBarStyle = barStyle
+                )
+                onDispose {}
+            }
+
+            PersonalFinanceTheme(darkTheme = isDarkTheme) {
 
                 var pendingScanDocType by remember { mutableStateOf(ScanDocumentType.RECEIPT) }
                 var pendingScanCard by remember { mutableStateOf<CardEntity?>(null) }
@@ -102,6 +117,7 @@ class MainActivity : ComponentActivity() {
                 MainScreen(
                     state = uiState,
                     onSelectBottomTab = viewModel::switchBottomTab,
+                    onSelectThemeMode = viewModel::selectThemeMode,
                     onSelectBudgetSubTab = viewModel::switchBudgetSubTab,
                     onSelectMonth = viewModel::selectMonth,
                     onLogExpense = viewModel::logExpense,
@@ -170,5 +186,13 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+    }
+}
+
+internal fun resolveDarkTheme(mode: ThemeMode, systemInDarkTheme: Boolean): Boolean {
+    return when (mode) {
+        ThemeMode.SYSTEM -> systemInDarkTheme
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
     }
 }

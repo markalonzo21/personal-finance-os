@@ -41,7 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mcalonzo.personalfinanceos.ui.theme.FinanceTypography
-import com.mcalonzo.personalfinanceos.ui.theme.OLEDColors
+import com.mcalonzo.personalfinanceos.ui.theme.FinanceTheme
 
 private val PRESET_ICONS: List<String> = listOf(
     "🛒", "💡", "⛽", "🍜", "🛡️",
@@ -68,8 +68,8 @@ fun IconPickerSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = OLEDColors.bgCard,
-        contentColor = OLEDColors.textPrimary
+        containerColor = FinanceTheme.colors.bgCard,
+        contentColor = FinanceTheme.colors.textPrimary
     ) {
         Column(
             modifier = Modifier
@@ -89,7 +89,7 @@ fun IconPickerSheet(
                 Text(
                     text = title,
                     style = FinanceTypography.titleLarge,
-                    color = OLEDColors.textPrimary
+                    color = FinanceTheme.colors.textPrimary
                 )
                 IconButton(
                     onClick = onDismiss,
@@ -98,7 +98,7 @@ fun IconPickerSheet(
                     Icon(
                         imageVector = Icons.Rounded.Close,
                         contentDescription = "Close icon picker",
-                        tint = OLEDColors.textSecondary
+                        tint = FinanceTheme.colors.textSecondary
                     )
                 }
             }
@@ -106,7 +106,7 @@ fun IconPickerSheet(
             Text(
                 text = "Tap any icon below or enter a custom emoji:",
                 style = FinanceTypography.bodyMedium,
-                color = OLEDColors.textSecondary
+                color = FinanceTheme.colors.textSecondary
             )
 
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -123,17 +123,17 @@ fun IconPickerSheet(
                                     onDismiss()
                                 },
                                 color = if (isSelected) {
-                                    OLEDColors.accentSky.copy(alpha = 0.2f)
+                                    FinanceTheme.colors.accentSky.copy(alpha = 0.2f)
                                 } else {
-                                    OLEDColors.bgCardElevated
+                                    FinanceTheme.colors.bgCardElevated
                                 },
                                 shape = RoundedCornerShape(14.dp),
                                 border = BorderStroke(
                                     width = if (isSelected) 1.5.dp else 1.dp,
                                     color = if (isSelected) {
-                                        OLEDColors.accentSky
+                                        FinanceTheme.colors.accentSky
                                     } else {
-                                        OLEDColors.borderSubtle
+                                        FinanceTheme.colors.borderSubtle
                                     }
                                 ),
                                 modifier = Modifier
@@ -165,12 +165,12 @@ fun IconPickerSheet(
                     placeholder = { Text("e.g. 🎁") },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = OLEDColors.accentSky,
-                        unfocusedBorderColor = OLEDColors.borderSubtle,
-                        focusedTextColor = OLEDColors.textPrimary,
-                        unfocusedTextColor = OLEDColors.textPrimary,
-                        focusedLabelColor = OLEDColors.accentSky,
-                        unfocusedLabelColor = OLEDColors.textSecondary
+                        focusedBorderColor = FinanceTheme.colors.accentSky,
+                        unfocusedBorderColor = FinanceTheme.colors.borderSubtle,
+                        focusedTextColor = FinanceTheme.colors.textPrimary,
+                        unfocusedTextColor = FinanceTheme.colors.textPrimary,
+                        focusedLabelColor = FinanceTheme.colors.accentSky,
+                        unfocusedLabelColor = FinanceTheme.colors.textSecondary
                     ),
                     modifier = Modifier.weight(1f)
                 )
@@ -185,8 +185,8 @@ fun IconPickerSheet(
                     },
                     enabled = customIconText.trim().isNotEmpty(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = OLEDColors.accentSky,
-                        contentColor = OLEDColors.bgBase
+                        containerColor = FinanceTheme.colors.accentSky,
+                        contentColor = FinanceTheme.colors.bgBase
                     ),
                     shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),

@@ -11,7 +11,9 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.work.testing.SynchronousExecutor
 import com.google.common.truth.Truth.assertThat
 import com.mcalonzo.personalfinanceos.data.local.AppDatabase
+import com.mcalonzo.personalfinanceos.data.local.InMemoryThemePreferenceStore
 import com.mcalonzo.personalfinanceos.data.local.SeedDatabaseCallback
+import com.mcalonzo.personalfinanceos.data.local.ThemeMode
 import com.mcalonzo.personalfinanceos.data.repository.BudgetRepository
 import com.mcalonzo.personalfinanceos.data.repository.GasPriceRepository
 import com.mcalonzo.personalfinanceos.domain.model.OcrLineBox
@@ -474,5 +476,29 @@ class MainViewModelTest {
         }
         assertThat(secondScan.scanBatchState.defaultEnvelopeName).isEqualTo("Groceries")
         assertThat(secondScan.scanBatchState.drafts.first().envelopeName).isEqualTo("Groceries")
+    }
+
+    @Test
+    fun `themeMode initializes from ThemePreferenceStore and updates via selectThemeMode`() = runTest {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val store = InMemoryThemePreferenceStore(ThemeMode.DARK)
+        val themedVm = MainViewModel(
+            budgetRepository = budgetRepository,
+            gasPriceRepository = gasPriceRepository,
+            motoDao = db.motoDao(),
+            context = context,
+            todayProvider = { fixedToday },
+            undoTimeoutMs = 5_000L,
+            themePreferenceStore = store
+        )
+
+        assertThat(themedVm.uiState.value.themeMode).isEqualTo(ThemeMode.DARK)
+
+        themedVm.selectThemeMode(ThemeMode.LIGHT)
+        testDispatcher.scheduler.runCurrent()
+        Shadows.shadowOf(Looper.getMainLooper()).idle()
+
+        assertThat(store.getThemeMode()).isEqualTo(ThemeMode.LIGHT)
+        assertThat(themedVm.uiState.value.themeMode).isEqualTo(ThemeMode.LIGHT)
     }
 }

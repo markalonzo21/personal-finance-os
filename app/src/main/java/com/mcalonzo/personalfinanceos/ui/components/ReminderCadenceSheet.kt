@@ -44,7 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mcalonzo.personalfinanceos.ui.theme.FinanceTypography
 import com.mcalonzo.personalfinanceos.ui.theme.NumericTextStyles
-import com.mcalonzo.personalfinanceos.ui.theme.OLEDColors
+import com.mcalonzo.personalfinanceos.ui.theme.FinanceTheme
 import com.mcalonzo.personalfinanceos.ui.viewmodel.DueReminderItemUi
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -72,8 +72,8 @@ fun ReminderCadenceSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = OLEDColors.bgCard,
-        contentColor = OLEDColors.textPrimary,
+        containerColor = FinanceTheme.colors.bgCard,
+        contentColor = FinanceTheme.colors.textPrimary,
         shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
         dragHandle = {
             Box(
@@ -81,7 +81,7 @@ fun ReminderCadenceSheet(
                     .padding(vertical = 10.dp)
                     .size(width = 40.dp, height = 4.dp)
                     .clip(CircleShape)
-                    .background(OLEDColors.borderSubtle)
+                    .background(FinanceTheme.colors.borderSubtle)
             )
         },
         modifier = modifier
@@ -96,7 +96,7 @@ fun ReminderCadenceSheet(
             Text(
                 text = "Reminder Cadence",
                 style = FinanceTypography.headlineSmall,
-                color = OLEDColors.textPrimary
+                color = FinanceTheme.colors.textPrimary
             )
             Spacer(modifier = Modifier.height(4.dp))
 
@@ -112,18 +112,18 @@ fun ReminderCadenceSheet(
                 Text(
                     text = item.title,
                     style = FinanceTypography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                    color = OLEDColors.textPrimary
+                    color = FinanceTheme.colors.textPrimary
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 Text(
                     text = item.amountFormatted,
                     style = NumericTextStyles.cardAmount,
-                    color = OLEDColors.accentSky
+                    color = FinanceTheme.colors.accentSky
                 )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider(color = OLEDColors.borderSubtle)
+            HorizontalDivider(color = FinanceTheme.colors.borderSubtle)
             Spacer(modifier = Modifier.height(8.dp))
 
             CadenceToggleRow(
@@ -176,7 +176,7 @@ fun ReminderCadenceSheet(
                         .defaultMinSize(minHeight = 48.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = OLEDColors.textSecondary
+                        contentColor = FinanceTheme.colors.textSecondary
                     )
                 ) {
                     Text("Cancel", style = FinanceTypography.labelLarge)
@@ -192,8 +192,8 @@ fun ReminderCadenceSheet(
                         .defaultMinSize(minHeight = 48.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = OLEDColors.accentSky,
-                        contentColor = OLEDColors.bgBase
+                        containerColor = FinanceTheme.colors.accentSky,
+                        contentColor = FinanceTheme.colors.bgBase
                     )
                 ) {
                     Text(
@@ -231,22 +231,22 @@ private fun CadenceToggleRow(
             Text(
                 text = label,
                 style = FinanceTypography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                color = OLEDColors.textPrimary
+                color = FinanceTheme.colors.textPrimary
             )
             Text(
                 text = description,
                 style = FinanceTypography.labelSmall,
-                color = OLEDColors.textSecondary
+                color = FinanceTheme.colors.textSecondary
             )
         }
         Switch(
             checked = checked,
             onCheckedChange = null,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = OLEDColors.accentSky,
-                checkedTrackColor = OLEDColors.bgCardElevated,
-                uncheckedThumbColor = OLEDColors.textTertiary,
-                uncheckedTrackColor = OLEDColors.bgCardSubtle
+                checkedThumbColor = FinanceTheme.colors.bgBase,
+                checkedTrackColor = FinanceTheme.colors.accentSky,
+                uncheckedThumbColor = FinanceTheme.colors.textTertiary,
+                uncheckedTrackColor = FinanceTheme.colors.bgCardSubtle
             )
         )
     }
