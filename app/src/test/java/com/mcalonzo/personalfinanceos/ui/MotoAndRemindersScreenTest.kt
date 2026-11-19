@@ -164,7 +164,7 @@ class MotoAndRemindersScreenTest {
         rule.onNodeWithText("Petron Commonwealth D.A").performClick()
         assertThat(loadedLocation).isEqualTo("quezon-city")
         rule.onNodeWithText("Gas Watcher Settings").assertIsDisplayed()
-        rule.onAllNodesWithText("Shell Ayala Ave")[0].performClick()
+        rule.onAllNodesWithText("Shell Ayala Ave")[0].performScrollTo().performClick()
         rule.onNodeWithText("Unleaded (₱69.80)").performScrollTo().performClick()
         rule.onNodeWithText("Save").performClick()
         assertThat(savedSelection).containsExactly(
@@ -354,6 +354,7 @@ class MotoAndRemindersScreenTest {
         }
         rule.onNodeWithText("Old Cleanfuel Station").performClick()
         rule.onNodeWithText("Save").assertIsNotEnabled()
+        rule.onNodeWithText("Unleaded").performScrollTo().performClick()
         rule.onNodeWithText("Seaoil Fairview").performScrollTo().performClick()
         rule.onNodeWithText("Unleaded (₱67.90)").performScrollTo().assertIsSelected()
         rule.onNodeWithText("Save").assertIsEnabled().performClick()
