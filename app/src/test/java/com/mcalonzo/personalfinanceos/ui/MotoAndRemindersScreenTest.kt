@@ -269,6 +269,50 @@ class MotoAndRemindersScreenTest {
     }
 
     @Test
+    fun `gas watcher settings only shows allowed brands and unleaded or premium95 fuel types`() {
+        val stations = listOf(
+            com.mcalonzo.personalfinanceos.data.remote.ParsedGasStation(
+                stationId = 101,
+                brand = "petron",
+                stationName = "Petron Commonwealth D.A",
+                pricesCentavos = mapOf(
+                    com.mcalonzo.personalfinanceos.data.remote.GasFuelType.UNLEADED to 6850L,
+                    com.mcalonzo.personalfinanceos.data.remote.GasFuelType.PREMIUM_95 to 7420L,
+                    com.mcalonzo.personalfinanceos.data.remote.GasFuelType.DIESEL to 6010L
+                )
+            ),
+            com.mcalonzo.personalfinanceos.data.remote.ParsedGasStation(
+                stationId = 102,
+                brand = "cleanfuel",
+                stationName = "Cleanfuel QC",
+                pricesCentavos = mapOf(
+                    com.mcalonzo.personalfinanceos.data.remote.GasFuelType.PREMIUM_95 to 7100L
+                )
+            )
+        )
+        val motoState = MotoUiState(
+            stationId = 101,
+            stationDisplayName = "Petron Commonwealth D.A",
+            fuelKey = "diesel",
+            fuelType = "Diesel",
+            watcherPickerState = com.mcalonzo.personalfinanceos.ui.viewmodel.GasWatcherPickerUiState(
+                selectedLocationSlug = "quezon-city",
+                stations = stations
+            )
+        )
+        rule.setContent {
+            PersonalFinanceTheme {
+                MotoCareScreen(state = motoState)
+            }
+        }
+        rule.onNodeWithText("Petron Commonwealth D.A").performClick()
+        rule.onNodeWithText("Cleanfuel QC").assertDoesNotExist()
+        rule.onNodeWithText("Diesel (₱60.10)").assertDoesNotExist()
+        rule.onNodeWithText("Unleaded (₱68.50)").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Premium 95 (₱74.20)").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
     fun `moto care tapping fuel price opens override dialog and submits centavos`() {
         var overrideCentavos: Long? = null
         val motoState = MotoUiState(

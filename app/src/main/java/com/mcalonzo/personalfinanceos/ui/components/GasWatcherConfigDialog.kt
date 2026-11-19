@@ -60,6 +60,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mcalonzo.personalfinanceos.data.remote.GasFuelType
+import com.mcalonzo.personalfinanceos.data.remote.GasWatchAllowlist
 import com.mcalonzo.personalfinanceos.data.remote.GasWatchLocations
 import com.mcalonzo.personalfinanceos.data.remote.ParsedGasStation
 import com.mcalonzo.personalfinanceos.domain.calculator.BudgetCalculator
@@ -93,7 +94,9 @@ fun GasWatcherConfigDialog(
     var stationDisplayName by remember { mutableStateOf(currentState.stationDisplayName) }
     var hasCustomDisplayName by remember { mutableStateOf(false) }
     var selectedFuelType by remember {
-        mutableStateOf(GasFuelType.fromKeyOrLabel(currentState.fuelKey))
+        mutableStateOf(
+            GasWatchAllowlist.coerceFuelType(GasFuelType.fromKeyOrLabel(currentState.fuelKey))
+        )
     }
     var branchQuery by remember { mutableStateOf("") }
 
@@ -105,20 +108,24 @@ fun GasWatcherConfigDialog(
         }
     }
 
-    val filteredStations = remember(pickerState.stations, branchQuery) {
+    val allowedStations = remember(pickerState.stations) {
+        GasWatchAllowlist.filterStations(pickerState.stations)
+    }
+
+    val filteredStations = remember(allowedStations, branchQuery) {
         val q = branchQuery.trim()
         if (q.isEmpty()) {
-            pickerState.stations
+            allowedStations
         } else {
-            pickerState.stations.filter {
+            allowedStations.filter {
                 it.stationName.contains(q, ignoreCase = true) ||
                     it.brand.contains(q, ignoreCase = true)
             }
         }
     }
 
-    val selectedStation = remember(pickerState.stations, selectedStationId) {
-        pickerState.stations.firstOrNull { it.stationId == selectedStationId }
+    val selectedStation = remember(allowedStations, selectedStationId) {
+        allowedStations.firstOrNull { it.stationId == selectedStationId }
     }
 
     val displayStations = remember(filteredStations, selectedStationId, branchQuery) {
@@ -144,9 +151,9 @@ fun GasWatcherConfigDialog(
     val availableFuelTypes = remember(selectedStation) {
         val stationPrices = selectedStation?.pricesCentavos
         if (stationPrices.isNullOrEmpty()) {
-            GasFuelType.entries
+            GasWatchAllowlist.ALLOWED_FUEL_TYPES
         } else {
-            GasFuelType.entries.filter { stationPrices.containsKey(it) }
+            GasWatchAllowlist.ALLOWED_FUEL_TYPES.filter { stationPrices.containsKey(it) }
         }
     }
 
