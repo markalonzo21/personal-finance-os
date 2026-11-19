@@ -412,6 +412,8 @@ class GasPriceRepositoryTest {
                           [
                             {"id": 101, "brand": "Petron", "name": "Petron QC", "prices": {"unleaded": 68.5, "premium95": 74.2, "diesel": 60.1}},
                             {"id": 102, "brand": " Shell ", "name": "Shell Katipunan", "prices": {"unleaded": 69.0}},
+                            {"id": 105, "brand": "Seaoil", "name": "Seaoil Commonwealth", "prices": {"premium95": 73.1}},
+                            {"id": 106, "brand": "Phoenix", "name": "Phoenix Regalado", "prices": {"unleaded": 68.2}},
                             {"id": 103, "brand": "Cleanfuel", "name": "Cleanfuel QC", "prices": {"premium95": 71.0}},
                             {"id": 104, "brand": "Caltex", "name": "Caltex Diesel Only", "prices": {"diesel": 61.5, "kerosene": 70.0}}
                           ]
@@ -427,7 +429,7 @@ class GasPriceRepositoryTest {
 
         assertThat(result.isSuccess).isTrue()
         val stations = result.getOrThrow()
-        assertThat(stations.map { it.stationId }).containsExactly(101, 102).inOrder()
+        assertThat(stations.map { it.stationId }).containsExactly(101, 102, 105, 106).inOrder()
         assertThat(stations[0].pricesCentavos.keys).containsExactly(
             com.mcalonzo.personalfinanceos.data.remote.GasFuelType.UNLEADED,
             com.mcalonzo.personalfinanceos.data.remote.GasFuelType.PREMIUM_95

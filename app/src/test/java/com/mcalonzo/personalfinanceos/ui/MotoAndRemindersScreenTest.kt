@@ -10,6 +10,7 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
@@ -270,6 +271,7 @@ class MotoAndRemindersScreenTest {
 
     @Test
     fun `gas watcher settings only shows allowed brands and unleaded or premium95 fuel types`() {
+        var savedFuelKey: String? = null
         val stations = listOf(
             com.mcalonzo.personalfinanceos.data.remote.ParsedGasStation(
                 stationId = 101,
@@ -288,6 +290,14 @@ class MotoAndRemindersScreenTest {
                 pricesCentavos = mapOf(
                     com.mcalonzo.personalfinanceos.data.remote.GasFuelType.PREMIUM_95 to 7100L
                 )
+            ),
+            com.mcalonzo.personalfinanceos.data.remote.ParsedGasStation(
+                stationId = 103,
+                brand = "caltex",
+                stationName = "Caltex Diesel Only",
+                pricesCentavos = mapOf(
+                    com.mcalonzo.personalfinanceos.data.remote.GasFuelType.DIESEL to 6150L
+                )
             )
         )
         val motoState = MotoUiState(
@@ -302,14 +312,59 @@ class MotoAndRemindersScreenTest {
         )
         rule.setContent {
             PersonalFinanceTheme {
-                MotoCareScreen(state = motoState)
+                MotoCareScreen(
+                    state = motoState,
+                    onUpdateGasWatcherConfig = { _, _, _, _, fuelKey, _ -> savedFuelKey = fuelKey }
+                )
             }
         }
         rule.onNodeWithText("Petron Commonwealth D.A").performClick()
         rule.onNodeWithText("Cleanfuel QC").assertDoesNotExist()
+        rule.onNodeWithText("Caltex Diesel Only").assertDoesNotExist()
         rule.onNodeWithText("Diesel (₱60.10)").assertDoesNotExist()
         rule.onNodeWithText("Unleaded (₱68.50)").performScrollTo().assertIsDisplayed()
-        rule.onNodeWithText("Premium 95 (₱74.20)").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Premium 95 (₱74.20)").performScrollTo().assertIsSelected()
+        rule.onNodeWithText("Save").performClick()
+        assertThat(savedFuelKey).isEqualTo("premium95")
+    }
+
+    @Test
+    fun `gas watcher settings reconciles unleaded-only station and blocks disallowed saved station`() {
+        var savedFuelKey: String? = null
+        val stations = listOf(
+            com.mcalonzo.personalfinanceos.data.remote.ParsedGasStation(
+                stationId = 105,
+                brand = "seaoil",
+                stationName = "Seaoil Fairview",
+                pricesCentavos = mapOf(
+                    com.mcalonzo.personalfinanceos.data.remote.GasFuelType.UNLEADED to 6790L
+                )
+            )
+        )
+        val motoState = MotoUiState(
+            stationId = 999,
+            stationDisplayName = "Old Cleanfuel Station",
+            fuelKey = "diesel",
+            fuelType = "Diesel",
+            watcherPickerState = com.mcalonzo.personalfinanceos.ui.viewmodel.GasWatcherPickerUiState(
+                selectedLocationSlug = "quezon-city",
+                stations = stations
+            )
+        )
+        rule.setContent {
+            PersonalFinanceTheme {
+                MotoCareScreen(
+                    state = motoState,
+                    onUpdateGasWatcherConfig = { _, _, _, _, fuelKey, _ -> savedFuelKey = fuelKey }
+                )
+            }
+        }
+        rule.onNodeWithText("Old Cleanfuel Station").performClick()
+        rule.onNodeWithText("Save").assertIsNotEnabled()
+        rule.onNodeWithText("Seaoil Fairview").performScrollTo().performClick()
+        rule.onNodeWithText("Unleaded (₱67.90)").performScrollTo().assertIsSelected()
+        rule.onNodeWithText("Save").assertIsEnabled().performClick()
+        assertThat(savedFuelKey).isEqualTo("unleaded")
     }
 
     @Test

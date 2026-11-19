@@ -21,6 +21,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -141,8 +143,14 @@ fun GasWatcherConfigDialog(
         }
     }
 
+    val loadedCurrentLocationStations = !pickerState.isLoadingStations &&
+        pickerState.errorMessage == null &&
+        pickerState.selectedLocationSlug == selectedLocationSlug &&
+        allowedStations.isNotEmpty()
+
     val needsBranchSelection = selectedStationId <= 0 ||
-        (selectedLocationSlug != currentState.locationSlug && selectedStation == null)
+        (selectedLocationSlug != currentState.locationSlug && selectedStation == null) ||
+        (loadedCurrentLocationStations && selectedStation == null)
 
     val canSave = !needsBranchSelection &&
         stationDisplayName.isNotBlank() &&
@@ -154,6 +162,12 @@ fun GasWatcherConfigDialog(
             GasWatchAllowlist.ALLOWED_FUEL_TYPES
         } else {
             GasWatchAllowlist.ALLOWED_FUEL_TYPES.filter { stationPrices.containsKey(it) }
+        }
+    }
+
+    LaunchedEffect(availableFuelTypes) {
+        if (availableFuelTypes.isNotEmpty() && selectedFuelType !in availableFuelTypes) {
+            selectedFuelType = availableFuelTypes.first()
         }
     }
 
@@ -304,9 +318,9 @@ fun GasWatcherConfigDialog(
                             stationDisplayName = station.stationName
                         }
                         if (!station.pricesCentavos.containsKey(selectedFuelType)) {
-                            station.pricesCentavos.keys.firstOrNull()?.let {
-                                selectedFuelType = it
-                            }
+                            GasWatchAllowlist.ALLOWED_FUEL_TYPES
+                                .firstOrNull { station.pricesCentavos.containsKey(it) }
+                                ?.let { selectedFuelType = it }
                         }
                     },
                     modifier = Modifier.fillMaxWidth()
@@ -542,7 +556,9 @@ private fun StationListSection(
 
             else -> {
                 Column(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .selectableGroup(),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     filteredStations.forEach { station ->
@@ -563,7 +579,11 @@ private fun StationListSection(
                                     color = if (isSelected) FinanceTheme.colors.accentSky else FinanceTheme.colors.borderSubtle,
                                     shape = RoundedCornerShape(10.dp)
                                 )
-                                .clickable(role = Role.RadioButton) { onSelectStation(station) }
+                                .selectable(
+                                    selected = isSelected,
+                                    role = Role.RadioButton,
+                                    onClick = { onSelectStation(station) }
+                                )
                                 .padding(horizontal = 12.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -595,7 +615,7 @@ private fun StationListSection(
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Icon(
                                     imageVector = Icons.Rounded.Check,
-                                    contentDescription = "Selected",
+                                    contentDescription = null,
                                     tint = FinanceTheme.colors.accentSky,
                                     modifier = Modifier.size(18.dp)
                                 )
