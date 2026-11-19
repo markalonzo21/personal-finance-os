@@ -24,7 +24,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.LocalGasStation
@@ -197,13 +196,7 @@ fun MotoCareScreen(
                                 contentColor = FinanceTheme.colors.accentSky
                             )
                         ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Add,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("+ Log PMS", style = FinanceTypography.labelMedium)
+                            Text("+ Log PMS", style = FinanceTypography.labelLarge)
                         }
                     }
                 }
@@ -375,7 +368,7 @@ private fun MotoHeroCard(
                     )
                     Text(
                         text = "${tankCapacityLiters}L Fuel Tank • Daily Driver",
-                        style = FinanceTypography.labelSmall,
+                        style = FinanceTypography.labelMedium,
                         color = FinanceTheme.colors.textSecondary
                     )
                 }
@@ -466,7 +459,9 @@ private fun GasPriceWatcherCard(
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .clickable(role = Role.Button, onClick = onConfigureWatcher)
+                        .defaultMinSize(minHeight = 48.dp)
+                        .clickable(role = Role.Button, onClick = onConfigureWatcher),
+                    verticalArrangement = Arrangement.Center
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
@@ -482,11 +477,20 @@ private fun GasPriceWatcherCard(
                             modifier = Modifier.size(14.dp)
                         )
                     }
-                    Text(
-                        text = state.fuelType,
-                        style = FinanceTypography.labelSmall,
-                        color = FinanceTheme.colors.textSecondary
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = state.fuelType,
+                            style = FinanceTypography.labelMedium,
+                            color = FinanceTheme.colors.textSecondary
+                        )
+                        if (state.locationDisplayName.isNotBlank()) {
+                            Text(
+                                text = " • ${state.locationDisplayName}",
+                                style = FinanceTypography.labelMedium,
+                                color = FinanceTheme.colors.textSecondary
+                            )
+                        }
+                    }
                 }
 
                 Box(
@@ -533,12 +537,13 @@ private fun GasPriceWatcherCard(
                 Column(
                     modifier = Modifier
                         .weight(1f)
+                        .defaultMinSize(minHeight = 48.dp)
                         .clickable(role = Role.Button, onClick = onTapPrice)
                 ) {
                     Text(
                         text = "PUMP PRICE (TAP TO EDIT)",
-                        style = FinanceTypography.labelSmall,
-                        color = FinanceTheme.colors.textTertiary,
+                        style = FinanceTypography.labelMedium,
+                        color = FinanceTheme.colors.textSecondary,
                         letterSpacing = 0.8.sp
                     )
                     Text(
@@ -549,7 +554,7 @@ private fun GasPriceWatcherCard(
                     if (state.prevPriceFormatted.isNotEmpty()) {
                         Text(
                             text = state.prevPriceFormatted,
-                            style = FinanceTypography.labelSmall,
+                            style = FinanceTypography.labelMedium,
                             color = FinanceTheme.colors.textSecondary
                         )
                     }
@@ -558,8 +563,8 @@ private fun GasPriceWatcherCard(
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         text = "FULL TANK (5.5L)",
-                        style = FinanceTypography.labelSmall,
-                        color = FinanceTheme.colors.textTertiary,
+                        style = FinanceTypography.labelMedium,
+                        color = FinanceTheme.colors.textSecondary,
                         letterSpacing = 0.8.sp
                     )
                     Text(
@@ -641,7 +646,7 @@ private fun PmsCard(
                     )
                     Text(
                         text = "Every ${String.format("%,d", item.intervalKm)} km • Last: ${String.format("%,d", item.lastServiceOdometerKm)} km",
-                        style = FinanceTypography.labelSmall,
+                        style = FinanceTypography.labelMedium,
                         color = FinanceTheme.colors.textSecondary
                     )
                 }
@@ -653,7 +658,7 @@ private fun PmsCard(
                 ) {
                     Text(
                         text = item.dueStatusText,
-                        style = FinanceTypography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        style = FinanceTypography.labelMedium.copy(fontWeight = FontWeight.Bold),
                         color = statusColor
                     )
                 }
@@ -705,12 +710,23 @@ private fun PmsCard(
 }
 
 @Composable
+private fun motoTextFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = FinanceTheme.colors.accentSky,
+    unfocusedBorderColor = FinanceTheme.colors.borderSubtle,
+    focusedTextColor = FinanceTheme.colors.textPrimary,
+    unfocusedTextColor = FinanceTheme.colors.textPrimary,
+    focusedLabelColor = FinanceTheme.colors.accentSky,
+    unfocusedLabelColor = FinanceTheme.colors.textSecondary
+)
+
+@Composable
 private fun EditOdometerDialog(
     currentOdometerKm: Int,
     onDismiss: () -> Unit,
     onConfirm: (Int) -> Unit
 ) {
     var rawKm by remember { mutableStateOf(currentOdometerKm.toString()) }
+    val parsedKm = rawKm.toIntOrNull()
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -718,7 +734,7 @@ private fun EditOdometerDialog(
         title = {
             Text(
                 "Update Odometer",
-                style = FinanceTypography.headlineSmall,
+                style = FinanceTypography.titleLarge,
                 color = FinanceTheme.colors.textPrimary
             )
         },
@@ -737,23 +753,18 @@ private fun EditOdometerDialog(
                     label = { Text("Odometer (km)") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = FinanceTheme.colors.accentSky,
-                        unfocusedBorderColor = FinanceTheme.colors.borderSubtle,
-                        focusedTextColor = FinanceTheme.colors.textPrimary,
-                        unfocusedTextColor = FinanceTheme.colors.textPrimary
-                    )
+                    colors = motoTextFieldColors()
                 )
             }
         },
         confirmButton = {
             Button(
                 onClick = {
-                    val parsed = rawKm.toIntOrNull()
-                    if (parsed != null && parsed >= 0) {
-                        onConfirm(parsed)
+                    if (parsedKm != null && parsedKm >= 0) {
+                        onConfirm(parsedKm)
                     }
                 },
+                enabled = parsedKm != null && parsedKm >= 0,
                 modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = FinanceTheme.colors.accentSky,
@@ -785,6 +796,7 @@ private fun OverrideGasPriceDialog(
     var rawInput by remember {
         mutableStateOf(CurrencyFormatters.formatCentavosForInput(currentPriceCentavos))
     }
+    val parsedCentavos = CurrencyFormatters.parsePesoToCentavos(rawInput)
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -792,7 +804,7 @@ private fun OverrideGasPriceDialog(
         title = {
             Text(
                 "Override Fuel Price",
-                style = FinanceTypography.headlineSmall,
+                style = FinanceTypography.titleLarge,
                 color = FinanceTheme.colors.textPrimary
             )
         },
@@ -811,23 +823,18 @@ private fun OverrideGasPriceDialog(
                     label = { Text("Price per Liter (₱)") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = FinanceTheme.colors.accentSky,
-                        unfocusedBorderColor = FinanceTheme.colors.borderSubtle,
-                        focusedTextColor = FinanceTheme.colors.textPrimary,
-                        unfocusedTextColor = FinanceTheme.colors.textPrimary
-                    )
+                    colors = motoTextFieldColors()
                 )
             }
         },
         confirmButton = {
             Button(
                 onClick = {
-                    val centavos = CurrencyFormatters.parsePesoToCentavos(rawInput)
-                    if (centavos != null && centavos > 0L) {
-                        onConfirm(centavos)
+                    if (parsedCentavos != null && parsedCentavos > 0L) {
+                        onConfirm(parsedCentavos)
                     }
                 },
+                enabled = parsedCentavos != null && parsedCentavos > 0L,
                 modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = FinanceTheme.colors.accentSky,
@@ -874,6 +881,7 @@ private fun EnvelopeSelectorChips(
                 val isSelected = env.id == selectedEnvId
                 Box(
                     modifier = Modifier
+                        .defaultMinSize(minHeight = 48.dp)
                         .clip(RoundedCornerShape(8.dp))
                         .background(if (isSelected) FinanceTheme.colors.accentSky.copy(alpha = 0.2f) else FinanceTheme.colors.bgCardSubtle)
                         .border(
@@ -883,11 +891,12 @@ private fun EnvelopeSelectorChips(
                         )
                         .semantics(mergeDescendants = true) {}
                         .clickable(role = Role.Button) { onSelectEnvelope(env.id) }
-                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "${env.iconEmoji} ${env.name}",
-                        style = FinanceTypography.labelSmall.copy(
+                        style = FinanceTypography.labelMedium.copy(
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                         ),
                         color = if (isSelected) FinanceTheme.colors.accentSky else FinanceTheme.colors.textSecondary
@@ -921,7 +930,7 @@ private fun LogPmsServiceDialog(
         title = {
             Text(
                 "Log PMS Service",
-                style = FinanceTypography.headlineSmall,
+                style = FinanceTypography.titleLarge,
                 color = FinanceTheme.colors.textPrimary
             )
         },
@@ -944,12 +953,7 @@ private fun LogPmsServiceDialog(
                     label = { Text("Service Odometer (km)") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = FinanceTheme.colors.accentSky,
-                        unfocusedBorderColor = FinanceTheme.colors.borderSubtle,
-                        focusedTextColor = FinanceTheme.colors.textPrimary,
-                        unfocusedTextColor = FinanceTheme.colors.textPrimary
-                    )
+                    colors = motoTextFieldColors()
                 )
                 OutlinedTextField(
                     value = rawCost,
@@ -959,12 +963,7 @@ private fun LogPmsServiceDialog(
                     placeholder = { Text("0.00") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = FinanceTheme.colors.accentSky,
-                        unfocusedBorderColor = FinanceTheme.colors.borderSubtle,
-                        focusedTextColor = FinanceTheme.colors.textPrimary,
-                        unfocusedTextColor = FinanceTheme.colors.textPrimary
-                    )
+                    colors = motoTextFieldColors()
                 )
 
                 val parsedCost = CurrencyFormatters.parsePesoToCentavos(rawCost) ?: 0L
@@ -984,6 +983,7 @@ private fun LogPmsServiceDialog(
                     val cost = CurrencyFormatters.parsePesoToCentavos(rawCost) ?: 0L
                     onConfirm(km, cost, if (cost > 0L) selectedEnvId else null)
                 },
+                enabled = rawKm.toIntOrNull() != null,
                 modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = FinanceTheme.colors.accentSky,
@@ -1033,7 +1033,7 @@ private fun AddEditPmsDialog(
         title = {
             Text(
                 if (isEditing) "Edit PMS Schedule" else "Add PMS Schedule",
-                style = FinanceTypography.headlineSmall,
+                style = FinanceTypography.titleLarge,
                 color = FinanceTheme.colors.textPrimary
             )
         },
@@ -1049,12 +1049,7 @@ private fun AddEditPmsDialog(
                     label = { Text("Task Name") },
                     placeholder = { Text("e.g. Brake Fluid Flush") },
                     singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = FinanceTheme.colors.accentSky,
-                        unfocusedBorderColor = FinanceTheme.colors.borderSubtle,
-                        focusedTextColor = FinanceTheme.colors.textPrimary,
-                        unfocusedTextColor = FinanceTheme.colors.textPrimary
-                    )
+                    colors = motoTextFieldColors()
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
@@ -1063,12 +1058,7 @@ private fun AddEditPmsDialog(
                         modifier = Modifier.width(72.dp),
                         label = { Text("Icon") },
                         singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = FinanceTheme.colors.accentSky,
-                            unfocusedBorderColor = FinanceTheme.colors.borderSubtle,
-                            focusedTextColor = FinanceTheme.colors.textPrimary,
-                            unfocusedTextColor = FinanceTheme.colors.textPrimary
-                        )
+                        colors = motoTextFieldColors()
                     )
                     OutlinedTextField(
                         value = intervalKm,
@@ -1077,12 +1067,7 @@ private fun AddEditPmsDialog(
                         label = { Text("Interval (km)") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = FinanceTheme.colors.accentSky,
-                            unfocusedBorderColor = FinanceTheme.colors.borderSubtle,
-                            focusedTextColor = FinanceTheme.colors.textPrimary,
-                            unfocusedTextColor = FinanceTheme.colors.textPrimary
-                        )
+                        colors = motoTextFieldColors()
                     )
                 }
                 OutlinedTextField(
@@ -1092,12 +1077,7 @@ private fun AddEditPmsDialog(
                     label = { Text("Last Serviced at (km)") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = FinanceTheme.colors.accentSky,
-                        unfocusedBorderColor = FinanceTheme.colors.borderSubtle,
-                        focusedTextColor = FinanceTheme.colors.textPrimary,
-                        unfocusedTextColor = FinanceTheme.colors.textPrimary
-                    )
+                    colors = motoTextFieldColors()
                 )
                 if (!isEditing) {
                     OutlinedTextField(
@@ -1108,12 +1088,7 @@ private fun AddEditPmsDialog(
                         placeholder = { Text("0.00") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = FinanceTheme.colors.accentSky,
-                            unfocusedBorderColor = FinanceTheme.colors.borderSubtle,
-                            focusedTextColor = FinanceTheme.colors.textPrimary,
-                            unfocusedTextColor = FinanceTheme.colors.textPrimary
-                        )
+                        colors = motoTextFieldColors()
                     )
 
                     val parsedCost = CurrencyFormatters.parsePesoToCentavos(rawCost) ?: 0L
@@ -1141,6 +1116,7 @@ private fun AddEditPmsDialog(
                         }
                     }
                 },
+                enabled = taskName.isNotBlank(),
                 modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = FinanceTheme.colors.accentSky,
