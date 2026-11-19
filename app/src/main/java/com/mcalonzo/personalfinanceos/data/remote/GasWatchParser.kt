@@ -66,6 +66,27 @@ data class ParsedGasPrice(
     val premium95Centavos: Long
 )
 
+object GasWatchAllowlist {
+    val ALLOWED_BRANDS: Set<String> = setOf("petron", "shell", "caltex", "seaoil", "phoenix")
+    val ALLOWED_FUEL_TYPES: List<GasFuelType> = listOf(GasFuelType.UNLEADED, GasFuelType.PREMIUM_95)
+
+    fun isAllowedBrand(brand: String): Boolean = brand.trim().lowercase() in ALLOWED_BRANDS
+
+    fun isAllowedFuel(fuel: GasFuelType): Boolean = fuel in ALLOWED_FUEL_TYPES
+
+    fun coerceFuelType(fuel: GasFuelType): GasFuelType =
+        if (isAllowedFuel(fuel)) fuel else GasFuelType.PREMIUM_95
+
+    fun filterStations(stations: List<ParsedGasStation>): List<ParsedGasStation> {
+        return stations.mapNotNull { station ->
+            if (!isAllowedBrand(station.brand)) return@mapNotNull null
+            val allowedPrices = station.pricesCentavos.filterKeys { isAllowedFuel(it) }
+            if (allowedPrices.isEmpty()) return@mapNotNull null
+            station.copy(pricesCentavos = allowedPrices)
+        }
+    }
+}
+
 /**
  * Extracts station fuel prices from standard inline `<script>` JSON or Next.js escaped
  * script payloads on GasWatchPH.

@@ -2,6 +2,7 @@ package com.mcalonzo.personalfinanceos.data.local
 
 import android.content.Context
 import com.mcalonzo.personalfinanceos.data.remote.GasFuelType
+import com.mcalonzo.personalfinanceos.data.remote.GasWatchAllowlist
 import com.mcalonzo.personalfinanceos.data.repository.GasPriceRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -64,6 +65,11 @@ class SharedPreferencesGasWatcherConfigStore @Inject constructor(
     }
 
     private fun readFromPrefs(): GasWatcherConfig {
+        val rawFuelKey = prefs.getString(KEY_FUEL_KEY, null)
+            ?.takeIf { it.isNotBlank() }
+        val resolvedFuel = rawFuelKey
+            ?.let { GasWatchAllowlist.coerceFuelType(GasFuelType.fromKeyOrLabel(it)) }
+            ?: GasFuelType.PREMIUM_95
         return GasWatcherConfig(
             locationSlug = prefs.getString(KEY_LOCATION_SLUG, null)
                 ?.takeIf { it.isNotBlank() }
@@ -75,12 +81,8 @@ class SharedPreferencesGasWatcherConfigStore @Inject constructor(
             stationDisplayName = prefs.getString(KEY_STATION_NAME, null)
                 ?.takeIf { it.isNotBlank() }
                 ?: GasPriceRepository.STATION_DISPLAY_NAME,
-            fuelKey = prefs.getString(KEY_FUEL_KEY, null)
-                ?.takeIf { it.isNotBlank() }
-                ?: GasFuelType.PREMIUM_95.jsonKey,
-            fuelDisplayName = prefs.getString(KEY_FUEL_NAME, null)
-                ?.takeIf { it.isNotBlank() }
-                ?: GasFuelType.PREMIUM_95.displayName
+            fuelKey = resolvedFuel.jsonKey,
+            fuelDisplayName = resolvedFuel.displayName
         )
     }
 

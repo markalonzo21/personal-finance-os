@@ -10,6 +10,7 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
@@ -204,6 +205,166 @@ class MotoAndRemindersScreenTest {
         rule.onNodeWithText("Save").assertIsEnabled()
         rule.onNodeWithText("Makati").performClick()
         rule.onNodeWithText("Save").assertIsNotEnabled()
+    }
+
+    @Test
+    fun `gas watcher settings preserves custom display name across branch selection`() {
+        var savedName: String? = null
+        val stations = listOf(
+            com.mcalonzo.personalfinanceos.data.remote.ParsedGasStation(
+                stationId = 901,
+                brand = "shell",
+                stationName = "Shell Ayala Ave",
+                pricesCentavos = mapOf(com.mcalonzo.personalfinanceos.data.remote.GasFuelType.PREMIUM_95 to 7550L)
+            )
+        )
+        val motoState = MotoUiState(
+            stationDisplayName = "Petron Commonwealth D.A",
+            watcherPickerState = com.mcalonzo.personalfinanceos.ui.viewmodel.GasWatcherPickerUiState(
+                selectedLocationSlug = "quezon-city",
+                stations = stations
+            )
+        )
+        rule.setContent {
+            PersonalFinanceTheme {
+                MotoCareScreen(
+                    state = motoState,
+                    onUpdateGasWatcherConfig = { _, _, _, name, _, _ -> savedName = name }
+                )
+            }
+        }
+        rule.onNodeWithText("Petron Commonwealth D.A").performClick()
+        rule.onAllNodesWithText("Petron Commonwealth D.A")[1].performTextReplacement("My Daily Pump")
+        rule.onNodeWithText("Shell Ayala Ave").performScrollTo().performClick()
+        rule.onNodeWithText("Save").performClick()
+        assertThat(savedName).isEqualTo("My Daily Pump")
+    }
+
+    @Test
+    fun `gas watcher settings empty search offers clear search recovery`() {
+        val stations = listOf(
+            com.mcalonzo.personalfinanceos.data.remote.ParsedGasStation(
+                stationId = 901,
+                brand = "shell",
+                stationName = "Shell Ayala Ave",
+                pricesCentavos = mapOf(com.mcalonzo.personalfinanceos.data.remote.GasFuelType.PREMIUM_95 to 7550L)
+            )
+        )
+        val motoState = MotoUiState(
+            stationDisplayName = "Petron Commonwealth D.A",
+            watcherPickerState = com.mcalonzo.personalfinanceos.ui.viewmodel.GasWatcherPickerUiState(
+                selectedLocationSlug = "quezon-city",
+                stations = stations
+            )
+        )
+        rule.setContent {
+            PersonalFinanceTheme {
+                MotoCareScreen(state = motoState)
+            }
+        }
+        rule.onNodeWithText("Petron Commonwealth D.A").performClick()
+        rule.onNodeWithText("Search branch or brand").performTextReplacement("zzzzz")
+        rule.onNodeWithText("No matching branches found.").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Clear search").performScrollTo().performClick()
+        rule.onNodeWithText("Shell Ayala Ave").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun `gas watcher settings only shows allowed brands and unleaded or premium95 fuel types`() {
+        var savedFuelKey: String? = null
+        val stations = listOf(
+            com.mcalonzo.personalfinanceos.data.remote.ParsedGasStation(
+                stationId = 101,
+                brand = "petron",
+                stationName = "Petron Commonwealth D.A",
+                pricesCentavos = mapOf(
+                    com.mcalonzo.personalfinanceos.data.remote.GasFuelType.UNLEADED to 6850L,
+                    com.mcalonzo.personalfinanceos.data.remote.GasFuelType.PREMIUM_95 to 7420L,
+                    com.mcalonzo.personalfinanceos.data.remote.GasFuelType.DIESEL to 6010L
+                )
+            ),
+            com.mcalonzo.personalfinanceos.data.remote.ParsedGasStation(
+                stationId = 102,
+                brand = "cleanfuel",
+                stationName = "Cleanfuel QC",
+                pricesCentavos = mapOf(
+                    com.mcalonzo.personalfinanceos.data.remote.GasFuelType.PREMIUM_95 to 7100L
+                )
+            ),
+            com.mcalonzo.personalfinanceos.data.remote.ParsedGasStation(
+                stationId = 103,
+                brand = "caltex",
+                stationName = "Caltex Diesel Only",
+                pricesCentavos = mapOf(
+                    com.mcalonzo.personalfinanceos.data.remote.GasFuelType.DIESEL to 6150L
+                )
+            )
+        )
+        val motoState = MotoUiState(
+            stationId = 101,
+            stationDisplayName = "Petron Commonwealth D.A",
+            fuelKey = "diesel",
+            fuelType = "Diesel",
+            watcherPickerState = com.mcalonzo.personalfinanceos.ui.viewmodel.GasWatcherPickerUiState(
+                selectedLocationSlug = "quezon-city",
+                stations = stations
+            )
+        )
+        rule.setContent {
+            PersonalFinanceTheme {
+                MotoCareScreen(
+                    state = motoState,
+                    onUpdateGasWatcherConfig = { _, _, _, _, fuelKey, _ -> savedFuelKey = fuelKey }
+                )
+            }
+        }
+        rule.onNodeWithText("Petron Commonwealth D.A").performClick()
+        rule.onNodeWithText("Cleanfuel QC").assertDoesNotExist()
+        rule.onNodeWithText("Caltex Diesel Only").assertDoesNotExist()
+        rule.onNodeWithText("Diesel (₱60.10)").assertDoesNotExist()
+        rule.onNodeWithText("Unleaded (₱68.50)").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Premium 95 (₱74.20)").performScrollTo().assertIsSelected()
+        rule.onNodeWithText("Save").performClick()
+        assertThat(savedFuelKey).isEqualTo("premium95")
+    }
+
+    @Test
+    fun `gas watcher settings reconciles unleaded-only station and blocks disallowed saved station`() {
+        var savedFuelKey: String? = null
+        val stations = listOf(
+            com.mcalonzo.personalfinanceos.data.remote.ParsedGasStation(
+                stationId = 105,
+                brand = "seaoil",
+                stationName = "Seaoil Fairview",
+                pricesCentavos = mapOf(
+                    com.mcalonzo.personalfinanceos.data.remote.GasFuelType.UNLEADED to 6790L
+                )
+            )
+        )
+        val motoState = MotoUiState(
+            stationId = 999,
+            stationDisplayName = "Old Cleanfuel Station",
+            fuelKey = "diesel",
+            fuelType = "Diesel",
+            watcherPickerState = com.mcalonzo.personalfinanceos.ui.viewmodel.GasWatcherPickerUiState(
+                selectedLocationSlug = "quezon-city",
+                stations = stations
+            )
+        )
+        rule.setContent {
+            PersonalFinanceTheme {
+                MotoCareScreen(
+                    state = motoState,
+                    onUpdateGasWatcherConfig = { _, _, _, _, fuelKey, _ -> savedFuelKey = fuelKey }
+                )
+            }
+        }
+        rule.onNodeWithText("Old Cleanfuel Station").performClick()
+        rule.onNodeWithText("Save").assertIsNotEnabled()
+        rule.onNodeWithText("Seaoil Fairview").performScrollTo().performClick()
+        rule.onNodeWithText("Unleaded (₱67.90)").performScrollTo().assertIsSelected()
+        rule.onNodeWithText("Save").assertIsEnabled().performClick()
+        assertThat(savedFuelKey).isEqualTo("unleaded")
     }
 
     @Test
