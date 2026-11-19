@@ -207,6 +207,68 @@ class MotoAndRemindersScreenTest {
     }
 
     @Test
+    fun `gas watcher settings preserves custom display name across branch selection`() {
+        var savedName: String? = null
+        val stations = listOf(
+            com.mcalonzo.personalfinanceos.data.remote.ParsedGasStation(
+                stationId = 901,
+                brand = "shell",
+                stationName = "Shell Ayala Ave",
+                pricesCentavos = mapOf(com.mcalonzo.personalfinanceos.data.remote.GasFuelType.PREMIUM_95 to 7550L)
+            )
+        )
+        val motoState = MotoUiState(
+            stationDisplayName = "Petron Commonwealth D.A",
+            watcherPickerState = com.mcalonzo.personalfinanceos.ui.viewmodel.GasWatcherPickerUiState(
+                selectedLocationSlug = "quezon-city",
+                stations = stations
+            )
+        )
+        rule.setContent {
+            PersonalFinanceTheme {
+                MotoCareScreen(
+                    state = motoState,
+                    onUpdateGasWatcherConfig = { _, _, _, name, _, _ -> savedName = name }
+                )
+            }
+        }
+        rule.onNodeWithText("Petron Commonwealth D.A").performClick()
+        rule.onAllNodesWithText("Petron Commonwealth D.A")[1].performTextReplacement("My Daily Pump")
+        rule.onNodeWithText("Shell Ayala Ave").performScrollTo().performClick()
+        rule.onNodeWithText("Save").performClick()
+        assertThat(savedName).isEqualTo("My Daily Pump")
+    }
+
+    @Test
+    fun `gas watcher settings empty search offers clear search recovery`() {
+        val stations = listOf(
+            com.mcalonzo.personalfinanceos.data.remote.ParsedGasStation(
+                stationId = 901,
+                brand = "shell",
+                stationName = "Shell Ayala Ave",
+                pricesCentavos = mapOf(com.mcalonzo.personalfinanceos.data.remote.GasFuelType.PREMIUM_95 to 7550L)
+            )
+        )
+        val motoState = MotoUiState(
+            stationDisplayName = "Petron Commonwealth D.A",
+            watcherPickerState = com.mcalonzo.personalfinanceos.ui.viewmodel.GasWatcherPickerUiState(
+                selectedLocationSlug = "quezon-city",
+                stations = stations
+            )
+        )
+        rule.setContent {
+            PersonalFinanceTheme {
+                MotoCareScreen(state = motoState)
+            }
+        }
+        rule.onNodeWithText("Petron Commonwealth D.A").performClick()
+        rule.onNodeWithText("Search branch or brand").performTextReplacement("zzzzz")
+        rule.onNodeWithText("No matching branches found.").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Clear search").performScrollTo().performClick()
+        rule.onNodeWithText("Shell Ayala Ave").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
     fun `moto care tapping fuel price opens override dialog and submits centavos`() {
         var overrideCentavos: Long? = null
         val motoState = MotoUiState(
