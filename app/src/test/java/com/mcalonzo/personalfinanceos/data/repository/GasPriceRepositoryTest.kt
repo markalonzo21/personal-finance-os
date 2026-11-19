@@ -396,4 +396,67 @@ class GasPriceRepositoryTest {
         assertThat(saved.fuelType).isEqualTo("Unleaded")
         assertThat(saved.pricePerLiterCentavos).isEqualTo(6980L)
     }
+
+    @Test
+    fun `fetchStationsForLocation filters to allowed brands and allowed fuel types`() = runTest {
+        val client = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                Response.Builder()
+                    .request(chain.request())
+                    .protocol(Protocol.HTTP_1_1)
+                    .code(200)
+                    .message("OK")
+                    .body(
+                        """
+                        <script>
+                          [
+                            {"id": 101, "brand": "Petron", "name": "Petron QC", "prices": {"unleaded": 68.5, "premium95": 74.2, "diesel": 60.1}},
+                            {"id": 102, "brand": " Shell ", "name": "Shell Katipunan", "prices": {"unleaded": 69.0}},
+                            {"id": 103, "brand": "Cleanfuel", "name": "Cleanfuel QC", "prices": {"premium95": 71.0}},
+                            {"id": 104, "brand": "Caltex", "name": "Caltex Diesel Only", "prices": {"diesel": 61.5, "kerosene": 70.0}}
+                          ]
+                        </script>
+                        """.trimIndent().toResponseBody("text/html".toMediaType())
+                    )
+                    .build()
+            }
+            .build()
+
+        val repo = GasPriceRepository(db.motoDao(), client)
+        val result = repo.fetchStationsForLocation("quezon-city")
+
+        assertThat(result.isSuccess).isTrue()
+        val stations = result.getOrThrow()
+        assertThat(stations.map { it.stationId }).containsExactly(101, 102).inOrder()
+        assertThat(stations[0].pricesCentavos.keys).containsExactly(
+            com.mcalonzo.personalfinanceos.data.remote.GasFuelType.UNLEADED,
+            com.mcalonzo.personalfinanceos.data.remote.GasFuelType.PREMIUM_95
+        )
+    }
+
+    @Test
+    fun `fetchStationsForLocation fails when no stations match allowlist`() = runTest {
+        val client = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                Response.Builder()
+                    .request(chain.request())
+                    .protocol(Protocol.HTTP_1_1)
+                    .code(200)
+                    .message("OK")
+                    .body(
+                        """
+                        <script>
+                          [{"id": 201, "brand": "Cleanfuel", "name": "Cleanfuel EDSA", "prices": {"diesel": 60.0}}]
+                        </script>
+                        """.trimIndent().toResponseBody("text/html".toMediaType())
+                    )
+                    .build()
+            }
+            .build()
+
+        val repo = GasPriceRepository(db.motoDao(), client)
+        val result = repo.fetchStationsForLocation("quezon-city")
+
+        assertThat(result.isFailure).isTrue()
+    }
 }

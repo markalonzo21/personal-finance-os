@@ -6,6 +6,7 @@ import com.mcalonzo.personalfinanceos.data.local.InMemoryGasWatcherConfigStore
 import com.mcalonzo.personalfinanceos.data.local.dao.MotoDao
 import com.mcalonzo.personalfinanceos.data.local.entity.GasPriceHistoryEntity
 import com.mcalonzo.personalfinanceos.data.remote.GasFuelType
+import com.mcalonzo.personalfinanceos.data.remote.GasWatchAllowlist
 import com.mcalonzo.personalfinanceos.data.remote.GasWatchParser
 import com.mcalonzo.personalfinanceos.data.remote.ParsedGasStation
 import com.mcalonzo.personalfinanceos.domain.calculator.MotoCalculator
@@ -87,9 +88,9 @@ class GasPriceRepository internal constructor(
     suspend fun fetchStationsForLocation(locationSlug: String): Result<List<ParsedGasStation>> {
         val url = targetUrlOverride ?: buildGasWatchUrl(locationSlug)
         val html = fetchHtml(url).getOrElse { return Result.failure(it) }
-        val stations = GasWatchParser.parseStations(html)
+        val stations = GasWatchAllowlist.filterStations(GasWatchParser.parseStations(html))
         if (stations.isEmpty()) {
-            return Result.failure(IllegalStateException("No stations found for $locationSlug"))
+            return Result.failure(IllegalStateException("No matching stations found for $locationSlug"))
         }
         return Result.success(stations)
     }
