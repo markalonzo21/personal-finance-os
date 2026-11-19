@@ -92,6 +92,7 @@ fun GasWatcherConfigDialog(
 
     var selectedLocationSlug by remember { mutableStateOf(currentState.locationSlug) }
     var selectedLocationName by remember { mutableStateOf(currentState.locationDisplayName) }
+    var selectedBrand by remember { mutableStateOf<String?>(null) }
     var selectedStationId by remember { mutableStateOf(currentState.stationId) }
     var stationDisplayName by remember { mutableStateOf(currentState.stationDisplayName) }
     var hasCustomDisplayName by remember { mutableStateOf(false) }
@@ -114,15 +115,16 @@ fun GasWatcherConfigDialog(
         GasWatchAllowlist.filterStations(pickerState.stations)
     }
 
-    val filteredStations = remember(allowedStations, branchQuery) {
+    val filteredStations = remember(allowedStations, selectedBrand, selectedFuelType, branchQuery) {
         val q = branchQuery.trim()
-        if (q.isEmpty()) {
-            allowedStations
-        } else {
-            allowedStations.filter {
-                it.stationName.contains(q, ignoreCase = true) ||
-                    it.brand.contains(q, ignoreCase = true)
-            }
+        allowedStations.filter { station ->
+            val brandMatches = selectedBrand == null ||
+                station.brand.trim().equals(selectedBrand, ignoreCase = true)
+            val fuelMatches = station.pricesCentavos.containsKey(selectedFuelType)
+            val queryMatches = q.isEmpty() ||
+                station.stationName.contains(q, ignoreCase = true) ||
+                station.brand.contains(q, ignoreCase = true)
+            brandMatches && fuelMatches && queryMatches
         }
     }
 
@@ -254,6 +256,71 @@ fun GasWatcherConfigDialog(
                     }
                 }
 
+                SectionLabel("BRAND")
+                val brandOptions = remember {
+                    listOf<String?>(null) + listOf("Petron", "Shell", "Caltex", "Seaoil", "Phoenix")
+                }
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(brandOptions, key = { it ?: "all" }) { brand ->
+                        val isSelected = selectedBrand.equals(brand, ignoreCase = true) ||
+                            (brand == null && selectedBrand == null)
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { selectedBrand = brand },
+                            leadingIcon = if (isSelected) {
+                                {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Check,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            } else null,
+                            label = {
+                                Text(brand ?: "All", style = FinanceTypography.labelMedium)
+                            },
+                            border = chipBorder(isSelected),
+                            colors = chipColors()
+                        )
+                    }
+                }
+
+                SectionLabel("GAS TYPE")
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    GasWatchAllowlist.ALLOWED_FUEL_TYPES.forEach { fuel ->
+                        val isSelected = fuel == selectedFuelType
+                        val priceCentavos = selectedStation?.pricesCentavos?.get(fuel)
+                        val labelText = if (priceCentavos != null) {
+                            "${fuel.displayName} (${BudgetCalculator.formatPeso(priceCentavos)})"
+                        } else {
+                            fuel.displayName
+                        }
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { selectedFuelType = fuel },
+                            leadingIcon = if (isSelected) {
+                                {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Check,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            } else null,
+                            label = { Text(labelText, style = FinanceTypography.labelMedium) },
+                            border = chipBorder(isSelected),
+                            colors = chipColors()
+                        )
+                    }
+                }
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -345,39 +412,6 @@ fun GasWatcherConfigDialog(
                     singleLine = true,
                     colors = textFieldColors
                 )
-
-                SectionLabel("FUEL TYPE")
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    availableFuelTypes.forEach { fuel ->
-                        val isSelected = fuel == selectedFuelType
-                        val priceCentavos = selectedStation?.pricesCentavos?.get(fuel)
-                        val labelText = if (priceCentavos != null) {
-                            "${fuel.displayName} (${BudgetCalculator.formatPeso(priceCentavos)})"
-                        } else {
-                            fuel.displayName
-                        }
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { selectedFuelType = fuel },
-                            leadingIcon = if (isSelected) {
-                                {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Check,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            } else null,
-                            label = { Text(labelText, style = FinanceTypography.labelMedium) },
-                            border = chipBorder(isSelected),
-                            colors = chipColors()
-                        )
-                    }
-                }
             }
 
             HorizontalDivider(color = FinanceTheme.colors.borderSubtle)
@@ -387,20 +421,17 @@ fun GasWatcherConfigDialog(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                if (!canSave) {
-                    Text(
-                        text = when {
-                            pickerState.isLoadingStations -> "Loading stations..."
-                            needsBranchSelection -> "Select a branch to save"
-                            else -> "Enter a display name"
-                        },
-                        style = FinanceTypography.labelMedium,
-                        color = FinanceTheme.colors.textSecondary,
-                        modifier = Modifier.weight(1f)
-                    )
-                } else {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
+                Text(
+                    text = when {
+                        pickerState.isLoadingStations -> "Loading stations..."
+                        needsBranchSelection -> "Select a branch to save"
+                        stationDisplayName.isBlank() -> "Enter a display name"
+                        else -> "${displayStations.size} ${if (displayStations.size == 1) "branch" else "branches"}"
+                    },
+                    style = FinanceTypography.labelMedium,
+                    color = FinanceTheme.colors.textSecondary,
+                    modifier = Modifier.weight(1f)
+                )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(

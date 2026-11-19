@@ -80,33 +80,26 @@ class MotoAndRemindersScreenTest {
         rule.onNodeWithText("Petron Commonwealth D.A").assertIsDisplayed()
         rule.onNodeWithText("Premium 95").assertIsDisplayed()
         rule.onNodeWithText("▲ +₱0.45").assertIsDisplayed()
-        rule.onNodeWithText("₱431.20").assertIsDisplayed()
+        rule.onNodeWithText("₱431.20", substring = true).performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Commonwealth Ave", substring = true).assertDoesNotExist()
         rule.onNodeWithText("gaswatchph", substring = true).assertDoesNotExist()
     }
 
     @Test
-    fun `moto care log full tank invokes callback`() {
-        var logFullTankCalled = false
+    fun `moto care hides log full tank button and shows full tank cost on bike card`() {
         val motoState = MotoUiState(
             modelName = "Honda Click 160",
             odometerKm = 8450,
+            tankCapacityLiters = 5.5,
             fullTankCostFormatted = "₱431.20"
         )
         rule.setContent {
             PersonalFinanceTheme {
-                MotoCareScreen(
-                    state = motoState,
-                    onLogFullTank = { logFullTankCalled = true },
-                    onRefreshGas = {},
-                    onEditOdometer = {},
-                    onOverridePrice = {},
-                    onAddPms = {}
-                )
+                MotoCareScreen(state = motoState)
             }
         }
-        rule.onNodeWithText("Log Full Tank").performClick()
-        assertThat(logFullTankCalled).isTrue()
+        rule.onNodeWithText("Log Full Tank").assertDoesNotExist()
+        rule.onNodeWithText("Full tank (5.5L) · ₱431.20").assertIsDisplayed()
     }
 
     @Test
@@ -171,7 +164,7 @@ class MotoAndRemindersScreenTest {
         rule.onNodeWithText("Petron Commonwealth D.A").performClick()
         assertThat(loadedLocation).isEqualTo("quezon-city")
         rule.onNodeWithText("Gas Watcher Settings").assertIsDisplayed()
-        rule.onAllNodesWithText("Shell Ayala Ave")[0].performClick()
+        rule.onAllNodesWithText("Shell Ayala Ave")[0].performScrollTo().performClick()
         rule.onNodeWithText("Unleaded (₱69.80)").performScrollTo().performClick()
         rule.onNodeWithText("Save").performClick()
         assertThat(savedSelection).containsExactly(
@@ -361,6 +354,7 @@ class MotoAndRemindersScreenTest {
         }
         rule.onNodeWithText("Old Cleanfuel Station").performClick()
         rule.onNodeWithText("Save").assertIsNotEnabled()
+        rule.onNodeWithText("Unleaded").performScrollTo().performClick()
         rule.onNodeWithText("Seaoil Fairview").performScrollTo().performClick()
         rule.onNodeWithText("Unleaded (₱67.90)").performScrollTo().assertIsSelected()
         rule.onNodeWithText("Save").assertIsEnabled().performClick()
@@ -429,10 +423,10 @@ class MotoAndRemindersScreenTest {
                 )
             }
         }
-        rule.onNode(hasScrollToIndexAction()).performScrollToIndex(4)
+        rule.onNode(hasScrollToIndexAction()).performScrollToIndex(2)
         rule.onNodeWithText("Honda 4T SL 10W-30 Engine Oil").assertIsDisplayed()
         rule.onNodeWithText("Due in 550 km").assertIsDisplayed()
-        rule.onNodeWithText("Log Service").performClick()
+        rule.onNodeWithText("Log").performClick()
         rule.onNodeWithText("Confirm Service").performClick()
 
         assertThat(servicedPmsId).isEqualTo(101L)
@@ -468,8 +462,8 @@ class MotoAndRemindersScreenTest {
                 )
             }
         }
-        rule.onNode(hasScrollToIndexAction()).performScrollToIndex(4)
-        rule.onNodeWithText("Edit").performClick()
+        rule.onNode(hasScrollToIndexAction()).performScrollToIndex(2)
+        rule.onNodeWithText("Honda 4T SL 10W-30 Engine Oil").performClick()
         rule.onNodeWithText("Edit PMS Schedule").assertIsDisplayed()
         rule.onNode(hasText("Task Name") and hasSetTextAction()).performTextReplacement("Synthetic Engine Oil")
         rule.onNode(hasText("Interval (km)") and hasSetTextAction()).performTextReplacement("2000")
@@ -478,7 +472,7 @@ class MotoAndRemindersScreenTest {
         assertThat(updatedPms).isEqualTo("Synthetic Engine Oil" to 2000)
 
         // Delete flow
-        rule.onNodeWithText("Edit").performClick()
+        rule.onNodeWithText("Honda 4T SL 10W-30 Engine Oil").performClick()
         rule.onNodeWithText("Delete").performClick()
         assertThat(deletedPmsId).isEqualTo(101L)
     }
@@ -523,8 +517,8 @@ class MotoAndRemindersScreenTest {
                 )
             }
         }
-        rule.onNode(hasScrollToIndexAction()).performScrollToIndex(4)
-        rule.onNodeWithText("Log Service").performClick()
+        rule.onNode(hasScrollToIndexAction()).performScrollToIndex(2)
+        rule.onNodeWithText("Log").performClick()
         rule.onNode(hasText("Optional Cost (₱)") and hasSetTextAction()).performTextReplacement("350.00")
         rule.onNodeWithText("Confirm Service").performClick()
 
@@ -574,7 +568,7 @@ class MotoAndRemindersScreenTest {
             }
         }
 
-        rule.onNode(hasScrollToIndexAction()).performScrollToIndex(3)
+        rule.onNode(hasScrollToIndexAction()).performScrollToIndex(2)
         rule.onNodeWithText("+ Log PMS").performClick()
         rule.onNodeWithText("Add PMS Schedule").assertIsDisplayed()
 
@@ -677,7 +671,7 @@ class MotoAndRemindersScreenTest {
         }
         rule.onNodeWithText("Converge FiberX").assertIsDisplayed()
         rule.onNodeWithText("Overdue by 4 days").assertIsDisplayed()
-        rule.onNode(hasScrollToIndexAction()).performScrollToIndex(3)
+        rule.onNode(hasScrollToIndexAction()).performScrollToIndex(2)
         rule.onNodeWithText("Honda Click 160 Loan").assertIsDisplayed()
         rule.onNodeWithText("Due in 6 days").assertIsDisplayed()
     }
@@ -822,8 +816,8 @@ class MotoAndRemindersScreenTest {
             }
         }
 
-        rule.onNode(hasScrollToIndexAction()).performScrollToIndex(4)
-        rule.onNodeWithText("Log Service").performClick()
+        rule.onNode(hasScrollToIndexAction()).performScrollToIndex(2)
+        rule.onNodeWithText("Log").performClick()
         rule.onNode(hasText("Optional Cost (₱)") and hasSetTextAction()).performTextReplacement("250.00")
         rule.onNodeWithText("🎧 Personal & Misc").performSemanticsAction(SemanticsActions.OnClick)
         rule.onNodeWithText("Confirm Service").performClick()
