@@ -429,7 +429,7 @@ class GasPriceRepositoryTest {
 
         assertThat(result.isSuccess).isTrue()
         val stations = result.getOrThrow()
-        assertThat(stations.map { it.stationId }).containsExactly(101, 102, 105, 106).inOrder()
+        assertThat(stations.map { it.stationId }).containsExactly(101, 106, 105, 102).inOrder()
         assertThat(stations[0].pricesCentavos.keys).containsExactly(
             com.mcalonzo.personalfinanceos.data.remote.GasFuelType.UNLEADED,
             com.mcalonzo.personalfinanceos.data.remote.GasFuelType.PREMIUM_95
